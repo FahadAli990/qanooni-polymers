@@ -149,7 +149,7 @@ function RawMaterialPage() {
               />
             </div>
             <div>
-              <label htmlFor="material-price">Price per kg (Rs)</label>
+              <label htmlFor="material-price">Amount per kg (Rs)</label>
               <input
                 id="material-price"
                 type="number"
@@ -184,7 +184,7 @@ function RawMaterialPage() {
             <thead>
               <tr>
                 <th>Material</th>
-                <th>Price / kg</th>
+                <th>Amount / kg</th>
                 <th>In Stock Now</th>
                 <th>Stock Value</th>
                 <th aria-label="Actions" />
@@ -199,17 +199,13 @@ function RawMaterialPage() {
                       <strong>{item.name}</strong>
                     </Link>
                   </td>
-                  <td>
-                    {Number(item.pricePerKg) > 0 ? formatMoney(item.pricePerKg) : '—'}
-                  </td>
+                  <td>{formatMoney(Number(item.pricePerKg) || 0)}</td>
                   <td>
                     {formatNum(item.totalBags)} bags
                     <span className="stock-totals__sep">·</span>
                     {formatNum(item.totalKg)} kg
                   </td>
-                  <td>
-                    {Number(item.stockValue) > 0 ? formatMoney(item.stockValue) : '—'}
-                  </td>
+                  <td>{formatMoney(Number(item.stockValue) || 0)}</td>
                   <td className="stock-table__actions">
                     <button type="button" className="btn-secondary btn-compact" onClick={() => openEdit(item)}>
                       Edit
