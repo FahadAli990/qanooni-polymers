@@ -51,7 +51,7 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
   - When remaining hits 0 → `status = used` and row **leaves Mills & Production list** (history stays on Orders / Delivered)
   - Deliver blocked if matching production remaining kg is insufficient
   - Consumptions stored in `sales_order_consumptions` for exact undo
-- On **Pending** (undo deliver) / **Delete delivered**: production remaining restored from ledger
+- On **Pending** (undo deliver) / **Delete delivered**: production remaining restored onto original lots (oldest date first); if lot missing, recreate/expand so Pending/Delete always succeeds
 - Admin can **Edit** any order (delivered edit restores stock and returns order to Pending)
 - Admin can **Delete** pending or delivered orders
 - Raw stock is only cut when production is recorded (not again on deliver)

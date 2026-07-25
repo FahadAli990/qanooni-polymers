@@ -149,26 +149,38 @@ async function parseOrderBody(body = {}) {
 async function reverseDeliveredStock(order, conn) {
   const allocations = await findOrderConsumptions(order.id, conn)
   if (allocations.length) {
-    await restoreProductionAllocations(allocations, conn)
+    const failed = await restoreProductionAllocations(allocations, conn)
     await deleteOrderConsumptions(order.id, conn)
+    for (const miss of failed) {
+      const item =
+        (order.items || []).find((row) => Number(row.rawMaterialId) === Number(miss.rawMaterialId)) ||
+        (order.items || [])[0]
+      if (!item) continue
+      await restoreKgOntoMatchingLots(
+        {
+          kind: miss.kind || item.kind,
+          size: miss.size || item.size,
+          rawMaterialId: miss.rawMaterialId || item.rawMaterialId,
+          kg: miss.kg,
+          date: order.date,
+        },
+        conn,
+      )
+    }
     return
   }
 
   for (const item of order.items || []) {
-    const result = await restoreKgOntoMatchingLots(
+    await restoreKgOntoMatchingLots(
       {
         kind: item.kind,
         size: item.size,
         rawMaterialId: item.rawMaterialId,
         kg: item.kg,
+        date: order.date,
       },
       conn,
     )
-    if (!result.ok) {
-      throw badRequest(
-        `Cannot fully restore production for "${item.materialName}" ${item.size}. Short by ${result.shortfall} kg`,
-      )
-    }
   }
 }
 

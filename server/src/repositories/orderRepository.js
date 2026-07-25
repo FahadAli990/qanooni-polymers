@@ -290,10 +290,18 @@ export async function insertOrderConsumptions(orderId, allocations, executor) {
 export async function findOrderConsumptions(orderId, executor = null) {
   const db = executor || getPool()
   const [rows] = await db.query(
-    `SELECT id, sales_order_id, roll_production_id, kg
-     FROM sales_order_consumptions
-     WHERE sales_order_id = :orderId
-     ORDER BY id ASC`,
+    `SELECT
+       c.id,
+       c.sales_order_id,
+       c.roll_production_id,
+       c.kg,
+       r.kind,
+       r.size,
+       r.raw_material_id
+     FROM sales_order_consumptions c
+     LEFT JOIN roll_productions r ON r.id = c.roll_production_id
+     WHERE c.sales_order_id = :orderId
+     ORDER BY c.id ASC`,
     { orderId },
   )
   return rows.map((row) => ({
@@ -301,6 +309,9 @@ export async function findOrderConsumptions(orderId, executor = null) {
     salesOrderId: row.sales_order_id,
     productionId: row.roll_production_id,
     kg: Number(row.kg),
+    kind: row.kind || null,
+    size: row.size || null,
+    rawMaterialId: row.raw_material_id != null ? Number(row.raw_material_id) : null,
   }))
 }
 

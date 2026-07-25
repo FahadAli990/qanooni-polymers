@@ -160,38 +160,62 @@ export async function consumeProductionFifo(
   return { ok: true, shortfall: 0, consumed: need, allocations }
 }
 
-/** Put consumed kg back onto production lots (undo deliver). */
+/** Put consumed kg back onto exact production lots (undo deliver via ledger). */
 export async function restoreProductionAllocations(allocations, executor) {
+  const failed = []
   for (const row of allocations) {
     const productionId = Number(row.productionId ?? row.roll_production_id)
-    const kg = Number(row.kg)
-    if (!Number.isInteger(productionId) || !(kg > 0)) continue
+    const addKg = Number(row.kg)
+    if (!Number.isInteger(productionId) || !(addKg > 0)) continue
+
+    const [rows] = await executor.query(
+      `SELECT id, kg, remaining_kg FROM roll_productions WHERE id = :id LIMIT 1 FOR UPDATE`,
+      { id: productionId },
+    )
+    const lot = rows[0]
+    if (!lot) {
+      failed.push({
+        kg: addKg,
+        kind: row.kind || null,
+        size: row.size || null,
+        rawMaterialId: row.rawMaterialId != null ? Number(row.rawMaterialId) : null,
+      })
+      continue
+    }
+
+    const nextRemaining = Number((Number(lot.remaining_kg) + addKg).toFixed(2))
+    const nextKg = Number(Math.max(Number(lot.kg), nextRemaining).toFixed(2))
     await executor.query(
       `UPDATE roll_productions
-       SET remaining_kg = LEAST(kg, remaining_kg + :kg),
-           status = CASE
-             WHEN LEAST(kg, remaining_kg + :kg) > 0 THEN 'available'
-             ELSE 'used'
-           END
+       SET kg = :nextKg,
+           remaining_kg = :nextRemaining,
+           status = 'available'
        WHERE id = :id`,
-      { id: productionId, kg },
+      { id: productionId, nextKg, nextRemaining },
     )
   }
+  return failed
 }
 
-/** Legacy fallback: restore kg onto matching lots that still have room under original kg. */
+/**
+ * Restore kg into matching production lots (oldest date first).
+ * 1) Fill free room on existing lots (remaining < original kg)
+ * 2) If still short, expand the oldest lot's original kg + remaining
+ * 3) If no lot exists, create a new production row on the given date
+ */
 export async function restoreKgOntoMatchingLots(
-  { kind, size, rawMaterialId, kg },
+  { kind, size, rawMaterialId, kg, date },
   executor,
 ) {
   let left = Number(Number(kg).toFixed(2))
+  if (!(left > 0)) return { ok: true, shortfall: 0 }
+
   const [lots] = await executor.query(
-    `SELECT id, kg, remaining_kg
+    `SELECT id, kg, remaining_kg, production_date
      FROM roll_productions
      WHERE kind = :kind
        AND size = :size
        AND raw_material_id = :rawMaterialId
-       AND remaining_kg < kg
      ORDER BY production_date ASC, id ASC
      FOR UPDATE`,
     { kind, size, rawMaterialId },
@@ -210,10 +234,47 @@ export async function restoreKgOntoMatchingLots(
        WHERE id = :id`,
       { id: lot.id, remainingKg: nextRemaining },
     )
+    lot.remaining_kg = nextRemaining
     left = Number((left - take).toFixed(2))
   }
 
-  return { ok: left <= 1e-9, shortfall: Math.max(0, left) }
+  if (left > 0 && lots.length) {
+    const target = lots[0]
+    const nextKg = Number((Number(target.kg) + left).toFixed(2))
+    const nextRemaining = Number((Number(target.remaining_kg) + left).toFixed(2))
+    await executor.query(
+      `UPDATE roll_productions
+       SET kg = :nextKg,
+           remaining_kg = :nextRemaining,
+           status = 'available'
+       WHERE id = :id`,
+      { id: target.id, nextKg, nextRemaining },
+    )
+    left = 0
+  }
+
+  if (left > 0) {
+    const productionDate =
+      date && /^\d{4}-\d{2}-\d{2}$/.test(String(date))
+        ? String(date).slice(0, 10)
+        : new Date().toISOString().slice(0, 10)
+    await executor.query(
+      `INSERT INTO roll_productions
+         (kind, raw_material_id, production_date, size, kg, remaining_kg, status)
+       VALUES
+         (:kind, :rawMaterialId, :date, :size, :kg, :kg, 'available')`,
+      {
+        kind,
+        rawMaterialId,
+        date: productionDate,
+        size,
+        kg: left,
+      },
+    )
+    left = 0
+  }
+
+  return { ok: true, shortfall: 0 }
 }
 
 export async function insertRoll({ kind, rawMaterialId, date, size, kg }) {
