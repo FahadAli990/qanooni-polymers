@@ -46,19 +46,19 @@ export function buildNavItems(materials = [], routes = []) {
             },
           ],
         },
-        {
-          id: 'mills-routes',
-          label: 'Routes',
-          Icon: MdRoute,
-          path: '/mills-production/routes',
-          children: routes.map((r) => ({
-            id: `route-${r.slug}`,
-            label: r.name,
-            Icon: MdRoute,
-            path: `/mills-production/routes/${r.slug}`,
-          })),
-        },
       ],
+    },
+    {
+      id: 'routes',
+      label: 'Routes',
+      Icon: MdRoute,
+      path: '/routes',
+      children: routes.map((r) => ({
+        id: `route-${r.slug}`,
+        label: r.name,
+        Icon: MdRoute,
+        path: `/routes/${r.slug}`,
+      })),
     },
   ]
 }
@@ -70,7 +70,7 @@ function parseRawMaterialPath(pathname, materials) {
   return { material: materials.find((m) => m.slug === slug) || null }
 }
 
-function parseMillsPath(pathname, routes = []) {
+function parseMillsPath(pathname) {
   if (pathname === '/mills-production/roll' || pathname === '/mills-production/role') {
     return { section: 'mills-roll', ancestors: ['mills-production'] }
   }
@@ -80,18 +80,22 @@ function parseMillsPath(pathname, routes = []) {
   if (pathname === '/mills-production/bundle/dewaar') {
     return { section: 'mills-bundle-dewaar', ancestors: ['mills-production', 'mills-bundle'] }
   }
-  if (pathname === '/mills-production/routes') {
-    return { section: 'mills-routes', ancestors: ['mills-production'] }
+  return null
+}
+
+function parseRoutesPath(pathname, routes = []) {
+  if (pathname === '/routes') {
+    return { section: 'routes', ancestors: [] }
   }
-  if (pathname.startsWith('/mills-production/routes/')) {
-    const slug = pathname.split('/')[3]
+  if (pathname.startsWith('/routes/')) {
+    const slug = pathname.split('/')[2]
     const route = routes.find((r) => r.slug === slug)
     if (!route) {
-      return { section: 'mills-routes', ancestors: ['mills-production', 'mills-routes'] }
+      return { section: 'routes', ancestors: ['routes'] }
     }
     return {
       section: `route-${route.slug}`,
-      ancestors: ['mills-production', 'mills-routes'],
+      ancestors: ['routes'],
     }
   }
   return null
@@ -109,7 +113,10 @@ function findNavItemById(items, id) {
 }
 
 export function getActiveNavId(pathname, materials = [], routes = []) {
-  const mills = parseMillsPath(pathname, routes)
+  const routeNav = parseRoutesPath(pathname, routes)
+  if (routeNav) return routeNav.section
+
+  const mills = parseMillsPath(pathname)
   if (mills) return mills.section
 
   const raw = parseRawMaterialPath(pathname, materials)
@@ -119,7 +126,12 @@ export function getActiveNavId(pathname, materials = [], routes = []) {
 }
 
 export function getNavItemByPath(pathname, materials = [], routes = []) {
-  const mills = parseMillsPath(pathname, routes)
+  const routeNav = parseRoutesPath(pathname, routes)
+  if (routeNav) {
+    return findNavItemById(buildNavItems(materials, routes), routeNav.section)
+  }
+
+  const mills = parseMillsPath(pathname)
   if (mills) {
     return findNavItemById(buildNavItems(materials, routes), mills.section)
   }
@@ -137,7 +149,12 @@ export function getNavItemByPath(pathname, materials = [], routes = []) {
 }
 
 export function getAncestorIdsForPath(pathname, materials = [], routes = []) {
-  const mills = parseMillsPath(pathname, routes)
+  const routeNav = parseRoutesPath(pathname, routes)
+  if (routeNav?.ancestors?.length) return routeNav.ancestors
+  // Open Routes when on the list page itself? No - only when child active (same as raw material)
+  if (routeNav?.section === 'routes') return []
+
+  const mills = parseMillsPath(pathname)
   if (mills?.ancestors?.length) return mills.ancestors
 
   const raw = parseRawMaterialPath(pathname, materials)

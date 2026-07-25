@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes, useParams } from 'react-router-dom'
 import ProtectedRoute from './ProtectedRoute'
 import LoginPage from '../features/LoginPage'
 import EmptyPage from '../features/EmptyPage'
@@ -9,6 +9,11 @@ import ChaatPage from '../features/ChaatPage'
 import DewaarPage from '../features/DewaarPage'
 import RoutesPage from '../features/RoutesPage'
 import RouteDetailPage from '../features/RouteDetailPage'
+
+function RedirectLegacyRouteDetail() {
+  const { slug } = useParams()
+  return <Navigate to={`/routes/${slug}`} replace />
+}
 
 function AppRoutes() {
   return (
@@ -24,8 +29,10 @@ function AppRoutes() {
         <Route path="mills-production/bundle" element={<Navigate to="/mills-production/bundle/chaat" replace />} />
         <Route path="mills-production/bundle/chaat" element={<ChaatPage />} />
         <Route path="mills-production/bundle/dewaar" element={<DewaarPage />} />
-        <Route path="mills-production/routes" element={<RoutesPage />} />
-        <Route path="mills-production/routes/:slug" element={<RouteDetailPage />} />
+        <Route path="mills-production/routes" element={<Navigate to="/routes" replace />} />
+        <Route path="mills-production/routes/:slug" element={<RedirectLegacyRouteDetail />} />
+        <Route path="routes" element={<RoutesPage />} />
+        <Route path="routes/:slug" element={<RouteDetailPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

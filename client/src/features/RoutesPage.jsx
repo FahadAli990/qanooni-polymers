@@ -44,8 +44,8 @@ function RoutesPage() {
       if (mode === 'edit' && editingSlug) {
         const updated = await update(editingSlug, name)
         showToast(`Updated ${updated.name}`)
-        if (editingSlug !== updated.slug && window.location.pathname === `/mills-production/routes/${editingSlug}`) {
-          navigate(`/mills-production/routes/${updated.slug}`)
+        if (editingSlug !== updated.slug && window.location.pathname === `/routes/${editingSlug}`) {
+          navigate(`/routes/${updated.slug}`)
         }
       } else {
         const created = await create(name)
@@ -69,8 +69,8 @@ function RoutesPage() {
       await remove(item.slug)
       showToast(`Deleted ${item.name}`)
       if (editingSlug === item.slug) closeForm()
-      if (window.location.pathname === `/mills-production/routes/${item.slug}`) {
-        navigate('/mills-production/routes')
+      if (window.location.pathname === `/routes/${item.slug}`) {
+        navigate('/routes')
       }
     } catch (err) {
       showToast(getErrorMessage(err), 'error')
@@ -138,7 +138,7 @@ function RoutesPage() {
               {items.map((item) => (
                 <tr key={item.id}>
                   <td>
-                    <Link to={`/mills-production/routes/${item.slug}`} className="material-row-link">
+                    <Link to={`/routes/${item.slug}`} className="material-row-link">
                       <strong>{item.name}</strong>
                     </Link>
                   </td>
