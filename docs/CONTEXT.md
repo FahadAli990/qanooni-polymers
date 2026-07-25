@@ -49,6 +49,7 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
   - `PUT /api/routes/:slug` `{ name }`
   - `DELETE /api/routes/:slug`
 - UI: `/routes` — box/card grid (Add New / Edit / Delete); click box → `/routes/:slug` (empty shell for now)
+- Each route box gets a **stable unique icon + accent** from slug (`routeVisual.js`)
 - Swatch matches color name (`blue` → blue, `red` → red, also `#hex` / “dark blue”)
 
 ## Stock (per material)
