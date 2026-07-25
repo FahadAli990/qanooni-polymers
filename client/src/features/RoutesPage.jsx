@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { MdRoute } from 'react-icons/md'
 import { useConfirm } from '../context/ConfirmContext'
 import { useRoutes } from '../context/RouteContext'
 import { useToast } from '../context/ToastContext'
 import { getErrorMessage } from '../api/client'
+import { getRouteVisual } from '../utils/routeVisual'
 
 function RoutesPage() {
   const navigate = useNavigate()
@@ -128,24 +128,35 @@ function RoutesPage() {
         <p className="help-muted">No routes yet. Click Add New to create one.</p>
       ) : (
         <div className="material-grid">
-          {items.map((item) => (
-            <div key={item.id} className="material-card card">
-              <Link to={`/routes/${item.slug}`} className="material-card__main">
-                <span className="material-card__icon" aria-hidden>
-                  <MdRoute size={22} />
-                </span>
-                <strong>{item.name}</strong>
-              </Link>
-              <div className="material-card__actions">
-                <button type="button" className="btn-secondary btn-compact" onClick={() => openEdit(item)}>
-                  Edit
-                </button>
-                <button type="button" className="btn-danger btn-compact" onClick={() => handleDelete(item)}>
-                  Delete
-                </button>
+          {items.map((item) => {
+            const { Icon, tone } = getRouteVisual(item.slug || item.id)
+            return (
+              <div key={item.id} className="material-card card">
+                <Link to={`/routes/${item.slug}`} className="material-card__main">
+                  <span
+                    className="material-card__icon"
+                    style={{
+                      color: tone,
+                      borderColor: `${tone}33`,
+                      background: `linear-gradient(180deg, ${tone}14 0%, ${tone}22 100%)`,
+                    }}
+                    aria-hidden
+                  >
+                    <Icon size={22} />
+                  </span>
+                  <strong>{item.name}</strong>
+                </Link>
+                <div className="material-card__actions">
+                  <button type="button" className="btn-secondary btn-compact" onClick={() => openEdit(item)}>
+                    Edit
+                  </button>
+                  <button type="button" className="btn-danger btn-compact" onClick={() => handleDelete(item)}>
+                    Delete
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>
