@@ -48,7 +48,7 @@ export async function findAllRawMaterials() {
      FROM raw_materials m
      LEFT JOIN raw_material_stocks s ON s.raw_material_id = m.id
      GROUP BY ${MATERIAL_GROUP}
-     ORDER BY m.id ASC`,
+     ORDER BY m.created_at ASC, m.id ASC`,
   )
   return rows.map(mapRow)
 }

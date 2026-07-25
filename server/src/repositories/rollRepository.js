@@ -46,7 +46,7 @@ export async function findAllRolls(kind = 'roll') {
      FROM roll_productions r
      INNER JOIN raw_materials m ON m.id = r.raw_material_id
      WHERE r.kind = :kind
-     ORDER BY r.production_date ASC, r.id ASC`,
+     ORDER BY r.created_at ASC, r.id ASC`,
     { kind },
   )
   return rows.map(mapRow)
@@ -168,7 +168,7 @@ export async function insertRoll({ kind, rawMaterialId, date, size, kg }) {
   return findRollById(result.insertId)
 }
 
-export async function updateRollById(id, { kind, rawMaterialId, date, size, kg }) {
+export async function updateRollById(id, { kind, rawMaterialId, date, size, kg, remainingKg, status }) {
   const [result] = await getPool().query(
     `UPDATE roll_productions
      SET kind = :kind,
@@ -176,13 +176,10 @@ export async function updateRollById(id, { kind, rawMaterialId, date, size, kg }
          production_date = :date,
          size = :size,
          kg = :kg,
-         remaining_kg = :kg,
-         status = 'available'
-     WHERE id = :id
-       AND kind = :kind
-       AND remaining_kg = kg
-       AND status = 'available'`,
-    { id, kind, rawMaterialId, date, size, kg },
+         remaining_kg = :remainingKg,
+         status = :status
+     WHERE id = :id AND kind = :kind`,
+    { id, kind, rawMaterialId, date, size, kg, remainingKg, status },
   )
   if (result.affectedRows === 0) return null
   return findRollById(id)
@@ -191,20 +188,13 @@ export async function updateRollById(id, { kind, rawMaterialId, date, size, kg }
 export async function deleteRollById(id, kind = null) {
   if (kind) {
     const [result] = await getPool().query(
-      `DELETE FROM roll_productions
-       WHERE id = :id
-         AND kind = :kind
-         AND remaining_kg = kg
-         AND status = 'available'`,
+      `DELETE FROM roll_productions WHERE id = :id AND kind = :kind`,
       { id, kind },
     )
     return result.affectedRows > 0
   }
   const [result] = await getPool().query(
-    `DELETE FROM roll_productions
-     WHERE id = :id
-       AND remaining_kg = kg
-       AND status = 'available'`,
+    `DELETE FROM roll_productions WHERE id = :id`,
     { id },
   )
   return result.affectedRows > 0

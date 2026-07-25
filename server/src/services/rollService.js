@@ -116,13 +116,23 @@ export async function updateRollProduction(rollId, body, kindInput = 'roll') {
 
   const existing = await findRollById(id)
   if (!existing || existing.kind !== kind) throw notFound()
-  if (existing.status === 'used' || Number(existing.remainingKg) < Number(existing.kg)) {
-    throw badRequest('This production was partly or fully used in orders and cannot be edited')
+  if (existing.status === 'used' || Number(existing.remainingKg) <= 0) {
+    throw badRequest('Used production cannot be edited — delete it instead')
   }
 
   const payload = normalizeRollInput(body)
   const material = await findRawMaterialBySlug(payload.materialSlug)
   if (!material) throw notFound('Raw material not found')
+
+  const consumed = Number((Number(existing.kg) - Number(existing.remainingKg)).toFixed(2))
+  if (payload.kg + 1e-9 < consumed) {
+    throw badRequest(
+      `KG cannot be less than already sold amount (${consumed} kg)`,
+    )
+  }
+
+  const remainingKg = Number((payload.kg - consumed).toFixed(2))
+  const status = remainingKg <= 0 ? 'used' : 'available'
 
   const available = await availableKgForMaterial(material.id, id)
   if (payload.kg > available) {
@@ -137,10 +147,10 @@ export async function updateRollProduction(rollId, body, kindInput = 'roll') {
     date: payload.date,
     size: payload.size,
     kg: payload.kg,
+    remainingKg: Math.max(0, remainingKg),
+    status,
   })
-  if (!item) {
-    throw badRequest('This production was partly or fully used in orders and cannot be edited')
-  }
+  if (!item) throw notFound()
 
   const totalKg = await sumAllRollKg(kind)
   return {
@@ -157,14 +167,9 @@ export async function removeRollProduction(rollId, kindInput = 'roll') {
 
   const existing = await findRollById(id)
   if (!existing || existing.kind !== kind) throw notFound()
-  if (existing.status === 'used' || Number(existing.remainingKg) < Number(existing.kg)) {
-    throw badRequest('This production was partly or fully used in orders and cannot be deleted')
-  }
 
   const deleted = await deleteRollById(id, kind)
-  if (!deleted) {
-    throw badRequest('This production was partly or fully used in orders and cannot be deleted')
-  }
+  if (!deleted) throw notFound()
 
   const totalKg = await sumAllRollKg(kind)
   return {

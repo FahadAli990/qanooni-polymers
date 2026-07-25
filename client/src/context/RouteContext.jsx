@@ -4,8 +4,13 @@ import { useAuth } from './AuthContext'
 
 const RouteContext = createContext(null)
 
-function sortById(list) {
-  return [...list].sort((a, b) => Number(a.id) - Number(b.id))
+function sortByCreated(list) {
+  return [...list].sort((a, b) => {
+    const ta = a.createdAt ? new Date(a.createdAt).getTime() : Number(a.id)
+    const tb = b.createdAt ? new Date(b.createdAt).getTime() : Number(b.id)
+    if (ta !== tb) return ta - tb
+    return Number(a.id) - Number(b.id)
+  })
 }
 
 export function RouteProvider({ children }) {
@@ -36,14 +41,14 @@ export function RouteProvider({ children }) {
   const create = useCallback(async (name) => {
     const { data } = await api.post('/routes', { name })
     const created = data.data
-    setItems((prev) => sortById([...prev.filter((i) => i.id !== created.id), created]))
+    setItems((prev) => sortByCreated([...prev.filter((i) => i.id !== created.id), created]))
     return created
   }, [])
 
   const update = useCallback(async (slug, name) => {
     const { data } = await api.put(`/routes/${slug}`, { name })
     const updated = data.data
-    setItems((prev) => sortById([
+    setItems((prev) => sortByCreated([
       ...prev.filter((i) => i.id !== updated.id),
       updated,
     ]))

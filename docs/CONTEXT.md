@@ -100,7 +100,8 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
 - `kind`: `roll` | `chaat` | `dewaar` (all deduct original `kg` from same raw material stock)
 - Sizes: `1/2"`, `3/4"`, `1"`
 - KG can be fractional (e.g. `18.5`)
-- Delivered orders reduce `remaining_kg` FIFO; used rows cannot be edited/deleted
+- Delivered orders reduce `remaining_kg` FIFO; **Used** rows show Delete; Available (incl. partial) show Edit + Delete
+- Lists sorted by **created_at ASC** (newest at bottom) across app tables
 - APIs (auth required):
   - `GET /api/productions/:kind`
   - `POST /api/productions/:kind` `{ date, materialSlug, size, kg }`

@@ -13,7 +13,7 @@ export async function findAllMillRoutes() {
   const [rows] = await getPool().query(
     `SELECT id, slug, name, created_at
      FROM mill_routes
-     ORDER BY id ASC`,
+     ORDER BY created_at ASC, id ASC`,
   )
   return rows.map(mapRow)
 }

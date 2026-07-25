@@ -144,9 +144,13 @@ function ProductionPage({ kind }) {
   }
 
   async function handleDelete(item) {
+    const remaining = Number(item.remainingKg ?? item.kg)
+    const isUsed = item.status === 'used' || remaining <= 0
     const ok = await confirm({
       title: meta.deleteTitle,
-      message: `Delete ${item.materialName} ${meta.entity} ${item.size} (${formatNum(item.kg)} kg)? KG will return to raw material.`,
+      message: isUsed
+        ? `Delete used ${item.materialName} ${meta.entity} ${item.size}? This removes the record from the list.`
+        : `Delete ${item.materialName} ${meta.entity} ${item.size} (${formatNum(remaining)} kg remaining)?`,
     })
     if (!ok) return
     try {
@@ -155,7 +159,7 @@ function ProductionPage({ kind }) {
       setTotals(data.data.totals)
       if (editingId === item.id) closeForm()
       await refreshMaterials()
-      showToast(`${meta.title} deleted — kg returned to raw material`)
+      showToast(isUsed ? `${meta.title} record deleted` : `${meta.title} deleted — kg returned to raw material`)
     } catch (err) {
       showToast(getErrorMessage(err), 'error')
     }
@@ -285,7 +289,6 @@ function ProductionPage({ kind }) {
                   const remaining = Number(item.remainingKg ?? item.kg)
                   const produced = Number(item.kg)
                   const used = item.status === 'used' || remaining <= 0
-                  const locked = used || remaining < produced
                   return (
                     <tr key={item.id} className={used ? 'stock-table__row--used' : undefined}>
                       <td>{formatDateDisplay(item.date)}</td>
@@ -311,24 +314,22 @@ function ProductionPage({ kind }) {
                         </span>
                       </td>
                       <td className="stock-table__actions">
-                        {!locked && (
-                          <>
-                            <button
-                              type="button"
-                              className="btn-secondary btn-compact"
-                              onClick={() => openEdit(item)}
-                            >
-                              Edit
-                            </button>
-                            <button
-                              type="button"
-                              className="btn-danger btn-compact"
-                              onClick={() => handleDelete(item)}
-                            >
-                              Delete
-                            </button>
-                          </>
+                        {!used && (
+                          <button
+                            type="button"
+                            className="btn-secondary btn-compact"
+                            onClick={() => openEdit(item)}
+                          >
+                            Edit
+                          </button>
                         )}
+                        <button
+                          type="button"
+                          className="btn-danger btn-compact"
+                          onClick={() => handleDelete(item)}
+                        >
+                          Delete
+                        </button>
                       </td>
                     </tr>
                   )
