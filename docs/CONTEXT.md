@@ -45,20 +45,25 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
 
 - Tables: `sales_orders` + `sales_order_items` (`kind`, `size`, material, kg, rate, amount)
 - Flow: Date → Route → Shop → **order lines** (each: Roll/Chaat/Dewaar + size `1/2"|3/4"|1"` + material + kg + **sell rate/kg**) → **Pending**
-- **Deliver** (one-way): Pending → Delivered only; cannot return to Pending
+- **Deliver** (one-way UI action, reversible): Pending → Delivered; admin can move **Delivered → Pending**
 - On deliver: **FIFO consume finished production** matching each line (`kind` + `size` + material), oldest `production_date` first
-  - Partial: one production row remaining drops; overflow takes from next older/newer date in FIFO order
+  - Partial: one production row remaining drops; overflow takes from next date in FIFO order
   - When remaining hits 0 → `status = used` and row **leaves Mills & Production list** (history stays on Orders / Delivered)
   - Deliver blocked if matching production remaining kg is insufficient
+  - Consumptions stored in `sales_order_consumptions` for exact undo
+- On **Pending** (undo deliver) / **Delete delivered**: production remaining restored from ledger
+- Admin can **Edit** any order (delivered edit restores stock and returns order to Pending)
+- Admin can **Delete** pending or delivered orders
 - Raw stock is only cut when production is recorded (not again on deliver)
-- Delivered orders cannot be deleted
 - Bill = Σ(kg × line `ratePerKg`); rate entered on each order line (not from raw materials)
 - APIs (auth required):
   - `GET /api/orders`
   - `GET /api/orders/rates` → `{ sizes, kinds, materials }`
   - `POST /api/orders` `{ date, routeSlug, customerId, items: [{ kind, size, materialSlug, kg, ratePerKg }] }` → `pending`
+  - `PUT /api/orders/:id` — edit (delivered → pending after stock restore)
   - `POST /api/orders/:id/deliver`
-  - `DELETE /api/orders/:id` (pending only)
+  - `POST /api/orders/:id/pending` — delivered → pending + restore production
+  - `DELETE /api/orders/:id` (pending or delivered)
 - UI table: Date, Route, Shop, Address, Phone, Ordered (type · size · material · kg), Total Bill, Status
 
 ## Routes (delivery / sales)

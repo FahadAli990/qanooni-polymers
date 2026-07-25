@@ -4,15 +4,22 @@ import { findCustomerById } from '../repositories/routeCustomerRepository.js'
 import {
   ROLL_SIZES,
   consumeProductionFifo,
+  restoreKgOntoMatchingLots,
+  restoreProductionAllocations,
   sumAvailableProductionKg,
 } from '../repositories/rollRepository.js'
 import {
   deleteOrderById,
+  deleteOrderConsumptions,
   findAllOrders,
   findOrderById,
+  findOrderConsumptions,
   findOrderItemsByOrderIds,
+  insertOrderConsumptions,
   insertOrderWithItems,
   markOrderDeliveredById,
+  markOrderPendingById,
+  replaceOrderWithItems,
 } from '../repositories/orderRepository.js'
 import { getPool } from '../config/db.js'
 
@@ -52,27 +59,7 @@ async function getOrderWithItems(orderId) {
   return { ...order, items }
 }
 
-export async function listOrders() {
-  const orders = await findAllOrders()
-  const items = await findOrderItemsByOrderIds(orders.map((o) => o.id))
-  return attachItems(orders, items)
-}
-
-export async function getOrderRates() {
-  const materials = await findAllRawMaterials()
-  return {
-    sizes: ROLL_SIZES,
-    kinds: KIND_KEYS.map((key) => ({ key, label: KIND_LABEL[key] })),
-    materials: materials.map((m) => ({
-      id: m.id,
-      slug: m.slug,
-      name: m.name,
-      swatch: m.swatch,
-    })),
-  }
-}
-
-export async function createOrder(body = {}) {
+async function parseOrderBody(body = {}) {
   const date = String(body.date || '').trim()
   if (!DATE_RE.test(date)) throw badRequest('Date is required (YYYY-MM-DD)')
 
@@ -147,7 +134,7 @@ export async function createOrder(body = {}) {
   }
 
   const totalBill = Number(items.reduce((sum, i) => sum + i.amount, 0).toFixed(2))
-  const orderId = await insertOrderWithItems({
+  return {
     date,
     millRouteId: route.id,
     routeCustomerId: customer.id,
@@ -156,9 +143,130 @@ export async function createOrder(body = {}) {
     hasDewaar,
     totalBill,
     items,
-  })
+  }
+}
 
+async function reverseDeliveredStock(order, conn) {
+  const allocations = await findOrderConsumptions(order.id, conn)
+  if (allocations.length) {
+    await restoreProductionAllocations(allocations, conn)
+    await deleteOrderConsumptions(order.id, conn)
+    return
+  }
+
+  for (const item of order.items || []) {
+    const result = await restoreKgOntoMatchingLots(
+      {
+        kind: item.kind,
+        size: item.size,
+        rawMaterialId: item.rawMaterialId,
+        kg: item.kg,
+      },
+      conn,
+    )
+    if (!result.ok) {
+      throw badRequest(
+        `Cannot fully restore production for "${item.materialName}" ${item.size}. Short by ${result.shortfall} kg`,
+      )
+    }
+  }
+}
+
+async function applyDeliverStock(order, conn) {
+  const allAllocations = []
+  for (const item of order.items) {
+    const need = Number(item.kg)
+    const available = await sumAvailableProductionKg(
+      {
+        kind: item.kind,
+        size: item.size,
+        rawMaterialId: item.rawMaterialId,
+      },
+      conn,
+    )
+    if (available + 1e-9 < need) {
+      throw badRequest(
+        `Not enough ${KIND_LABEL[item.kind] || item.kind} production for "${item.materialName}" ${item.size}. Need ${need} kg, available ${available} kg`,
+      )
+    }
+
+    const result = await consumeProductionFifo(
+      {
+        kind: item.kind,
+        size: item.size,
+        rawMaterialId: item.rawMaterialId,
+        kg: need,
+      },
+      conn,
+    )
+    if (!result.ok) {
+      throw badRequest(
+        `Not enough ${KIND_LABEL[item.kind] || item.kind} production for "${item.materialName}" ${item.size}. Need ${need} kg`,
+      )
+    }
+    allAllocations.push(...(result.allocations || []))
+  }
+  await insertOrderConsumptions(order.id, allAllocations, conn)
+}
+
+export async function listOrders() {
+  const orders = await findAllOrders()
+  const items = await findOrderItemsByOrderIds(orders.map((o) => o.id))
+  return attachItems(orders, items)
+}
+
+export async function getOrderRates() {
+  const materials = await findAllRawMaterials()
+  return {
+    sizes: ROLL_SIZES,
+    kinds: KIND_KEYS.map((key) => ({ key, label: KIND_LABEL[key] })),
+    materials: materials.map((m) => ({
+      id: m.id,
+      slug: m.slug,
+      name: m.name,
+      swatch: m.swatch,
+    })),
+  }
+}
+
+export async function createOrder(body = {}) {
+  const payload = await parseOrderBody(body)
+  const orderId = await insertOrderWithItems(payload)
   return getOrderWithItems(orderId)
+}
+
+export async function updateOrder(idInput, body = {}) {
+  const id = Number(idInput)
+  if (!Number.isInteger(id) || id <= 0) throw badRequest('Invalid order id')
+
+  const existing = await getOrderWithItems(id)
+  if (!existing) throw notFound('Order not found')
+
+  const payload = await parseOrderBody(body)
+  const conn = await getPool().getConnection()
+  try {
+    await conn.beginTransaction()
+
+    if (existing.status === 'delivered') {
+      await reverseDeliveredStock(existing, conn)
+    }
+
+    const updated = await replaceOrderWithItems(
+      id,
+      { ...payload, status: 'pending' },
+      conn,
+    )
+    if (!updated) throw notFound('Order not found')
+
+    await conn.commit()
+  } catch (err) {
+    await conn.rollback()
+    throw err
+  } finally {
+    conn.release()
+  }
+
+  return getOrderWithItems(id)
 }
 
 export async function deliverOrder(idInput) {
@@ -168,51 +276,47 @@ export async function deliverOrder(idInput) {
   const order = await getOrderWithItems(id)
   if (!order) throw notFound('Order not found')
   if (order.status === 'delivered') {
-    throw badRequest('Order is already delivered and cannot go back to pending')
+    throw badRequest('Order is already delivered')
   }
   if (order.status !== 'pending') throw badRequest('Only pending orders can be delivered')
 
   const conn = await getPool().getConnection()
   try {
     await conn.beginTransaction()
-
-    for (const item of order.items) {
-      const need = Number(item.kg)
-      const available = await sumAvailableProductionKg(
-        {
-          kind: item.kind,
-          size: item.size,
-          rawMaterialId: item.rawMaterialId,
-        },
-        conn,
-      )
-      if (available + 1e-9 < need) {
-        throw badRequest(
-          `Not enough ${KIND_LABEL[item.kind] || item.kind} production for "${item.materialName}" ${item.size}. Need ${need} kg, available ${available} kg`,
-        )
-      }
-
-      const result = await consumeProductionFifo(
-        {
-          kind: item.kind,
-          size: item.size,
-          rawMaterialId: item.rawMaterialId,
-          kg: need,
-        },
-        conn,
-      )
-      if (!result.ok) {
-        throw badRequest(
-          `Not enough ${KIND_LABEL[item.kind] || item.kind} production for "${item.materialName}" ${item.size}. Need ${need} kg`,
-        )
-      }
-    }
+    await applyDeliverStock(order, conn)
 
     const updated = await markOrderDeliveredById(id, conn)
     if (!updated) {
-      throw badRequest('Order is already delivered and cannot go back to pending')
+      throw badRequest('Order is already delivered')
     }
 
+    await conn.commit()
+  } catch (err) {
+    await conn.rollback()
+    throw err
+  } finally {
+    conn.release()
+  }
+
+  return getOrderWithItems(id)
+}
+
+export async function undeliverOrder(idInput) {
+  const id = Number(idInput)
+  if (!Number.isInteger(id) || id <= 0) throw badRequest('Invalid order id')
+
+  const order = await getOrderWithItems(id)
+  if (!order) throw notFound('Order not found')
+  if (order.status !== 'delivered') {
+    throw badRequest('Only delivered orders can be moved back to pending')
+  }
+
+  const conn = await getPool().getConnection()
+  try {
+    await conn.beginTransaction()
+    await reverseDeliveredStock(order, conn)
+    const updated = await markOrderPendingById(id, conn)
+    if (!updated) throw badRequest('Only delivered orders can be moved back to pending')
     await conn.commit()
   } catch (err) {
     await conn.rollback()
@@ -228,14 +332,28 @@ export async function removeOrder(idInput) {
   const id = Number(idInput)
   if (!Number.isInteger(id) || id <= 0) throw badRequest('Invalid order id')
 
-  const existing = await findOrderById(id)
+  const existing = await getOrderWithItems(id)
   if (!existing) throw notFound('Order not found')
-  if (existing.status === 'delivered') {
-    throw badRequest('Delivered orders cannot be deleted')
+
+  const conn = await getPool().getConnection()
+  try {
+    await conn.beginTransaction()
+
+    if (existing.status === 'delivered') {
+      await reverseDeliveredStock(existing, conn)
+    }
+
+    const deleted = await deleteOrderById(id, conn)
+    if (!deleted) throw notFound('Order not found')
+
+    await conn.commit()
+  } catch (err) {
+    await conn.rollback()
+    throw err
+  } finally {
+    conn.release()
   }
 
-  const deleted = await deleteOrderById(id)
-  if (!deleted) throw notFound('Order not found')
   return { deleted: true }
 }
 

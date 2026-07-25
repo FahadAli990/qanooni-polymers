@@ -48,6 +48,7 @@ function OrdersPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [showForm, setShowForm] = useState(false)
+  const [editingId, setEditingId] = useState(null)
   const [orders, setOrders] = useState([])
   const [materials, setMaterials] = useState([])
   const [sizes, setSizes] = useState(DEFAULT_SIZES)
@@ -59,6 +60,16 @@ function OrdersPage() {
   const [shops, setShops] = useState([])
   const [shopsLoading, setShopsLoading] = useState(false)
   const [lines, setLines] = useState([newLine()])
+
+  function sortOrders(list) {
+    return [...list].sort((a, b) => {
+      if (a.status !== b.status) return a.status === 'pending' ? -1 : 1
+      const ta = a.createdAt ? new Date(a.createdAt).getTime() : Number(a.id)
+      const tb = b.createdAt ? new Date(b.createdAt).getTime() : Number(b.id)
+      if (ta !== tb) return ta - tb
+      return Number(a.id) - Number(b.id)
+    })
+  }
 
   const previewTotal = useMemo(() => {
     return lines.reduce((sum, line) => {
@@ -127,6 +138,7 @@ function OrdersPage() {
   }, [routeSlug, showToast])
 
   function resetForm() {
+    setEditingId(null)
     setDate(todayIso())
     setRouteSlug('')
     setCustomerId('')
@@ -141,6 +153,26 @@ function OrdersPage() {
 
   function openCreate() {
     resetForm()
+    setShowForm(true)
+  }
+
+  function openEdit(order) {
+    setEditingId(order.id)
+    setDate(order.date)
+    setRouteSlug(order.routeSlug || '')
+    setCustomerId(order.routeCustomerId ? String(order.routeCustomerId) : '')
+    setLines(
+      (order.items || []).length
+        ? order.items.map((item) => ({
+            key: `${item.id}-${Math.random().toString(36).slice(2, 6)}`,
+            kind: item.kind || 'roll',
+            size: item.size || sizes[0],
+            materialSlug: item.materialSlug || '',
+            kg: item.kg != null ? String(item.kg) : '',
+            ratePerKg: item.ratePerKg != null ? String(item.ratePerKg) : '',
+          }))
+        : [newLine({ size: sizes[0], kind: kinds[0]?.key })],
+    )
     setShowForm(true)
   }
 
@@ -204,18 +236,29 @@ function OrdersPage() {
 
     setSaving(true)
     try {
-      const { data } = await api.post('/orders', {
-        date,
-        routeSlug,
-        customerId: Number(customerId),
-        items,
-      })
-      setOrders((prev) => {
-        const pending = prev.filter((row) => row.status !== 'delivered')
-        const delivered = prev.filter((row) => row.status === 'delivered')
-        return [...pending, data.data, ...delivered]
-      })
-      showToast('Order added')
+      if (editingId) {
+        const { data } = await api.put(`/orders/${editingId}`, {
+          date,
+          routeSlug,
+          customerId: Number(customerId),
+          items,
+        })
+        setOrders((prev) => sortOrders(prev.map((row) => (row.id === editingId ? data.data : row))))
+        showToast(
+          data.data.status === 'pending'
+            ? 'Order updated (Pending — deliver again if needed)'
+            : 'Order updated',
+        )
+      } else {
+        const { data } = await api.post('/orders', {
+          date,
+          routeSlug,
+          customerId: Number(customerId),
+          items,
+        })
+        setOrders((prev) => sortOrders([...prev, data.data]))
+        showToast('Order added')
+      }
       closeForm()
     } catch (err) {
       showToast(getErrorMessage(err), 'error')
@@ -227,40 +270,53 @@ function OrdersPage() {
   async function handleDeliver(order) {
     const ok = await confirm({
       title: 'Mark delivered',
-      message: `Deliver order for "${order.shopName}"? Matching production will be reduced (FIFO) and this cannot be undone.`,
+      message: `Deliver order for "${order.shopName}"? Matching production will be reduced (FIFO).`,
       confirmLabel: 'Deliver',
       confirmTone: 'primary',
     })
     if (!ok) return
     try {
       const { data } = await api.post(`/orders/${order.id}/deliver`)
-      setOrders((prev) => {
-        const next = prev.map((row) => (row.id === order.id ? data.data : row))
-        return [...next].sort((a, b) => {
-          if (a.status !== b.status) return a.status === 'pending' ? -1 : 1
-          return String(b.date).localeCompare(String(a.date))
-        })
-      })
+      setOrders((prev) => sortOrders(prev.map((row) => (row.id === order.id ? data.data : row))))
       await refreshMaterials()
-      showToast('Order delivered — stock updated')
+      showToast('Order delivered — production updated')
+    } catch (err) {
+      showToast(getErrorMessage(err), 'error')
+    }
+  }
+
+  async function handlePending(order) {
+    const ok = await confirm({
+      title: 'Move to Pending',
+      message: `Move delivered order for "${order.shopName}" back to Pending? Production stock will be restored.`,
+      confirmLabel: 'Pending',
+      confirmTone: 'primary',
+    })
+    if (!ok) return
+    try {
+      const { data } = await api.post(`/orders/${order.id}/pending`)
+      setOrders((prev) => sortOrders(prev.map((row) => (row.id === order.id ? data.data : row))))
+      await refreshMaterials()
+      showToast('Order set to Pending — production restored')
     } catch (err) {
       showToast(getErrorMessage(err), 'error')
     }
   }
 
   async function handleDelete(order) {
-    if (order.status === 'delivered') {
-      showToast('Delivered orders cannot be deleted', 'error')
-      return
-    }
     const ok = await confirm({
       title: 'Delete order',
-      message: `Delete pending order for "${order.shopName}" on ${formatDateDisplay(order.date)}?`,
+      message:
+        order.status === 'delivered'
+          ? `Delete delivered order for "${order.shopName}"? Production stock will be restored.`
+          : `Delete pending order for "${order.shopName}" on ${formatDateDisplay(order.date)}?`,
     })
     if (!ok) return
     try {
       await api.delete(`/orders/${order.id}`)
       setOrders((prev) => prev.filter((row) => row.id !== order.id))
+      if (editingId === order.id) closeForm()
+      await refreshMaterials()
       showToast('Order deleted')
     } catch (err) {
       showToast(getErrorMessage(err), 'error')
@@ -277,9 +333,9 @@ function OrdersPage() {
         <button
           type="button"
           className="btn-primary"
-          onClick={() => (showForm ? closeForm() : openCreate())}
+          onClick={() => (showForm && !editingId ? closeForm() : openCreate())}
         >
-          {showForm ? 'Cancel' : 'Add New Order'}
+          {showForm && !editingId ? 'Cancel' : 'Add New Order'}
         </button>
       </header>
 
@@ -444,8 +500,13 @@ function OrdersPage() {
 
           <div className="panel-form__actions">
             <button type="submit" className="btn-primary" disabled={saving}>
-              {saving ? 'Saving…' : 'Save Order'}
+              {saving ? 'Saving…' : editingId ? 'Update Order' : 'Save Order'}
             </button>
+            {editingId && (
+              <button type="button" className="btn-secondary" onClick={closeForm} disabled={saving}>
+                Cancel
+              </button>
+            )}
           </div>
         </form>
       )}
@@ -503,7 +564,7 @@ function OrdersPage() {
                       </span>
                     </td>
                     <td className="stock-table__actions">
-                      {order.status !== 'delivered' && (
+                      {order.status === 'pending' ? (
                         <button
                           type="button"
                           className="btn-primary btn-compact"
@@ -511,16 +572,29 @@ function OrdersPage() {
                         >
                           Deliver
                         </button>
-                      )}
-                      {order.status !== 'delivered' && (
+                      ) : (
                         <button
                           type="button"
-                          className="btn-danger btn-compact"
-                          onClick={() => handleDelete(order)}
+                          className="btn-primary btn-compact"
+                          onClick={() => handlePending(order)}
                         >
-                          Delete
+                          Pending
                         </button>
                       )}
+                      <button
+                        type="button"
+                        className="btn-secondary btn-compact"
+                        onClick={() => openEdit(order)}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-danger btn-compact"
+                        onClick={() => handleDelete(order)}
+                      >
+                        Delete
+                      </button>
                     </td>
                   </tr>
                 ))

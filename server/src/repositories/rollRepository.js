@@ -132,6 +132,7 @@ export async function consumeProductionFifo(
   )
 
   let left = need
+  const allocations = []
   for (const lot of lots) {
     if (left <= 0) break
     const remaining = Number(lot.remaining_kg)
@@ -149,13 +150,70 @@ export async function consumeProductionFifo(
         status,
       },
     )
+    allocations.push({ productionId: lot.id, kg: take })
     left = Number((left - take).toFixed(2))
   }
 
   if (left > 1e-9) {
-    return { ok: false, shortfall: left, consumed: Number((need - left).toFixed(2)) }
+    return { ok: false, shortfall: left, consumed: Number((need - left).toFixed(2)), allocations }
   }
-  return { ok: true, shortfall: 0, consumed: need }
+  return { ok: true, shortfall: 0, consumed: need, allocations }
+}
+
+/** Put consumed kg back onto production lots (undo deliver). */
+export async function restoreProductionAllocations(allocations, executor) {
+  for (const row of allocations) {
+    const productionId = Number(row.productionId ?? row.roll_production_id)
+    const kg = Number(row.kg)
+    if (!Number.isInteger(productionId) || !(kg > 0)) continue
+    await executor.query(
+      `UPDATE roll_productions
+       SET remaining_kg = LEAST(kg, remaining_kg + :kg),
+           status = CASE
+             WHEN LEAST(kg, remaining_kg + :kg) > 0 THEN 'available'
+             ELSE 'used'
+           END
+       WHERE id = :id`,
+      { id: productionId, kg },
+    )
+  }
+}
+
+/** Legacy fallback: restore kg onto matching lots that still have room under original kg. */
+export async function restoreKgOntoMatchingLots(
+  { kind, size, rawMaterialId, kg },
+  executor,
+) {
+  let left = Number(Number(kg).toFixed(2))
+  const [lots] = await executor.query(
+    `SELECT id, kg, remaining_kg
+     FROM roll_productions
+     WHERE kind = :kind
+       AND size = :size
+       AND raw_material_id = :rawMaterialId
+       AND remaining_kg < kg
+     ORDER BY production_date ASC, id ASC
+     FOR UPDATE`,
+    { kind, size, rawMaterialId },
+  )
+
+  for (const lot of lots) {
+    if (left <= 0) break
+    const room = Number((Number(lot.kg) - Number(lot.remaining_kg)).toFixed(2))
+    if (!(room > 0)) continue
+    const take = Number(Math.min(room, left).toFixed(2))
+    const nextRemaining = Number((Number(lot.remaining_kg) + take).toFixed(2))
+    await executor.query(
+      `UPDATE roll_productions
+       SET remaining_kg = :remainingKg,
+           status = 'available'
+       WHERE id = :id`,
+      { id: lot.id, remainingKg: nextRemaining },
+    )
+    left = Number((left - take).toFixed(2))
+  }
+
+  return { ok: left <= 1e-9, shortfall: Math.max(0, left) }
 }
 
 export async function insertRoll({ kind, rawMaterialId, date, size, kg }) {

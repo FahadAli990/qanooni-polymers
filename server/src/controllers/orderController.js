@@ -4,6 +4,8 @@ import {
   getOrderRates,
   listOrders,
   removeOrder,
+  undeliverOrder,
+  updateOrder,
 } from '../services/orderService.js'
 import { ok } from '../utils/apiResponse.js'
 
@@ -31,9 +33,25 @@ export async function createOrderController(req, res, next) {
   }
 }
 
+export async function updateOrderController(req, res, next) {
+  try {
+    return ok(res, await updateOrder(req.params.id, req.body))
+  } catch (err) {
+    return next(err)
+  }
+}
+
 export async function deliverOrderController(req, res, next) {
   try {
     return ok(res, await deliverOrder(req.params.id))
+  } catch (err) {
+    return next(err)
+  }
+}
+
+export async function undeliverOrderController(req, res, next) {
+  try {
+    return ok(res, await undeliverOrder(req.params.id))
   } catch (err) {
     return next(err)
   }

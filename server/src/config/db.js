@@ -350,6 +350,25 @@ export async function ensureSchema() {
        ADD COLUMN size VARCHAR(16) NOT NULL DEFAULT '1"' AFTER kind`,
     )
   }
+
+  await getPool().query(`
+    CREATE TABLE IF NOT EXISTS sales_order_consumptions (
+      id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+      sales_order_id INT UNSIGNED NOT NULL,
+      roll_production_id INT UNSIGNED NOT NULL,
+      kg DECIMAL(14, 2) NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_sales_order_consumptions_order (sales_order_id),
+      KEY idx_sales_order_consumptions_production (roll_production_id),
+      CONSTRAINT fk_sales_order_consumptions_order
+        FOREIGN KEY (sales_order_id) REFERENCES sales_orders (id)
+        ON DELETE CASCADE,
+      CONSTRAINT fk_sales_order_consumptions_production
+        FOREIGN KEY (roll_production_id) REFERENCES roll_productions (id)
+        ON DELETE RESTRICT
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `)
 }
 
 export async function pingDatabase() {

@@ -168,6 +168,89 @@ export async function insertOrderWithItems({
   }
 }
 
+export async function replaceOrderWithItems(
+  id,
+  {
+    date,
+    millRouteId,
+    routeCustomerId,
+    hasRoll,
+    hasChaat,
+    hasDewaar,
+    totalBill,
+    items,
+    status = 'pending',
+  },
+  executor = null,
+) {
+  const db = executor || getPool()
+  const run = async (conn) => {
+    const [result] = await conn.query(
+      `UPDATE sales_orders
+       SET order_date = :date,
+           mill_route_id = :millRouteId,
+           route_customer_id = :routeCustomerId,
+           has_roll = :hasRoll,
+           has_chaat = :hasChaat,
+           has_dewaar = :hasDewaar,
+           status = :status,
+           total_bill = :totalBill
+       WHERE id = :id`,
+      {
+        id,
+        date,
+        millRouteId,
+        routeCustomerId,
+        hasRoll: hasRoll ? 1 : 0,
+        hasChaat: hasChaat ? 1 : 0,
+        hasDewaar: hasDewaar ? 1 : 0,
+        status,
+        totalBill,
+      },
+    )
+    if (result.affectedRows === 0) return false
+
+    await conn.query(`DELETE FROM sales_order_items WHERE sales_order_id = :id`, { id })
+    for (const item of items) {
+      await conn.query(
+        `INSERT INTO sales_order_items
+           (sales_order_id, kind, size, raw_material_id, kg, rate_per_kg, amount)
+         VALUES
+           (:orderId, :kind, :size, :rawMaterialId, :kg, :ratePerKg, :amount)`,
+        {
+          orderId: id,
+          kind: item.kind,
+          size: item.size,
+          rawMaterialId: item.rawMaterialId,
+          kg: item.kg,
+          ratePerKg: item.ratePerKg,
+          amount: item.amount,
+        },
+      )
+    }
+    return true
+  }
+
+  if (executor) return run(executor)
+
+  const conn = await getPool().getConnection()
+  try {
+    await conn.beginTransaction()
+    const ok = await run(conn)
+    if (!ok) {
+      await conn.rollback()
+      return false
+    }
+    await conn.commit()
+    return true
+  } catch (err) {
+    await conn.rollback()
+    throw err
+  } finally {
+    conn.release()
+  }
+}
+
 export async function markOrderDeliveredById(id, executor = null) {
   const db = executor || getPool()
   const [result] = await db.query(
@@ -179,10 +262,57 @@ export async function markOrderDeliveredById(id, executor = null) {
   return result.affectedRows > 0
 }
 
-export async function deleteOrderById(id) {
-  const [result] = await getPool().query(
-    `DELETE FROM sales_orders WHERE id = :id AND status = 'pending'`,
+export async function markOrderPendingById(id, executor = null) {
+  const db = executor || getPool()
+  const [result] = await db.query(
+    `UPDATE sales_orders
+     SET status = 'pending'
+     WHERE id = :id AND status = 'delivered'`,
     { id },
   )
+  return result.affectedRows > 0
+}
+
+export async function insertOrderConsumptions(orderId, allocations, executor) {
+  for (const row of allocations) {
+    await executor.query(
+      `INSERT INTO sales_order_consumptions (sales_order_id, roll_production_id, kg)
+       VALUES (:orderId, :productionId, :kg)`,
+      {
+        orderId,
+        productionId: row.productionId,
+        kg: row.kg,
+      },
+    )
+  }
+}
+
+export async function findOrderConsumptions(orderId, executor = null) {
+  const db = executor || getPool()
+  const [rows] = await db.query(
+    `SELECT id, sales_order_id, roll_production_id, kg
+     FROM sales_order_consumptions
+     WHERE sales_order_id = :orderId
+     ORDER BY id ASC`,
+    { orderId },
+  )
+  return rows.map((row) => ({
+    id: row.id,
+    salesOrderId: row.sales_order_id,
+    productionId: row.roll_production_id,
+    kg: Number(row.kg),
+  }))
+}
+
+export async function deleteOrderConsumptions(orderId, executor = null) {
+  const db = executor || getPool()
+  await db.query(`DELETE FROM sales_order_consumptions WHERE sales_order_id = :orderId`, {
+    orderId,
+  })
+}
+
+export async function deleteOrderById(id, executor = null) {
+  const db = executor || getPool()
+  const [result] = await db.query(`DELETE FROM sales_orders WHERE id = :id`, { id })
   return result.affectedRows > 0
 }
