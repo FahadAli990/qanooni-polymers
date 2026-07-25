@@ -2,17 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import api, { getErrorMessage } from '../api/client'
 import { useToast } from '../context/ToastContext'
+import { formatDateDisplay, formatNum, todayIso } from '../utils/format'
 
 const KG_PER_BAG = 40
-
-function todayIso() {
-  return new Date().toISOString().slice(0, 10)
-}
-
-function formatNum(value) {
-  const n = Number(value || 0)
-  return n.toLocaleString(undefined, { maximumFractionDigits: 2 })
-}
 
 function RawMaterialDetailPage() {
   const { slug } = useParams()
@@ -23,7 +15,13 @@ function RawMaterialDetailPage() {
   const [editingId, setEditingId] = useState(null)
   const [material, setMaterial] = useState(null)
   const [items, setItems] = useState([])
-  const [totals, setTotals] = useState({ totalBags: 0, totalKg: 0, kgPerBag: KG_PER_BAG })
+  const [totals, setTotals] = useState({
+    totalBags: 0,
+    stockedKg: 0,
+    usedKg: 0,
+    totalKg: 0,
+    kgPerBag: KG_PER_BAG,
+  })
   const [date, setDate] = useState(todayIso())
   const [supplier, setSupplier] = useState('')
   const [bags, setBags] = useState('')
@@ -41,7 +39,13 @@ function RawMaterialDetailPage() {
       const payload = data.data
       setMaterial(payload.material)
       setItems(payload.items || [])
-      setTotals(payload.totals || { totalBags: 0, totalKg: 0, kgPerBag: KG_PER_BAG })
+      setTotals(payload.totals || {
+        totalBags: 0,
+        stockedKg: 0,
+        usedKg: 0,
+        totalKg: 0,
+        kgPerBag: KG_PER_BAG,
+      })
     } catch (err) {
       setMaterial(null)
       setItems([])
@@ -76,7 +80,7 @@ function RawMaterialDetailPage() {
     setEditingId(item.id)
     setDate(item.date)
     setSupplier(item.supplier)
-    setBags(String(item.bags))
+    setBags(String(Math.round(Number(item.bags))))
     setShowForm(true)
   }
 
@@ -111,7 +115,7 @@ function RawMaterialDetailPage() {
   }
 
   async function handleDelete(item) {
-    const ok = window.confirm(`Delete stock from ${item.supplier} (${formatNum(item.bags)} bags)?`)
+    const ok = window.confirm(`Delete stock from ${item.supplier} (${formatNum(item.bags, 0)} bags)?`)
     if (!ok) return
     try {
       const { data } = await api.delete(`/raw-materials/${slug}/stocks/${item.id}`)
@@ -163,12 +167,17 @@ function RawMaterialDetailPage() {
 
       <section className="stock-totals card">
         <div>
-          <span className="stock-totals__label">Total Quantity</span>
+          <span className="stock-totals__label">Total Quantity (Available)</span>
           <strong className="stock-totals__value">
-            {formatNum(totals.totalBags)} bags
+            {formatNum(totals.totalBags, 0)} bags
             <span className="stock-totals__sep">·</span>
             {formatNum(totals.totalKg)} kg
           </strong>
+          {(totals.usedKg > 0 || totals.stockedKg > 0) && (
+            <p className="help-muted" style={{ marginTop: '0.35rem' }}>
+              Stocked {formatNum(totals.stockedKg)} kg · Used in rolls {formatNum(totals.usedKg)} kg
+            </p>
+          )}
         </div>
       </section>
 
@@ -202,11 +211,11 @@ function RawMaterialDetailPage() {
               <input
                 id="stock-bags"
                 type="number"
-                min="0.01"
-                step="0.01"
+                min="1"
+                step="1"
                 value={bags}
                 onChange={(e) => setBags(e.target.value)}
-                placeholder="e.g. 20"
+                placeholder="e.g. 1, 2, 3, 4"
                 required
               />
             </div>
@@ -254,9 +263,9 @@ function RawMaterialDetailPage() {
             ) : (
               items.map((item) => (
                 <tr key={item.id}>
-                  <td>{item.date}</td>
+                  <td>{formatDateDisplay(item.date)}</td>
                   <td>{item.supplier}</td>
-                  <td>{formatNum(item.bags)}</td>
+                  <td>{formatNum(item.bags, 0)}</td>
                   <td>{formatNum(item.kg)}</td>
                   <td className="stock-table__actions">
                     <button

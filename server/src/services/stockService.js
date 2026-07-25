@@ -41,32 +41,34 @@ function normalizeStockInput(body) {
   if (supplier.length > 160) throw badRequest('Supplier must be 160 characters or less')
 
   const bags = Number(bagsRaw)
-  if (!Number.isFinite(bags) || bags <= 0) {
-    throw badRequest('Quantity (bags) must be a positive number')
+  if (!Number.isFinite(bags) || bags <= 0 || !Number.isInteger(bags)) {
+    throw badRequest('Quantity (bags) must be a whole number (1, 2, 3...)')
   }
 
   const kg = Number((bags * KG_PER_BAG).toFixed(2))
-  return { date, supplier, bags: Number(bags.toFixed(2)), kg }
+  return { date, supplier, bags, kg }
 }
 
-function withTotals(totals) {
+function withTotals(stockTotals, material) {
   return {
-    totalBags: totals.totalBags,
-    totalKg: totals.totalKg,
+    totalBags: stockTotals.totalBags,
+    stockedKg: stockTotals.totalKg,
+    usedKg: Number(material.usedKg || 0),
+    totalKg: Number(material.totalKg || 0),
     kgPerBag: KG_PER_BAG,
   }
 }
 
 export async function listStocksByMaterialSlug(slug) {
   const material = await requireMaterial(slug)
-  const [items, totals] = await Promise.all([
+  const [items, stockTotals] = await Promise.all([
     findStocksByMaterialId(material.id),
     sumStocksByMaterialId(material.id),
   ])
   return {
     material,
     items,
-    totals: withTotals(totals),
+    totals: withTotals(stockTotals, material),
   }
 }
 
@@ -77,10 +79,11 @@ export async function createStockForMaterialSlug(slug, body) {
     rawMaterialId: material.id,
     ...payload,
   })
-  const totals = await sumStocksByMaterialId(material.id)
+  const refreshed = await requireMaterial(slug)
+  const stockTotals = await sumStocksByMaterialId(material.id)
   return {
     item: created,
-    totals: withTotals(totals),
+    totals: withTotals(stockTotals, refreshed),
   }
 }
 
@@ -93,10 +96,11 @@ export async function updateStockForMaterialSlug(slug, stockId, body) {
   const updated = await updateStockById(id, material.id, payload)
   if (!updated) throw notFound('Stock entry not found')
 
-  const totals = await sumStocksByMaterialId(material.id)
+  const refreshed = await requireMaterial(slug)
+  const stockTotals = await sumStocksByMaterialId(material.id)
   return {
     item: updated,
-    totals: withTotals(totals),
+    totals: withTotals(stockTotals, refreshed),
   }
 }
 
@@ -108,9 +112,10 @@ export async function removeStockForMaterialSlug(slug, stockId) {
   const deleted = await deleteStockById(id, material.id)
   if (!deleted) throw notFound('Stock entry not found')
 
-  const totals = await sumStocksByMaterialId(material.id)
+  const refreshed = await requireMaterial(slug)
+  const stockTotals = await sumStocksByMaterialId(material.id)
   return {
     deleted: true,
-    totals: withTotals(totals),
+    totals: withTotals(stockTotals, refreshed),
   }
 }

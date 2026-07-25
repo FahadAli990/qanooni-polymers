@@ -95,6 +95,23 @@ export async function ensureSchema() {
         ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `)
+
+  await getPool().query(`
+    CREATE TABLE IF NOT EXISTS roll_productions (
+      id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+      raw_material_id INT UNSIGNED NOT NULL,
+      production_date DATE NOT NULL,
+      size VARCHAR(16) NOT NULL,
+      kg DECIMAL(14, 2) NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_roll_productions_material (raw_material_id),
+      KEY idx_roll_productions_date (production_date),
+      CONSTRAINT fk_roll_productions_material
+        FOREIGN KEY (raw_material_id) REFERENCES raw_materials (id)
+        ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `)
 }
 
 export async function pingDatabase() {

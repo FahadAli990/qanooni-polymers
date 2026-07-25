@@ -3,11 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useRawMaterials } from '../context/RawMaterialContext'
 import { useToast } from '../context/ToastContext'
 import { getErrorMessage } from '../api/client'
-
-function formatNum(value) {
-  const n = Number(value || 0)
-  return n.toLocaleString(undefined, { maximumFractionDigits: 2 })
-}
+import { formatNum } from '../utils/format'
 
 function RawMaterialPage() {
   const navigate = useNavigate()
@@ -153,7 +149,7 @@ function RawMaterialPage() {
                       <strong>{item.name}</strong>
                     </Link>
                   </td>
-                  <td>{formatNum(item.totalBags)}</td>
+                  <td>{formatNum(item.totalBags, 0)}</td>
                   <td>{formatNum(item.totalKg)}</td>
                   <td className="stock-table__actions">
                     <button type="button" className="btn-secondary btn-compact" onClick={() => openEdit(item)}>

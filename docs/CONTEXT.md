@@ -4,7 +4,7 @@ Last updated: 2026-07-26
 
 ## Purpose
 
-Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock.
+Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock + roll production.
 
 ## Stack
 
@@ -31,22 +31,36 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
   - `DELETE /api/raw-materials/:slug`
   - `GET /api/raw-materials/:slug`
 - UI: `/raw-material` — full-width rows with bags/kg + grand totals; **Add New / Edit / Delete**; sidebar from DB
-- List API returns `{ items, totals }` (each item includes `totalBags` / `totalKg`)
+- List API returns `{ items, totals }` (each item includes `totalBags` / available `totalKg` after roll cuts)
 - Sidebar: Raw Material accordion open/close (chevron toggle; auto-open on child route)
-- Sidebar: **Mills & Production** (folder only — no page) → empty **Roll** (`/mills-production/roll`) / **Bundle** (`/mills-production/bundle`)
-  - Roll icon = round pipe roll; Bundle icon = straight pipe length
+- Sidebar: **Mills & Production** (folder only — no page) → **Roll** (`/mills-production/roll`) / **Bundle** (`/mills-production/bundle`)
+  - Roll icon = round pipe roll; Bundle icon = stacked straight pipes
 - Swatch matches color name (`blue` → blue, `red` → red, also `#hex` / “dark blue”)
 
 ## Stock (per material)
 
 - Table: `raw_material_stocks` (`id`, `raw_material_id`, `stock_date`, `supplier`, `bags`, `kg`, `created_at`)
 - Standard: **1 bag = 40 kg** (`kg` auto-calculated server-side)
+- Bags must be whole numbers (`1, 2, 3…`)
+- Dates display as **DD-MM-YYYY**
 - APIs (auth required):
-  - `GET /api/raw-materials/:slug/stocks` → material + items + totals
+  - `GET /api/raw-materials/:slug/stocks` → material + items + totals (available kg after rolls)
   - `POST /api/raw-materials/:slug/stocks` `{ date, supplier, bags }`
   - `PUT /api/raw-materials/:slug/stocks/:stockId` `{ date, supplier, bags }`
   - `DELETE /api/raw-materials/:slug/stocks/:stockId`
-- UI: `/raw-material/:slug` — title + total quantity + full-width rows with **Edit / Delete** + **Add Stock**
+- UI: `/raw-material/:slug` — title + available quantity + stocked/used + full-width rows with **Edit / Delete** + **Add Stock**
+
+## Roll production
+
+- Table: `roll_productions` (`id`, `raw_material_id`, `production_date`, `size`, `kg`, `created_at`)
+- Sizes: `1/2"`, `3/4"`, `1"`
+- KG can be fractional (e.g. `18.5`); deducted from selected raw material available kg
+- APIs (auth required):
+  - `GET /api/rolls`
+  - `POST /api/rolls` `{ date, materialSlug, size, kg }`
+  - `PUT /api/rolls/:id`
+  - `DELETE /api/rolls/:id`
+- UI: `/mills-production/roll` — Add Production / Edit / Delete
 
 ## Auth
 

@@ -1,6 +1,9 @@
 import { getPool } from '../config/db.js'
 
 function mapRow(row) {
+  const stockedKg = Number(row.stocked_kg ?? row.total_kg ?? 0)
+  const usedKg = Number(row.used_kg ?? 0)
+  const availableKg = Number((stockedKg - usedKg).toFixed(2))
   return {
     id: row.id,
     slug: row.slug,
@@ -8,7 +11,9 @@ function mapRow(row) {
     swatch: row.swatch,
     createdAt: row.created_at,
     totalBags: Number(row.total_bags ?? 0),
-    totalKg: Number(row.total_kg ?? 0),
+    stockedKg,
+    usedKg,
+    totalKg: availableKg,
   }
 }
 
@@ -21,7 +26,12 @@ export async function findAllRawMaterials() {
        m.swatch,
        m.created_at,
        COALESCE(SUM(s.bags), 0) AS total_bags,
-       COALESCE(SUM(s.kg), 0) AS total_kg
+       COALESCE(SUM(s.kg), 0) AS stocked_kg,
+       (
+         SELECT COALESCE(SUM(r.kg), 0)
+         FROM roll_productions r
+         WHERE r.raw_material_id = m.id
+       ) AS used_kg
      FROM raw_materials m
      LEFT JOIN raw_material_stocks s ON s.raw_material_id = m.id
      GROUP BY m.id, m.slug, m.name, m.swatch, m.created_at
@@ -39,7 +49,12 @@ export async function findRawMaterialById(id) {
        m.swatch,
        m.created_at,
        COALESCE(SUM(s.bags), 0) AS total_bags,
-       COALESCE(SUM(s.kg), 0) AS total_kg
+       COALESCE(SUM(s.kg), 0) AS stocked_kg,
+       (
+         SELECT COALESCE(SUM(r.kg), 0)
+         FROM roll_productions r
+         WHERE r.raw_material_id = m.id
+       ) AS used_kg
      FROM raw_materials m
      LEFT JOIN raw_material_stocks s ON s.raw_material_id = m.id
      WHERE m.id = :id
@@ -59,7 +74,12 @@ export async function findRawMaterialBySlug(slug) {
        m.swatch,
        m.created_at,
        COALESCE(SUM(s.bags), 0) AS total_bags,
-       COALESCE(SUM(s.kg), 0) AS total_kg
+       COALESCE(SUM(s.kg), 0) AS stocked_kg,
+       (
+         SELECT COALESCE(SUM(r.kg), 0)
+         FROM roll_productions r
+         WHERE r.raw_material_id = m.id
+       ) AS used_kg
      FROM raw_materials m
      LEFT JOIN raw_material_stocks s ON s.raw_material_id = m.id
      WHERE m.slug = :slug
@@ -79,7 +99,12 @@ export async function findRawMaterialByName(name) {
        m.swatch,
        m.created_at,
        COALESCE(SUM(s.bags), 0) AS total_bags,
-       COALESCE(SUM(s.kg), 0) AS total_kg
+       COALESCE(SUM(s.kg), 0) AS stocked_kg,
+       (
+         SELECT COALESCE(SUM(r.kg), 0)
+         FROM roll_productions r
+         WHERE r.raw_material_id = m.id
+       ) AS used_kg
      FROM raw_materials m
      LEFT JOIN raw_material_stocks s ON s.raw_material_id = m.id
      WHERE m.name = :name
