@@ -22,16 +22,17 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
 
 ## Raw materials
 
-- Table: `raw_materials` (`id`, `slug`, `name`, `swatch`, `created_at`)
+- Table: `raw_materials` (`id`, `slug`, `name`, `swatch`, `price_per_kg`, `created_at`)
 - Auto-created on server start (`ensureSchema`)
 - APIs (auth required):
   - `GET /api/raw-materials`
   - `POST /api/raw-materials` `{ name }`
   - `PUT /api/raw-materials/:slug` `{ name }`
+  - `PUT /api/raw-materials/:slug/price` `{ pricePerKg }` — per-material selling rate
   - `DELETE /api/raw-materials/:slug`
   - `GET /api/raw-materials/:slug`
-- UI: `/raw-material` — full-width rows with bags/kg + grand totals; **Add New / Edit / Delete**; sidebar from DB
-- List API returns `{ items, totals }` (each item includes `totalBags` / available `totalKg` after roll cuts)
+- UI: `/raw-material` — list with **Price / kg**, bags/kg; `/raw-material/:slug` — **Save Price** + stock ledger
+- List API returns `{ items, totals }` (each item includes `pricePerKg`, `totalBags` / available `totalKg`)
 - Sidebar: Raw Material accordion open/close (chevron toggle; auto-open on child route)
 - Sidebar: **Mills & Production** (folder only — no page) → **Roll** (`/mills-production/roll`) / **Bundle** (folder)
   - Bundle → **Chaat** / **Dewaar**
@@ -44,10 +45,10 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
 
 - Tables: `sales_orders` + `sales_order_items`
 - Flow: Date → Route (dropdown) → Shop (customers of that route) → product kinds (Roll / Chaat / Dewaar checkboxes, multi) → one or more raw materials each with **kg**
-- **Temporary rates** per material id (`dummyRates.js`) until real raw-material prices exist; bill = Σ(kg × rate)
+- Bill = Σ(kg × material `price_per_kg`); order blocked if a selected material has no price set
 - APIs (auth required):
   - `GET /api/orders`
-  - `GET /api/orders/rates` — materials + dummy `ratePerKg`
+  - `GET /api/orders/rates` — materials + live `ratePerKg` from `price_per_kg`
   - `POST /api/orders` `{ date, routeSlug, customerId, kinds: { roll, chaat, dewaar }, items: [{ materialSlug, kg }] }`
   - `DELETE /api/orders/:id`
 - UI table: Date, Route, Shop, Address, Phone, Ordered (kinds + materials/kg), Total Bill

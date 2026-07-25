@@ -5,6 +5,7 @@ import {
   getRawMaterialController,
   listRawMaterialsController,
   updateRawMaterialController,
+  updateRawMaterialPriceController,
 } from '../controllers/rawMaterialController.js'
 import {
   createStockController,
@@ -23,6 +24,7 @@ router.get('/:slug/stocks', listStocksController)
 router.post('/:slug/stocks', createStockController)
 router.put('/:slug/stocks/:stockId', updateStockController)
 router.delete('/:slug/stocks/:stockId', deleteStockController)
+router.put('/:slug/price', updateRawMaterialPriceController)
 router.get('/:slug', getRawMaterialController)
 router.put('/:slug', updateRawMaterialController)
 router.delete('/:slug', deleteRawMaterialController)

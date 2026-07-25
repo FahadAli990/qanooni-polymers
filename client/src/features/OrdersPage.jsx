@@ -225,7 +225,7 @@ function OrdersPage() {
       <header className="page-toolbar">
         <div>
           <h1>Orders</h1>
-          <p>Create orders by route & shop — materials billed with temporary rates.</p>
+          <p>Create orders by route & shop — bill uses each material&apos;s price per kg.</p>
         </div>
         <button
           type="button"
@@ -351,7 +351,7 @@ function OrdersPage() {
                     />
                   </div>
                   <div>
-                    <label>Rate / kg (temp)</label>
+                    <label>Rate / kg</label>
                     <input
                       type="text"
                       value={material ? formatMoney(material.ratePerKg) : '—'}
@@ -377,7 +377,6 @@ function OrdersPage() {
             })}
             <p className="order-preview-total">
               Estimated bill: <strong>{formatMoney(previewTotal)}</strong>
-              <span className="help-muted"> (temporary rates)</span>
             </p>
           </div>
 

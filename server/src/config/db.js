@@ -71,12 +71,28 @@ export async function ensureSchema() {
       slug VARCHAR(120) NOT NULL,
       name VARCHAR(120) NOT NULL,
       swatch VARCHAR(7) NOT NULL DEFAULT '#64748b',
+      price_per_kg DECIMAL(14, 2) NOT NULL DEFAULT 0,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       PRIMARY KEY (id),
       UNIQUE KEY uq_raw_materials_slug (slug),
       UNIQUE KEY uq_raw_materials_name (name)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `)
+
+  // Existing DBs created before price_per_kg
+  const [priceCols] = await getPool().query(
+    `SELECT COLUMN_NAME
+     FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'raw_materials'
+       AND COLUMN_NAME = 'price_per_kg'`,
+  )
+  if (!priceCols.length) {
+    await getPool().query(
+      `ALTER TABLE raw_materials
+       ADD COLUMN price_per_kg DECIMAL(14, 2) NOT NULL DEFAULT 0 AFTER swatch`,
+    )
+  }
 
   await getPool().query(`
     CREATE TABLE IF NOT EXISTS raw_material_stocks (

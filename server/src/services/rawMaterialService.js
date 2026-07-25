@@ -5,6 +5,7 @@ import {
   findRawMaterialBySlug,
   insertRawMaterial,
   updateRawMaterial,
+  updateRawMaterialPrice,
   updateRawMaterialSwatch,
 } from '../repositories/rawMaterialRepository.js'
 
@@ -185,6 +186,24 @@ export async function updateRawMaterialBySlug(currentSlug, inputName) {
   const payload = normalizeMaterialName(inputName)
   await assertNameAvailable(payload.name, payload.slug, existing.id)
   return updateRawMaterial(existing.id, payload)
+}
+
+export async function updateRawMaterialPriceBySlug(slug, inputPrice) {
+  const existing = await findRawMaterialBySlug(slug)
+  if (!existing) {
+    const error = new Error('Raw material not found')
+    error.status = 404
+    throw error
+  }
+
+  const pricePerKg = Number(inputPrice)
+  if (!Number.isFinite(pricePerKg) || pricePerKg < 0) {
+    const error = new Error('Price per kg must be zero or a positive number')
+    error.status = 400
+    throw error
+  }
+
+  return updateRawMaterialPrice(existing.id, Number(pricePerKg.toFixed(2)))
 }
 
 export async function removeRawMaterialBySlug(slug) {

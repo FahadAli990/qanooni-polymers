@@ -8,7 +8,6 @@ import {
   findOrderItemsByOrderIds,
   insertOrderWithItems,
 } from '../repositories/orderRepository.js'
-import { dummyRatePerKg } from '../utils/dummyRates.js'
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 const KIND_KEYS = ['roll', 'chaat', 'dewaar']
@@ -51,7 +50,7 @@ export async function getOrderRates() {
     slug: m.slug,
     name: m.name,
     swatch: m.swatch,
-    ratePerKg: dummyRatePerKg(m.id),
+    ratePerKg: Number(m.pricePerKg || 0),
   }))
 }
 
@@ -101,7 +100,13 @@ export async function createOrder(body = {}) {
       throw badRequest(`KG must be a positive number for ${material.name}`)
     }
 
-    const ratePerKg = dummyRatePerKg(material.id)
+    const ratePerKg = Number(material.pricePerKg || 0)
+    if (!(ratePerKg > 0)) {
+      throw badRequest(
+        `Set price per kg for "${material.name}" in Raw Material before creating an order`,
+      )
+    }
+
     const amount = Number((kg * ratePerKg).toFixed(2))
     items.push({
       rawMaterialId: material.id,

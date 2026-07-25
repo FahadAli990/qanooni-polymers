@@ -140,6 +140,7 @@ function RawMaterialPage() {
             <thead>
               <tr>
                 <th>Material</th>
+                <th>Price / kg</th>
                 <th>Bags</th>
                 <th>KG</th>
                 <th aria-label="Actions" />
@@ -153,6 +154,9 @@ function RawMaterialPage() {
                       <span className="material-card__swatch" style={{ backgroundColor: item.swatch }} />
                       <strong>{item.name}</strong>
                     </Link>
+                  </td>
+                  <td>
+                    {Number(item.pricePerKg) > 0 ? `Rs ${formatNum(item.pricePerKg)}` : '—'}
                   </td>
                   <td>{formatNum(item.totalBags)}</td>
                   <td>{formatNum(item.totalKg)}</td>
