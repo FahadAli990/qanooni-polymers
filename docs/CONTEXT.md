@@ -35,22 +35,23 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials.
 
 ## Auth
 
-- Login: `asdf123` / `asdf123` (dev)
+- Login: `asdf123` / `asdf123` (dev + current prod demo)
 - Token: `qp_token`
 
 ## Env
 
 `MYSQL_DATABASE=Qanooni_db`  
 Also supports `MYSQL_URL` / `DATABASE_URL` and Railway `MYSQLHOST` / `MYSQLUSER` / etc.  
-`CLIENT_ORIGIN` — comma-separated allowed browser origins  
-Client: `VITE_API_URL` (prod API base, e.g. `https://api.example.com/api`)
+`CLIENT_ORIGIN` — comma-separated allowed browser origins (`*` allowed)  
+Client: `VITE_API_URL` (prod API base, e.g. `https://api…/api`)
 
-## Deploy
+## Deploy (live)
 
-| Piece | Host |
-|-------|------|
-| Client | Vercel (`client/`) |
-| API | Railway (`server/`) |
-| MySQL | Railway MySQL plugin |
+| Piece | Host | URL |
+|-------|------|-----|
+| Client | Vercel | https://qanooni-polymers.vercel.app |
+| API | Railway | https://api-production-be0d8.up.railway.app |
+| MySQL | Railway MySQL | private (same Railway project) |
+| GitHub | — | https://github.com/FahadAli990/qanooni-polymers |
 
-GitHub: https://github.com/FahadAli990/qanooni-polymers
+Health: `GET https://api-production-be0d8.up.railway.app/api/health`
