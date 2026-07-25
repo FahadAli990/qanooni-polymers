@@ -50,11 +50,19 @@ function normalizeStockInput(body) {
 }
 
 function withTotals(stockTotals, material) {
+  const stockedKg = stockTotals.totalKg
+  const usedKg = Number(material.usedKg || 0)
+  const availableKg = Number(material.totalKg || 0)
+  const stockedBags = stockTotals.totalBags
+  const usedBags = Number((usedKg / KG_PER_BAG).toFixed(4))
+  const availableBags = Number((availableKg / KG_PER_BAG).toFixed(4))
   return {
-    totalBags: stockTotals.totalBags,
-    stockedKg: stockTotals.totalKg,
-    usedKg: Number(material.usedKg || 0),
-    totalKg: Number(material.totalKg || 0),
+    stockedBags,
+    usedBags,
+    totalBags: availableBags,
+    stockedKg,
+    usedKg,
+    totalKg: availableKg,
     kgPerBag: KG_PER_BAG,
   }
 }

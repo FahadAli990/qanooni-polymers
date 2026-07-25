@@ -41,7 +41,8 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
 
 - Table: `raw_material_stocks` (`id`, `raw_material_id`, `stock_date`, `supplier`, `bags`, `kg`, `created_at`)
 - Standard: **1 bag = 40 kg** (`kg` auto-calculated server-side)
-- Bags must be whole numbers (`1, 2, 3…`)
+- Bags must be whole numbers on stock entry (`1, 2, 3…`)
+- When rolls consume kg, available bags also drop (`usedKg / 40`)
 - Dates display as **DD-MM-YYYY**
 - APIs (auth required):
   - `GET /api/raw-materials/:slug/stocks` → material + items + totals (available kg after rolls)

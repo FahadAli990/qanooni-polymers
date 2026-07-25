@@ -1,16 +1,22 @@
 import { getPool } from '../config/db.js'
 
 function mapRow(row) {
+  const KG_PER_BAG = 40
   const stockedKg = Number(row.stocked_kg ?? row.total_kg ?? 0)
   const usedKg = Number(row.used_kg ?? 0)
   const availableKg = Number((stockedKg - usedKg).toFixed(2))
+  const stockedBags = Number(row.total_bags ?? 0)
+  const usedBags = Number((usedKg / KG_PER_BAG).toFixed(4))
+  const availableBags = Number((availableKg / KG_PER_BAG).toFixed(4))
   return {
     id: row.id,
     slug: row.slug,
     name: row.name,
     swatch: row.swatch,
     createdAt: row.created_at,
-    totalBags: Number(row.total_bags ?? 0),
+    stockedBags,
+    usedBags,
+    totalBags: availableBags,
     stockedKg,
     usedKg,
     totalKg: availableKg,

@@ -17,6 +17,8 @@ function RawMaterialDetailPage() {
   const [items, setItems] = useState([])
   const [totals, setTotals] = useState({
     totalBags: 0,
+    stockedBags: 0,
+    usedBags: 0,
     stockedKg: 0,
     usedKg: 0,
     totalKg: 0,
@@ -41,6 +43,8 @@ function RawMaterialDetailPage() {
       setItems(payload.items || [])
       setTotals(payload.totals || {
         totalBags: 0,
+        stockedBags: 0,
+        usedBags: 0,
         stockedKg: 0,
         usedKg: 0,
         totalKg: 0,
@@ -169,13 +173,15 @@ function RawMaterialDetailPage() {
         <div>
           <span className="stock-totals__label">Total Quantity (Available)</span>
           <strong className="stock-totals__value">
-            {formatNum(totals.totalBags, 0)} bags
+            {formatNum(totals.totalBags)} bags
             <span className="stock-totals__sep">·</span>
             {formatNum(totals.totalKg)} kg
           </strong>
           {(totals.usedKg > 0 || totals.stockedKg > 0) && (
             <p className="help-muted" style={{ marginTop: '0.35rem' }}>
-              Stocked {formatNum(totals.stockedKg)} kg · Used in rolls {formatNum(totals.usedKg)} kg
+              Stocked {formatNum(totals.stockedBags)} bags ({formatNum(totals.stockedKg)} kg)
+              {' · '}
+              Used {formatNum(totals.usedBags)} bags ({formatNum(totals.usedKg)} kg)
             </p>
           )}
         </div>

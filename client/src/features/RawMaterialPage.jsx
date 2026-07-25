@@ -149,7 +149,7 @@ function RawMaterialPage() {
                       <strong>{item.name}</strong>
                     </Link>
                   </td>
-                  <td>{formatNum(item.totalBags, 0)}</td>
+                  <td>{formatNum(item.totalBags)}</td>
                   <td>{formatNum(item.totalKg)}</td>
                   <td className="stock-table__actions">
                     <button type="button" className="btn-secondary btn-compact" onClick={() => openEdit(item)}>
