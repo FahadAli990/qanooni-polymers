@@ -46,12 +46,11 @@ export async function findAllRolls(kind = 'roll') {
      FROM roll_productions r
      INNER JOIN raw_materials m ON m.id = r.raw_material_id
      WHERE r.kind = :kind
-       AND r.remaining_kg > 0
-       AND r.status = 'available'
+       AND COALESCE(r.remaining_kg, 0) > 0
      ORDER BY r.created_at ASC, r.id ASC`,
     { kind },
   )
-  return rows.map(mapRow)
+  return rows.map(mapRow).filter((item) => Number(item.remainingKg) > 0)
 }
 
 export async function findRollById(id, executor = null) {

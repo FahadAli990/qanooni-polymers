@@ -67,9 +67,11 @@ function ProductionPage({ kind }) {
     try {
       const { data } = await api.get(`/productions/${kind}`)
       const payload = data.data
-      setItems(payload.items || [])
+      const list = (payload.items || []).filter((row) => Number(row.remainingKg ?? row.kg) > 0)
+      setItems(list)
       setSizes(payload.sizes?.length ? payload.sizes : DEFAULT_SIZES)
-      setTotals(payload.totals || { totalKg: 0 })
+      const totalKg = list.reduce((sum, row) => sum + Number(row.remainingKg ?? row.kg || 0), 0)
+      setTotals(payload.totals?.totalKg != null ? { totalKg: Number(Number(totalKg).toFixed(2)) } : { totalKg })
       await refreshMaterials()
     } catch (err) {
       setItems([])
@@ -124,7 +126,11 @@ function ProductionPage({ kind }) {
       if (editingId) {
         const { data } = await api.put(`/productions/${kind}/${editingId}`, body)
         const payload = data.data
-        setItems((prev) => prev.map((row) => (row.id === editingId ? payload.item : row)))
+        setItems((prev) =>
+          prev
+            .map((row) => (row.id === editingId ? payload.item : row))
+            .filter((row) => Number(row.remainingKg ?? row.kg) > 0),
+        )
         setTotals(payload.totals)
         showToast(`${meta.title} updated`)
       } else {
