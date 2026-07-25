@@ -149,7 +149,7 @@ function RawMaterialPage() {
               />
             </div>
             <div>
-              <label htmlFor="material-price">Amount per kg (Rs)</label>
+              <label htmlFor="material-price">Sell Amount / kg (Rs)</label>
               <input
                 id="material-price"
                 type="number"
@@ -184,7 +184,7 @@ function RawMaterialPage() {
             <thead>
               <tr>
                 <th>Material</th>
-                <th>Amount / kg</th>
+                <th>Sell Amount / kg</th>
                 <th>In Stock Now</th>
                 <th>Stock Value</th>
                 <th aria-label="Actions" />

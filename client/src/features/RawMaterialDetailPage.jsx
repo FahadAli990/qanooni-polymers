@@ -268,7 +268,7 @@ function RawMaterialDetailPage() {
               />
             </div>
             <div>
-              <label htmlFor="stock-price">Amount / kg (Rs)</label>
+              <label htmlFor="stock-price">Purchase Amount / kg (Rs)</label>
               <input
                 id="stock-price"
                 type="number"
@@ -311,7 +311,7 @@ function RawMaterialDetailPage() {
               <th>Supplier</th>
               <th>Bags</th>
               <th>KG</th>
-              <th>Amount / kg</th>
+              <th>Purchase Amount / kg</th>
               <th>Total Paid</th>
               <th aria-label="Actions" />
             </tr>
