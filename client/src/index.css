@@ -545,6 +545,22 @@ select:focus {
   border-color: #86efac;
 }
 
+.status-pill--available {
+  color: #166534;
+  background: #f0fdf4;
+  border-color: #86efac;
+}
+
+.status-pill--used {
+  color: #6b7280;
+  background: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+.stock-table__row--used td {
+  color: var(--text-soft);
+}
+
 .stock-table-wrap {
   overflow-x: auto;
 }

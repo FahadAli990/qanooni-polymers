@@ -135,11 +135,14 @@ export async function ensureSchema() {
       production_date DATE NOT NULL,
       size VARCHAR(16) NOT NULL,
       kg DECIMAL(14, 2) NOT NULL,
+      remaining_kg DECIMAL(14, 2) NOT NULL,
+      status VARCHAR(16) NOT NULL DEFAULT 'available',
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       PRIMARY KEY (id),
       KEY idx_roll_productions_kind (kind),
       KEY idx_roll_productions_material (raw_material_id),
       KEY idx_roll_productions_date (production_date),
+      KEY idx_roll_productions_status (status),
       CONSTRAINT fk_roll_productions_material
         FOREIGN KEY (raw_material_id) REFERENCES raw_materials (id)
         ON DELETE CASCADE
@@ -164,6 +167,58 @@ export async function ensureSchema() {
        ADD KEY idx_roll_productions_kind (kind)`,
     )
   }
+
+  const [remainingCols] = await getPool().query(
+    `SELECT COLUMN_NAME
+     FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'roll_productions'
+       AND COLUMN_NAME = 'remaining_kg'`,
+  )
+  if (!remainingCols.length) {
+    await getPool().query(
+      `ALTER TABLE roll_productions
+       ADD COLUMN remaining_kg DECIMAL(14, 2) NULL AFTER kg`,
+    )
+    await getPool().query(
+      `UPDATE roll_productions
+       SET remaining_kg = kg
+       WHERE remaining_kg IS NULL`,
+    )
+    await getPool().query(
+      `ALTER TABLE roll_productions
+       MODIFY COLUMN remaining_kg DECIMAL(14, 2) NOT NULL`,
+    )
+  }
+
+  const [prodStatusCols] = await getPool().query(
+    `SELECT COLUMN_NAME
+     FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'roll_productions'
+       AND COLUMN_NAME = 'status'`,
+  )
+  if (!prodStatusCols.length) {
+    await getPool().query(
+      `ALTER TABLE roll_productions
+       ADD COLUMN status VARCHAR(16) NOT NULL DEFAULT 'available' AFTER remaining_kg`,
+    )
+    await getPool().query(
+      `ALTER TABLE roll_productions
+       ADD KEY idx_roll_productions_status (status)`,
+    )
+  }
+
+  await getPool().query(
+    `UPDATE roll_productions
+     SET status = CASE
+       WHEN remaining_kg <= 0 THEN 'used'
+       ELSE 'available'
+     END
+     WHERE status NOT IN ('available', 'used')
+        OR (remaining_kg <= 0 AND status <> 'used')
+        OR (remaining_kg > 0 AND status <> 'available')`,
+  )
 
   await getPool().query(`
     CREATE TABLE IF NOT EXISTS mill_routes (

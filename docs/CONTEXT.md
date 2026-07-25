@@ -1,6 +1,6 @@
 # CONTEXT — Qanooni Polymers System Truth
 
-Last updated: 2026-07-26
+Last updated: 2026-07-26 (FIFO production consume on deliver)
 
 ## Purpose
 
@@ -46,8 +46,12 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
 - Tables: `sales_orders` + `sales_order_items` (`kind`, `size`, material, kg, rate, amount)
 - Flow: Date → Route → Shop → **order lines** (each: Roll/Chaat/Dewaar + size `1/2"|3/4"|1"` + material + kg + **sell rate/kg**) → **Pending**
 - **Deliver** (one-way): Pending → Delivered only; cannot return to Pending
-- On deliver: stock cut by **material kg** (size/type are product specs; raw pool is shared like production)
-- Deliver blocked if available kg is insufficient; delivered orders cannot be deleted
+- On deliver: **FIFO consume finished production** matching each line (`kind` + `size` + material), oldest `production_date` first
+  - Partial: one production row remaining drops; overflow takes from next older/newer date in FIFO order
+  - When remaining hits 0 → production `status = used`
+  - Deliver blocked if matching production remaining kg is insufficient
+- Raw stock is only cut when production is recorded (not again on deliver)
+- Delivered orders cannot be deleted
 - Bill = Σ(kg × line `ratePerKg`); rate entered on each order line (not from raw materials)
 - APIs (auth required):
   - `GET /api/orders`
@@ -92,10 +96,11 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
 
 ## Roll / Chaat / Dewaar production
 
-- Table: `roll_productions` (`id`, `kind`, `raw_material_id`, `production_date`, `size`, `kg`, `created_at`)
-- `kind`: `roll` | `chaat` | `dewaar` (all deduct from same raw material stock)
+- Table: `roll_productions` (`id`, `kind`, `raw_material_id`, `production_date`, `size`, `kg` original, `remaining_kg`, `status` available|used, `created_at`)
+- `kind`: `roll` | `chaat` | `dewaar` (all deduct original `kg` from same raw material stock)
 - Sizes: `1/2"`, `3/4"`, `1"`
 - KG can be fractional (e.g. `18.5`)
+- Delivered orders reduce `remaining_kg` FIFO; used rows cannot be edited/deleted
 - APIs (auth required):
   - `GET /api/productions/:kind`
   - `POST /api/productions/:kind` `{ date, materialSlug, size, kg }`
@@ -105,7 +110,7 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
   - `/mills-production/roll`
   - `/mills-production/bundle/chaat`
   - `/mills-production/bundle/dewaar`
-- Color picker shows swatch + name
+- Color picker shows swatch + name; table shows Remaining KG + Used/Available
 
 ## Auth
 

@@ -116,6 +116,9 @@ export async function updateRollProduction(rollId, body, kindInput = 'roll') {
 
   const existing = await findRollById(id)
   if (!existing || existing.kind !== kind) throw notFound()
+  if (existing.status === 'used' || Number(existing.remainingKg) < Number(existing.kg)) {
+    throw badRequest('This production was partly or fully used in orders and cannot be edited')
+  }
 
   const payload = normalizeRollInput(body)
   const material = await findRawMaterialBySlug(payload.materialSlug)
@@ -135,7 +138,9 @@ export async function updateRollProduction(rollId, body, kindInput = 'roll') {
     size: payload.size,
     kg: payload.kg,
   })
-  if (!item) throw notFound()
+  if (!item) {
+    throw badRequest('This production was partly or fully used in orders and cannot be edited')
+  }
 
   const totalKg = await sumAllRollKg(kind)
   return {
@@ -152,9 +157,14 @@ export async function removeRollProduction(rollId, kindInput = 'roll') {
 
   const existing = await findRollById(id)
   if (!existing || existing.kind !== kind) throw notFound()
+  if (existing.status === 'used' || Number(existing.remainingKg) < Number(existing.kg)) {
+    throw badRequest('This production was partly or fully used in orders and cannot be deleted')
+  }
 
   const deleted = await deleteRollById(id, kind)
-  if (!deleted) throw notFound()
+  if (!deleted) {
+    throw badRequest('This production was partly or fully used in orders and cannot be deleted')
+  }
 
   const totalKg = await sumAllRollKg(kind)
   return {

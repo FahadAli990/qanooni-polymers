@@ -1,7 +1,11 @@
-import { findAllRawMaterials, findRawMaterialById, findRawMaterialBySlug } from '../repositories/rawMaterialRepository.js'
+import { findAllRawMaterials, findRawMaterialBySlug } from '../repositories/rawMaterialRepository.js'
 import { findMillRouteBySlug } from '../repositories/millRouteRepository.js'
 import { findCustomerById } from '../repositories/routeCustomerRepository.js'
-import { ROLL_SIZES } from '../repositories/rollRepository.js'
+import {
+  ROLL_SIZES,
+  consumeProductionFifo,
+  sumAvailableProductionKg,
+} from '../repositories/rollRepository.js'
 import {
   deleteOrderById,
   findAllOrders,
@@ -10,6 +14,7 @@ import {
   insertOrderWithItems,
   markOrderDeliveredById,
 } from '../repositories/orderRepository.js'
+import { getPool } from '../config/db.js'
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 const KIND_KEYS = ['roll', 'chaat', 'dewaar']
@@ -167,33 +172,53 @@ export async function deliverOrder(idInput) {
   }
   if (order.status !== 'pending') throw badRequest('Only pending orders can be delivered')
 
-  // Stock is by raw material kg (size/kind are product specs; material pool is shared)
-  const needByMaterial = new Map()
-  for (const item of order.items) {
-    const prev = needByMaterial.get(item.rawMaterialId) || {
-      name: item.materialName,
-      kg: 0,
-    }
-    prev.kg += Number(item.kg)
-    needByMaterial.set(item.rawMaterialId, prev)
-  }
+  const conn = await getPool().getConnection()
+  try {
+    await conn.beginTransaction()
 
-  for (const [materialId, need] of needByMaterial.entries()) {
-    const material = await findRawMaterialById(materialId)
-    if (!material) {
-      throw badRequest(`Raw material missing for order line (${need.name || materialId})`)
-    }
-    const available = Number(material.totalKg || 0)
-    if (available + 1e-9 < need.kg) {
-      throw badRequest(
-        `Not enough stock for "${material.name}". Need ${need.kg} kg, available ${available} kg`,
+    for (const item of order.items) {
+      const need = Number(item.kg)
+      const available = await sumAvailableProductionKg(
+        {
+          kind: item.kind,
+          size: item.size,
+          rawMaterialId: item.rawMaterialId,
+        },
+        conn,
       )
-    }
-  }
+      if (available + 1e-9 < need) {
+        throw badRequest(
+          `Not enough ${KIND_LABEL[item.kind] || item.kind} production for "${item.materialName}" ${item.size}. Need ${need} kg, available ${available} kg`,
+        )
+      }
 
-  const updated = await markOrderDeliveredById(id)
-  if (!updated) {
-    throw badRequest('Order is already delivered and cannot go back to pending')
+      const result = await consumeProductionFifo(
+        {
+          kind: item.kind,
+          size: item.size,
+          rawMaterialId: item.rawMaterialId,
+          kg: need,
+        },
+        conn,
+      )
+      if (!result.ok) {
+        throw badRequest(
+          `Not enough ${KIND_LABEL[item.kind] || item.kind} production for "${item.materialName}" ${item.size}. Need ${need} kg`,
+        )
+      }
+    }
+
+    const updated = await markOrderDeliveredById(id, conn)
+    if (!updated) {
+      throw badRequest('Order is already delivered and cannot go back to pending')
+    }
+
+    await conn.commit()
+  } catch (err) {
+    await conn.rollback()
+    throw err
+  } finally {
+    conn.release()
   }
 
   return getOrderWithItems(id)

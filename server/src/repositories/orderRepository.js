@@ -168,8 +168,9 @@ export async function insertOrderWithItems({
   }
 }
 
-export async function markOrderDeliveredById(id) {
-  const [result] = await getPool().query(
+export async function markOrderDeliveredById(id, executor = null) {
+  const db = executor || getPool()
+  const [result] = await db.query(
     `UPDATE sales_orders
      SET status = 'delivered'
      WHERE id = :id AND status = 'pending'`,

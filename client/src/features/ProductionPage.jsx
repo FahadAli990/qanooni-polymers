@@ -181,7 +181,7 @@ function ProductionPage({ kind }) {
 
       <section className="stock-totals card">
         <div>
-          <span className="stock-totals__label">Total {meta.title} Production</span>
+          <span className="stock-totals__label">Available {meta.title} Production</span>
           <strong className="stock-totals__value">{formatNum(totals.totalKg)} kg</strong>
         </div>
       </section>
@@ -268,50 +268,71 @@ function ProductionPage({ kind }) {
                 <th>Date</th>
                 <th>Color</th>
                 <th>Size</th>
-                <th>KG</th>
+                <th>Remaining KG</th>
+                <th>Status</th>
                 <th aria-label="Actions" />
               </tr>
             </thead>
             <tbody>
               {items.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="stock-table__empty">
+                  <td colSpan={6} className="stock-table__empty">
                     {meta.empty}
                   </td>
                 </tr>
               ) : (
-                items.map((item) => (
-                  <tr key={item.id}>
-                    <td>{formatDateDisplay(item.date)}</td>
-                    <td>
-                      <span className="material-row-link">
-                        <span
-                          className="material-card__swatch"
-                          style={{ backgroundColor: item.materialSwatch }}
-                        />
-                        <strong>{item.materialName}</strong>
-                      </span>
-                    </td>
-                    <td>{item.size}</td>
-                    <td>{formatNum(item.kg)}</td>
-                    <td className="stock-table__actions">
-                      <button
-                        type="button"
-                        className="btn-secondary btn-compact"
-                        onClick={() => openEdit(item)}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        className="btn-danger btn-compact"
-                        onClick={() => handleDelete(item)}
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))
+                items.map((item) => {
+                  const remaining = Number(item.remainingKg ?? item.kg)
+                  const produced = Number(item.kg)
+                  const used = item.status === 'used' || remaining <= 0
+                  const locked = used || remaining < produced
+                  return (
+                    <tr key={item.id} className={used ? 'stock-table__row--used' : undefined}>
+                      <td>{formatDateDisplay(item.date)}</td>
+                      <td>
+                        <span className="material-row-link">
+                          <span
+                            className="material-card__swatch"
+                            style={{ backgroundColor: item.materialSwatch }}
+                          />
+                          <strong>{item.materialName}</strong>
+                        </span>
+                      </td>
+                      <td>{item.size}</td>
+                      <td>
+                        {formatNum(remaining)}
+                        {remaining < produced ? (
+                          <span className="help-muted"> / {formatNum(produced)}</span>
+                        ) : null}
+                      </td>
+                      <td>
+                        <span className={`status-pill ${used ? 'status-pill--used' : 'status-pill--available'}`}>
+                          {used ? 'Used' : 'Available'}
+                        </span>
+                      </td>
+                      <td className="stock-table__actions">
+                        {!locked && (
+                          <>
+                            <button
+                              type="button"
+                              className="btn-secondary btn-compact"
+                              onClick={() => openEdit(item)}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-danger btn-compact"
+                              onClick={() => handleDelete(item)}
+                            >
+                              Delete
+                            </button>
+                          </>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })
               )}
             </tbody>
           </table>
