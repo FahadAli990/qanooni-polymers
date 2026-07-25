@@ -46,7 +46,7 @@ export async function findAllRolls(kind = 'roll') {
      FROM roll_productions r
      INNER JOIN raw_materials m ON m.id = r.raw_material_id
      WHERE r.kind = :kind
-     ORDER BY r.production_date DESC, r.id DESC`,
+     ORDER BY r.production_date ASC, r.id ASC`,
     { kind },
   )
   return rows.map(mapRow)

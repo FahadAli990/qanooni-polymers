@@ -210,7 +210,11 @@ function OrdersPage() {
         customerId: Number(customerId),
         items,
       })
-      setOrders((prev) => [data.data, ...prev])
+      setOrders((prev) => {
+        const pending = prev.filter((row) => row.status !== 'delivered')
+        const delivered = prev.filter((row) => row.status === 'delivered')
+        return [...pending, data.data, ...delivered]
+      })
       showToast('Order added')
       closeForm()
     } catch (err) {

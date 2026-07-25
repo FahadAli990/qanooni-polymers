@@ -68,8 +68,8 @@ export async function findAllOrders() {
      INNER JOIN route_customers c ON c.id = o.route_customer_id
      ORDER BY
        CASE WHEN o.status = 'pending' THEN 0 ELSE 1 END,
-       o.order_date DESC,
-       o.id DESC`,
+       o.order_date ASC,
+       o.id ASC`,
   )
   return rows.map(mapOrderRow)
 }

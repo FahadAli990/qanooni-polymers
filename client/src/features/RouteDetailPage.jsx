@@ -120,7 +120,7 @@ function RouteDetailPage() {
         showToast('Customer updated')
       } else {
         const { data } = await api.post(`/routes/${slug}/customers`, body)
-        setItems((prev) => [...prev, data.data.item].sort((a, b) => a.shopName.localeCompare(b.shopName)))
+        setItems((prev) => [...prev, data.data.item])
         showToast('Customer added')
       }
       closeForm()

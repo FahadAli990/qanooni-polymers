@@ -23,7 +23,7 @@ export async function findStocksByMaterialId(rawMaterialId) {
     `SELECT id, raw_material_id, stock_date, supplier, bags, kg, price_per_kg, created_at
      FROM raw_material_stocks
      WHERE raw_material_id = :rawMaterialId
-     ORDER BY stock_date DESC, id DESC`,
+     ORDER BY stock_date ASC, id ASC`,
     { rawMaterialId },
   )
   return rows.map(mapRow)

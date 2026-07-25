@@ -130,7 +130,7 @@ function RawMaterialDetailPage() {
       } else {
         const { data } = await api.post(`/raw-materials/${slug}/stocks`, body)
         const payload = data.data
-        setItems((prev) => [payload.item, ...prev])
+        setItems((prev) => [...prev, payload.item])
         setTotals(payload.totals)
         showToast('Stock added')
       }

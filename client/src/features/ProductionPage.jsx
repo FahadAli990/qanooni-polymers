@@ -130,7 +130,7 @@ function ProductionPage({ kind }) {
       } else {
         const { data } = await api.post(`/productions/${kind}`, body)
         const payload = data.data
-        setItems((prev) => [payload.item, ...prev])
+        setItems((prev) => [...prev, payload.item])
         setTotals(payload.totals)
         showToast(`${meta.title} production added`)
       }

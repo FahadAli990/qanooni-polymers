@@ -101,7 +101,7 @@ select:focus {
 .btn-secondary {
   min-height: 2.9rem;
   padding: 0.75rem 1rem;
-  border: 1px solid var(--border);
+  border: 1.5px solid var(--border-strong);
   border-radius: var(--radius-md);
   background: var(--white);
   color: var(--text);
@@ -113,7 +113,7 @@ select:focus {
 .btn-danger {
   min-height: 2.9rem;
   padding: 0.75rem 1rem;
-  border: 1px solid var(--red);
+  border: 1.5px solid var(--red);
   border-radius: var(--radius-md);
   background: var(--white);
   color: var(--red);
@@ -232,6 +232,13 @@ select:focus {
   flex-wrap: wrap;
   justify-content: center;
   gap: 0.45rem;
+}
+
+.material-card__actions > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 4.25rem;
 }
 
 .app-page-loading {
@@ -597,9 +604,27 @@ select:focus {
 
 .stock-table__actions {
   text-align: right;
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.45rem;
+  width: 1%;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.stock-table__actions > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+}
+
+.stock-table__actions > button + button {
+  margin-left: 0.45rem;
+}
+
+.btn-secondary.btn-compact,
+.btn-danger.btn-compact,
+.btn-primary.btn-compact {
+  min-width: 4.25rem;
+  border-width: 1.5px;
 }
 
 .material-row-link {

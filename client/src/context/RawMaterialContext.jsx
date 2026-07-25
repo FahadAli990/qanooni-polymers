@@ -4,8 +4,8 @@ import { useAuth } from './AuthContext'
 
 const RawMaterialContext = createContext(null)
 
-function sortByName(list) {
-  return [...list].sort((a, b) => a.name.localeCompare(b.name))
+function sortById(list) {
+  return [...list].sort((a, b) => Number(a.id) - Number(b.id))
 }
 
 function emptyTotals() {
@@ -70,7 +70,7 @@ export function RawMaterialProvider({ children }) {
     const { data } = await api.post('/raw-materials', { name })
     const created = normalizeItem(data.data)
     setItems((prev) => {
-      const next = sortByName([...prev.filter((i) => i.id !== created.id), created])
+      const next = sortById([...prev.filter((i) => i.id !== created.id), created])
       setTotals(computeTotals(next))
       return next
     })
@@ -81,7 +81,7 @@ export function RawMaterialProvider({ children }) {
     const { data } = await api.put(`/raw-materials/${slug}`, { name })
     const updated = normalizeItem(data.data)
     setItems((prev) => {
-      const next = sortByName([...prev.filter((i) => i.id !== updated.id), updated])
+      const next = sortById([...prev.filter((i) => i.id !== updated.id), updated])
       setTotals(computeTotals(next))
       return next
     })

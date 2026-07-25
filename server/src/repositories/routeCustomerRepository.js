@@ -17,7 +17,7 @@ export async function findCustomersByRouteId(millRouteId) {
     `SELECT id, mill_route_id, shop_name, address, owner_name, contact_number, created_at
      FROM route_customers
      WHERE mill_route_id = :millRouteId
-     ORDER BY shop_name ASC, id ASC`,
+     ORDER BY id ASC`,
     { millRouteId },
   )
   return rows.map(mapRow)

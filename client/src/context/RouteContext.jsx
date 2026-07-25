@@ -4,8 +4,8 @@ import { useAuth } from './AuthContext'
 
 const RouteContext = createContext(null)
 
-function sortByName(list) {
-  return [...list].sort((a, b) => a.name.localeCompare(b.name))
+function sortById(list) {
+  return [...list].sort((a, b) => Number(a.id) - Number(b.id))
 }
 
 export function RouteProvider({ children }) {
@@ -36,14 +36,14 @@ export function RouteProvider({ children }) {
   const create = useCallback(async (name) => {
     const { data } = await api.post('/routes', { name })
     const created = data.data
-    setItems((prev) => sortByName([...prev.filter((i) => i.id !== created.id), created]))
+    setItems((prev) => sortById([...prev.filter((i) => i.id !== created.id), created]))
     return created
   }, [])
 
   const update = useCallback(async (slug, name) => {
     const { data } = await api.put(`/routes/${slug}`, { name })
     const updated = data.data
-    setItems((prev) => sortByName([
+    setItems((prev) => sortById([
       ...prev.filter((i) => i.id !== updated.id),
       updated,
     ]))
