@@ -60,6 +60,17 @@ export async function insertStock({ rawMaterialId, date, supplier, bags, kg }) {
   return findStockById(result.insertId)
 }
 
+export async function updateStockById(id, rawMaterialId, { date, supplier, bags, kg }) {
+  const [result] = await getPool().query(
+    `UPDATE raw_material_stocks
+     SET stock_date = :date, supplier = :supplier, bags = :bags, kg = :kg
+     WHERE id = :id AND raw_material_id = :rawMaterialId`,
+    { id, rawMaterialId, date, supplier, bags, kg },
+  )
+  if (result.affectedRows === 0) return null
+  return findStockById(id)
+}
+
 export async function deleteStockById(id, rawMaterialId) {
   const [result] = await getPool().query(
     `DELETE FROM raw_material_stocks

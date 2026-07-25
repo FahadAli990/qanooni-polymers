@@ -10,6 +10,7 @@ import {
   createStockController,
   deleteStockController,
   listStocksController,
+  updateStockController,
 } from '../controllers/stockController.js'
 import { requireAuth } from '../middleware/auth.js'
 
@@ -20,6 +21,7 @@ router.get('/', listRawMaterialsController)
 router.post('/', createRawMaterialController)
 router.get('/:slug/stocks', listStocksController)
 router.post('/:slug/stocks', createStockController)
+router.put('/:slug/stocks/:stockId', updateStockController)
 router.delete('/:slug/stocks/:stockId', deleteStockController)
 router.get('/:slug', getRawMaterialController)
 router.put('/:slug', updateRawMaterialController)

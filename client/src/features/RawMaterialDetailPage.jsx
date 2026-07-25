@@ -20,6 +20,7 @@ function RawMaterialDetailPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [showForm, setShowForm] = useState(false)
+  const [editingId, setEditingId] = useState(null)
   const [material, setMaterial] = useState(null)
   const [items, setItems] = useState([])
   const [totals, setTotals] = useState({ totalBags: 0, totalKg: 0, kgPerBag: KG_PER_BAG })
@@ -55,26 +56,53 @@ function RawMaterialDetailPage() {
   }, [load])
 
   function resetForm() {
+    setEditingId(null)
     setDate(todayIso())
     setSupplier('')
     setBags('')
+  }
+
+  function closeForm() {
+    setShowForm(false)
+    resetForm()
+  }
+
+  function openCreate() {
+    resetForm()
+    setShowForm(true)
+  }
+
+  function openEdit(item) {
+    setEditingId(item.id)
+    setDate(item.date)
+    setSupplier(item.supplier)
+    setBags(String(item.bags))
+    setShowForm(true)
   }
 
   async function handleSubmit(e) {
     e.preventDefault()
     setSaving(true)
     try {
-      const { data } = await api.post(`/raw-materials/${slug}/stocks`, {
+      const body = {
         date,
         supplier,
         bags: Number(bags),
-      })
-      const payload = data.data
-      setItems((prev) => [payload.item, ...prev])
-      setTotals(payload.totals)
-      showToast('Stock added')
-      resetForm()
-      setShowForm(false)
+      }
+      if (editingId) {
+        const { data } = await api.put(`/raw-materials/${slug}/stocks/${editingId}`, body)
+        const payload = data.data
+        setItems((prev) => prev.map((row) => (row.id === editingId ? payload.item : row)))
+        setTotals(payload.totals)
+        showToast('Stock updated')
+      } else {
+        const { data } = await api.post(`/raw-materials/${slug}/stocks`, body)
+        const payload = data.data
+        setItems((prev) => [payload.item, ...prev])
+        setTotals(payload.totals)
+        showToast('Stock added')
+      }
+      closeForm()
     } catch (err) {
       showToast(getErrorMessage(err), 'error')
     } finally {
@@ -89,6 +117,7 @@ function RawMaterialDetailPage() {
       const { data } = await api.delete(`/raw-materials/${slug}/stocks/${item.id}`)
       setItems((prev) => prev.filter((row) => row.id !== item.id))
       setTotals(data.data.totals)
+      if (editingId === item.id) closeForm()
       showToast('Stock deleted')
     } catch (err) {
       showToast(getErrorMessage(err), 'error')
@@ -118,26 +147,17 @@ function RawMaterialDetailPage() {
     <div className="page-shell page-shell--wide">
       <header className="page-toolbar">
         <div className="detail-heading">
-          <Link to="/raw-material" className="detail-back">← Raw Material</Link>
           <div className="detail-title-row">
             <span className="material-card__swatch" style={{ backgroundColor: material.swatch }} />
             <h1>{material.name}</h1>
           </div>
-          <p>Stock ledger — 1 bag = {totals.kgPerBag || KG_PER_BAG} kg</p>
         </div>
         <button
           type="button"
           className="btn-primary"
-          onClick={() => {
-            if (showForm) {
-              setShowForm(false)
-              resetForm()
-            } else {
-              setShowForm(true)
-            }
-          }}
+          onClick={() => (showForm && !editingId ? closeForm() : openCreate())}
         >
-          {showForm ? 'Cancel' : 'Add Stock'}
+          {showForm && !editingId ? 'Cancel' : 'Add Stock'}
         </button>
       </header>
 
@@ -202,8 +222,13 @@ function RawMaterialDetailPage() {
           </div>
           <div className="panel-form__actions">
             <button type="submit" className="btn-primary" disabled={saving}>
-              {saving ? 'Saving…' : 'Save Stock'}
+              {saving ? 'Saving…' : editingId ? 'Update Stock' : 'Save Stock'}
             </button>
+            {editingId && (
+              <button type="button" className="btn-secondary" onClick={closeForm} disabled={saving}>
+                Cancel
+              </button>
+            )}
           </div>
         </form>
       )}
@@ -234,6 +259,13 @@ function RawMaterialDetailPage() {
                   <td>{formatNum(item.bags)}</td>
                   <td>{formatNum(item.kg)}</td>
                   <td className="stock-table__actions">
+                    <button
+                      type="button"
+                      className="btn-secondary btn-compact"
+                      onClick={() => openEdit(item)}
+                    >
+                      Edit
+                    </button>
                     <button
                       type="button"
                       className="btn-danger btn-compact"

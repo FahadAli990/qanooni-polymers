@@ -4,6 +4,7 @@ import {
   findStocksByMaterialId,
   insertStock,
   sumStocksByMaterialId,
+  updateStockById,
 } from '../repositories/stockRepository.js'
 
 /** 1 bag = 40 kg (standard) */
@@ -48,6 +49,14 @@ function normalizeStockInput(body) {
   return { date, supplier, bags: Number(bags.toFixed(2)), kg }
 }
 
+function withTotals(totals) {
+  return {
+    totalBags: totals.totalBags,
+    totalKg: totals.totalKg,
+    kgPerBag: KG_PER_BAG,
+  }
+}
+
 export async function listStocksByMaterialSlug(slug) {
   const material = await requireMaterial(slug)
   const [items, totals] = await Promise.all([
@@ -57,11 +66,7 @@ export async function listStocksByMaterialSlug(slug) {
   return {
     material,
     items,
-    totals: {
-      totalBags: totals.totalBags,
-      totalKg: totals.totalKg,
-      kgPerBag: KG_PER_BAG,
-    },
+    totals: withTotals(totals),
   }
 }
 
@@ -75,11 +80,23 @@ export async function createStockForMaterialSlug(slug, body) {
   const totals = await sumStocksByMaterialId(material.id)
   return {
     item: created,
-    totals: {
-      totalBags: totals.totalBags,
-      totalKg: totals.totalKg,
-      kgPerBag: KG_PER_BAG,
-    },
+    totals: withTotals(totals),
+  }
+}
+
+export async function updateStockForMaterialSlug(slug, stockId, body) {
+  const material = await requireMaterial(slug)
+  const id = Number(stockId)
+  if (!Number.isInteger(id) || id <= 0) throw badRequest('Invalid stock id')
+
+  const payload = normalizeStockInput(body)
+  const updated = await updateStockById(id, material.id, payload)
+  if (!updated) throw notFound('Stock entry not found')
+
+  const totals = await sumStocksByMaterialId(material.id)
+  return {
+    item: updated,
+    totals: withTotals(totals),
   }
 }
 
@@ -94,10 +111,6 @@ export async function removeStockForMaterialSlug(slug, stockId) {
   const totals = await sumStocksByMaterialId(material.id)
   return {
     deleted: true,
-    totals: {
-      totalBags: totals.totalBags,
-      totalKg: totals.totalKg,
-      kgPerBag: KG_PER_BAG,
-    },
+    totals: withTotals(totals),
   }
 }

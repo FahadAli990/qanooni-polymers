@@ -42,8 +42,9 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
 - APIs (auth required):
   - `GET /api/raw-materials/:slug/stocks` → material + items + totals
   - `POST /api/raw-materials/:slug/stocks` `{ date, supplier, bags }`
+  - `PUT /api/raw-materials/:slug/stocks/:stockId` `{ date, supplier, bags }`
   - `DELETE /api/raw-materials/:slug/stocks/:stockId`
-- UI: `/raw-material/:slug` — total quantity (bags + kg), full-width rows, **Add Stock**
+- UI: `/raw-material/:slug` — title + total quantity + full-width rows with **Edit / Delete** + **Add Stock**
 
 ## Auth
 
