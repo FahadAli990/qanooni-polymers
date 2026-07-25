@@ -7,6 +7,10 @@ import { formatDateDisplay, formatNum, todayIso } from '../utils/format'
 
 const KG_PER_BAG = 40
 
+function formatMoney(value) {
+  return `Rs ${formatNum(value)}`
+}
+
 function RawMaterialDetailPage() {
   const { slug } = useParams()
   const { confirm } = useConfirm()
@@ -24,17 +28,25 @@ function RawMaterialDetailPage() {
     stockedKg: 0,
     usedKg: 0,
     totalKg: 0,
+    totalPurchaseAmount: 0,
     kgPerBag: KG_PER_BAG,
   })
   const [date, setDate] = useState(todayIso())
   const [supplier, setSupplier] = useState('')
   const [bags, setBags] = useState('')
+  const [pricePerKg, setPricePerKg] = useState('')
 
   const computedKg = useMemo(() => {
     const n = Number(bags)
     if (!Number.isFinite(n) || n <= 0) return 0
     return Number((n * (totals.kgPerBag || KG_PER_BAG)).toFixed(2))
   }, [bags, totals.kgPerBag])
+
+  const computedPurchaseTotal = useMemo(() => {
+    const price = Number(pricePerKg)
+    if (!computedKg || !Number.isFinite(price) || price <= 0) return 0
+    return Number((computedKg * price).toFixed(2))
+  }, [computedKg, pricePerKg])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -50,6 +62,7 @@ function RawMaterialDetailPage() {
         stockedKg: 0,
         usedKg: 0,
         totalKg: 0,
+        totalPurchaseAmount: 0,
         kgPerBag: KG_PER_BAG,
       })
     } catch (err) {
@@ -70,6 +83,7 @@ function RawMaterialDetailPage() {
     setDate(todayIso())
     setSupplier('')
     setBags('')
+    setPricePerKg('')
   }
 
   function closeForm() {
@@ -87,17 +101,25 @@ function RawMaterialDetailPage() {
     setDate(item.date)
     setSupplier(item.supplier)
     setBags(String(Math.round(Number(item.bags))))
+    setPricePerKg(item.pricePerKg != null ? String(item.pricePerKg) : '')
     setShowForm(true)
   }
 
   async function handleSubmit(e) {
     e.preventDefault()
+    const price = Number(pricePerKg)
+    if (!Number.isFinite(price) || price <= 0) {
+      showToast('Purchase price per kg is required', 'error')
+      return
+    }
+
     setSaving(true)
     try {
       const body = {
         date,
         supplier,
         bags: Number(bags),
+        pricePerKg: price,
       }
       if (editingId) {
         const { data } = await api.put(`/raw-materials/${slug}/stocks/${editingId}`, body)
@@ -174,7 +196,7 @@ function RawMaterialDetailPage() {
         </button>
       </header>
 
-      <section className="stock-totals card">
+      <section className="stock-totals card stock-totals--split">
         <div>
           <span className="stock-totals__label">Total Quantity (Available)</span>
           <strong className="stock-totals__value">
@@ -189,6 +211,12 @@ function RawMaterialDetailPage() {
               Used {formatNum(totals.usedBags)} bags ({formatNum(totals.usedKg)} kg)
             </p>
           )}
+        </div>
+        <div>
+          <span className="stock-totals__label">Total Purchased (All Entries)</span>
+          <strong className="stock-totals__value">
+            {formatMoney(totals.totalPurchaseAmount || 0)}
+          </strong>
         </div>
       </section>
 
@@ -239,6 +267,28 @@ function RawMaterialDetailPage() {
                 readOnly
               />
             </div>
+            <div>
+              <label htmlFor="stock-price">Amount / kg (Rs)</label>
+              <input
+                id="stock-price"
+                type="number"
+                min="0.01"
+                step="0.01"
+                value={pricePerKg}
+                onChange={(e) => setPricePerKg(e.target.value)}
+                placeholder="e.g. 180"
+                required
+              />
+            </div>
+            <div>
+              <label htmlFor="stock-total">Total amount (auto)</label>
+              <input
+                id="stock-total"
+                type="text"
+                value={computedPurchaseTotal ? formatMoney(computedPurchaseTotal) : '—'}
+                readOnly
+              />
+            </div>
           </div>
           <div className="panel-form__actions">
             <button type="submit" className="btn-primary" disabled={saving}>
@@ -259,15 +309,17 @@ function RawMaterialDetailPage() {
             <tr>
               <th>Date</th>
               <th>Supplier</th>
-              <th>Quantity (Bags)</th>
+              <th>Bags</th>
               <th>KG</th>
+              <th>Amount / kg</th>
+              <th>Total Paid</th>
               <th aria-label="Actions" />
             </tr>
           </thead>
           <tbody>
             {items.length === 0 ? (
               <tr>
-                <td colSpan={5} className="stock-table__empty">
+                <td colSpan={7} className="stock-table__empty">
                   No stock yet. Click Add Stock to add the first entry.
                 </td>
               </tr>
@@ -278,6 +330,8 @@ function RawMaterialDetailPage() {
                   <td>{item.supplier}</td>
                   <td>{formatNum(item.bags, 0)}</td>
                   <td>{formatNum(item.kg)}</td>
+                  <td>{formatMoney(item.pricePerKg || 0)}</td>
+                  <td>{formatMoney(item.totalAmount || 0)}</td>
                   <td className="stock-table__actions">
                     <button
                       type="button"

@@ -102,6 +102,7 @@ export async function ensureSchema() {
       supplier VARCHAR(160) NOT NULL,
       bags DECIMAL(12, 2) NOT NULL,
       kg DECIMAL(14, 2) NOT NULL,
+      price_per_kg DECIMAL(14, 2) NOT NULL DEFAULT 0,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       PRIMARY KEY (id),
       KEY idx_raw_material_stocks_material (raw_material_id),
@@ -111,6 +112,20 @@ export async function ensureSchema() {
         ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `)
+
+  const [stockPriceCols] = await getPool().query(
+    `SELECT COLUMN_NAME
+     FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'raw_material_stocks'
+       AND COLUMN_NAME = 'price_per_kg'`,
+  )
+  if (!stockPriceCols.length) {
+    await getPool().query(
+      `ALTER TABLE raw_material_stocks
+       ADD COLUMN price_per_kg DECIMAL(14, 2) NOT NULL DEFAULT 0 AFTER kg`,
+    )
+  }
 
   await getPool().query(`
     CREATE TABLE IF NOT EXISTS roll_productions (

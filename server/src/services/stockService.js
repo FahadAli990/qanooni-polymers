@@ -32,6 +32,7 @@ function normalizeStockInput(body) {
   const date = String(body?.date || '').trim()
   const supplier = String(body?.supplier || '').trim()
   const bagsRaw = body?.bags
+  const priceRaw = body?.pricePerKg ?? body?.price_per_kg
 
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     throw badRequest('Date is required (YYYY-MM-DD)')
@@ -45,8 +46,19 @@ function normalizeStockInput(body) {
     throw badRequest('Quantity (bags) must be a whole number (1, 2, 3...)')
   }
 
+  const pricePerKg = Number(priceRaw)
+  if (!Number.isFinite(pricePerKg) || pricePerKg <= 0) {
+    throw badRequest('Purchase price per kg is required and must be greater than zero')
+  }
+
   const kg = Number((bags * KG_PER_BAG).toFixed(2))
-  return { date, supplier, bags, kg }
+  return {
+    date,
+    supplier,
+    bags,
+    kg,
+    pricePerKg: Number(pricePerKg.toFixed(2)),
+  }
 }
 
 function withTotals(stockTotals, material) {
@@ -63,6 +75,7 @@ function withTotals(stockTotals, material) {
     stockedKg,
     usedKg,
     totalKg: availableKg,
+    totalPurchaseAmount: Number(stockTotals.totalAmount || 0),
     kgPerBag: KG_PER_BAG,
   }
 }

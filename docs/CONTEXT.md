@@ -88,7 +88,8 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
   - `POST /api/raw-materials/:slug/stocks` `{ date, supplier, bags }`
   - `PUT /api/raw-materials/:slug/stocks/:stockId` `{ date, supplier, bags }`
   - `DELETE /api/raw-materials/:slug/stocks/:stockId`
-- UI: `/raw-material/:slug` — title + available quantity + stocked/used + full-width rows with **Edit / Delete** + **Add Stock**
+- UI: `/raw-material/:slug` — stock ledger with **purchase Amount/kg** + **Total Paid** per supplier entry; Add Stock requires bags + purchase price/kg (total = kg × price)
+- Stock table column: `price_per_kg` on `raw_material_stocks`
 
 ## Roll / Chaat / Dewaar production
 
