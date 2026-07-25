@@ -415,8 +415,13 @@ select:focus {
 }
 
 .form-grid--price {
-  grid-template-columns: minmax(12rem, 18rem) auto;
+  grid-template-columns: minmax(12rem, 18rem) minmax(13.5rem, 14rem);
   align-items: end;
+}
+
+.form-grid--price label,
+.form-grid label[for='stock-price'] {
+  white-space: nowrap;
 }
 
 .panel-form__actions--inline {
