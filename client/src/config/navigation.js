@@ -1,4 +1,6 @@
-import { MdGrain, MdLayers, MdPrecisionManufacturing, MdSpaceDashboard, MdViewDay } from 'react-icons/md'
+import { GiPipes } from 'react-icons/gi'
+import { MdFactory, MdGrain, MdSpaceDashboard } from 'react-icons/md'
+import { PiPipeBold } from 'react-icons/pi'
 
 export function buildNavItems(materials = []) {
   return [
@@ -18,19 +20,19 @@ export function buildNavItems(materials = []) {
     {
       id: 'mills-production',
       label: 'Mills & Production',
-      Icon: MdPrecisionManufacturing,
+      Icon: MdFactory,
       path: '/mills-production',
       children: [
         {
           id: 'mills-role',
           label: 'Role',
-          Icon: MdViewDay,
+          Icon: PiPipeBold,
           path: '/mills-production/role',
         },
         {
           id: 'mills-bundle',
           label: 'Bundle',
-          Icon: MdLayers,
+          Icon: GiPipes,
           path: '/mills-production/bundle',
         },
       ],
