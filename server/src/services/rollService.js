@@ -1,6 +1,7 @@
 import { findRawMaterialBySlug } from '../repositories/rawMaterialRepository.js'
 import { sumStocksByMaterialId } from '../repositories/stockRepository.js'
 import {
+  PRODUCTION_KINDS,
   ROLL_SIZES,
   deleteRollById,
   findAllRolls,
@@ -11,7 +12,7 @@ import {
   updateRollById,
 } from '../repositories/rollRepository.js'
 
-function notFound(message = 'Roll production not found') {
+function notFound(message = 'Production not found') {
   const error = new Error(message)
   error.status = 404
   return error
@@ -21,6 +22,14 @@ function badRequest(message) {
   const error = new Error(message)
   error.status = 400
   return error
+}
+
+function normalizeKind(kind) {
+  const value = String(kind || '').trim().toLowerCase()
+  if (!PRODUCTION_KINDS.includes(value)) {
+    throw badRequest(`Invalid production kind. Use: ${PRODUCTION_KINDS.join(', ')}`)
+  }
+  return value
 }
 
 async function availableKgForMaterial(rawMaterialId, excludeRollId = null) {
@@ -60,17 +69,20 @@ function normalizeRollInput(body) {
   }
 }
 
-export async function listRollProductions() {
-  const items = await findAllRolls()
-  const totalKg = await sumAllRollKg()
+export async function listRollProductions(kindInput = 'roll') {
+  const kind = normalizeKind(kindInput)
+  const items = await findAllRolls(kind)
+  const totalKg = await sumAllRollKg(kind)
   return {
+    kind,
     items,
     sizes: ROLL_SIZES,
     totals: { totalKg },
   }
 }
 
-export async function createRollProduction(body) {
+export async function createRollProduction(body, kindInput = 'roll') {
+  const kind = normalizeKind(kindInput)
   const payload = normalizeRollInput(body)
   const material = await findRawMaterialBySlug(payload.materialSlug)
   if (!material) throw notFound('Raw material not found')
@@ -83,12 +95,13 @@ export async function createRollProduction(body) {
   }
 
   const item = await insertRoll({
+    kind,
     rawMaterialId: material.id,
     date: payload.date,
     size: payload.size,
     kg: payload.kg,
   })
-  const totalKg = await sumAllRollKg()
+  const totalKg = await sumAllRollKg(kind)
   return {
     item,
     totals: { totalKg },
@@ -96,12 +109,13 @@ export async function createRollProduction(body) {
   }
 }
 
-export async function updateRollProduction(rollId, body) {
+export async function updateRollProduction(rollId, body, kindInput = 'roll') {
+  const kind = normalizeKind(kindInput)
   const id = Number(rollId)
-  if (!Number.isInteger(id) || id <= 0) throw badRequest('Invalid roll id')
+  if (!Number.isInteger(id) || id <= 0) throw badRequest('Invalid production id')
 
   const existing = await findRollById(id)
-  if (!existing) throw notFound()
+  if (!existing || existing.kind !== kind) throw notFound()
 
   const payload = normalizeRollInput(body)
   const material = await findRawMaterialBySlug(payload.materialSlug)
@@ -115,12 +129,15 @@ export async function updateRollProduction(rollId, body) {
   }
 
   const item = await updateRollById(id, {
+    kind,
     rawMaterialId: material.id,
     date: payload.date,
     size: payload.size,
     kg: payload.kg,
   })
-  const totalKg = await sumAllRollKg()
+  if (!item) throw notFound()
+
+  const totalKg = await sumAllRollKg(kind)
   return {
     item,
     totals: { totalKg },
@@ -128,34 +145,21 @@ export async function updateRollProduction(rollId, body) {
   }
 }
 
-export async function removeRollProduction(rollId) {
+export async function removeRollProduction(rollId, kindInput = 'roll') {
+  const kind = normalizeKind(kindInput)
   const id = Number(rollId)
-  if (!Number.isInteger(id) || id <= 0) throw badRequest('Invalid roll id')
+  if (!Number.isInteger(id) || id <= 0) throw badRequest('Invalid production id')
 
   const existing = await findRollById(id)
-  if (!existing) throw notFound()
+  if (!existing || existing.kind !== kind) throw notFound()
 
-  const deleted = await deleteRollById(id)
+  const deleted = await deleteRollById(id, kind)
   if (!deleted) throw notFound()
 
-  const totalKg = await sumAllRollKg()
+  const totalKg = await sumAllRollKg(kind)
   return {
     deleted: true,
     totals: { totalKg },
     availableKg: await availableKgForMaterial(existing.rawMaterialId),
-  }
-}
-
-export async function getMaterialAvailability(slug) {
-  const material = await findRawMaterialBySlug(slug)
-  if (!material) throw notFound('Raw material not found')
-  const stocked = await sumStocksByMaterialId(material.id)
-  const usedKg = await sumRollKgByMaterialId(material.id)
-  const availableKg = Number((stocked.totalKg - usedKg).toFixed(2))
-  return {
-    material,
-    stockedKg: stocked.totalKg,
-    usedKg,
-    availableKg,
   }
 }

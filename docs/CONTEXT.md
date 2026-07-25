@@ -52,17 +52,22 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
   - `DELETE /api/raw-materials/:slug/stocks/:stockId`
 - UI: `/raw-material/:slug` — title + available quantity + stocked/used + full-width rows with **Edit / Delete** + **Add Stock**
 
-## Roll production
+## Roll / Chaat / Dewaar production
 
-- Table: `roll_productions` (`id`, `raw_material_id`, `production_date`, `size`, `kg`, `created_at`)
+- Table: `roll_productions` (`id`, `kind`, `raw_material_id`, `production_date`, `size`, `kg`, `created_at`)
+- `kind`: `roll` | `chaat` | `dewaar` (all deduct from same raw material stock)
 - Sizes: `1/2"`, `3/4"`, `1"`
-- KG can be fractional (e.g. `18.5`); deducted from selected raw material available kg
+- KG can be fractional (e.g. `18.5`)
 - APIs (auth required):
-  - `GET /api/rolls`
-  - `POST /api/rolls` `{ date, materialSlug, size, kg }`
-  - `PUT /api/rolls/:id`
-  - `DELETE /api/rolls/:id`
-- UI: `/mills-production/roll` — Add Production / Edit / Delete
+  - `GET /api/productions/:kind`
+  - `POST /api/productions/:kind` `{ date, materialSlug, size, kg }`
+  - `PUT /api/productions/:kind/:id`
+  - `DELETE /api/productions/:kind/:id`
+- UI:
+  - `/mills-production/roll`
+  - `/mills-production/bundle/chaat`
+  - `/mills-production/bundle/dewaar`
+- Color picker shows swatch + name
 
 ## Auth
 

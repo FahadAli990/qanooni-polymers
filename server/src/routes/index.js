@@ -2,13 +2,13 @@ import { Router } from 'express'
 import { healthController } from '../controllers/healthController.js'
 import authRoutes from './authRoutes.js'
 import rawMaterialRoutes from './rawMaterialRoutes.js'
-import rollRoutes from './rollRoutes.js'
+import productionRoutes from './productionRoutes.js'
 
 const router = Router()
 
 router.get('/health', healthController)
 router.use('/auth', authRoutes)
 router.use('/raw-materials', rawMaterialRoutes)
-router.use('/rolls', rollRoutes)
+router.use('/productions', productionRoutes)
 
 export default router

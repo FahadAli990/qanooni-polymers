@@ -99,12 +99,14 @@ export async function ensureSchema() {
   await getPool().query(`
     CREATE TABLE IF NOT EXISTS roll_productions (
       id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+      kind VARCHAR(16) NOT NULL DEFAULT 'roll',
       raw_material_id INT UNSIGNED NOT NULL,
       production_date DATE NOT NULL,
       size VARCHAR(16) NOT NULL,
       kg DECIMAL(14, 2) NOT NULL,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       PRIMARY KEY (id),
+      KEY idx_roll_productions_kind (kind),
       KEY idx_roll_productions_material (raw_material_id),
       KEY idx_roll_productions_date (production_date),
       CONSTRAINT fk_roll_productions_material
@@ -112,6 +114,25 @@ export async function ensureSchema() {
         ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `)
+
+  // Existing DBs created before kind column
+  const [kindCols] = await getPool().query(
+    `SELECT COLUMN_NAME
+     FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'roll_productions'
+       AND COLUMN_NAME = 'kind'`,
+  )
+  if (!kindCols.length) {
+    await getPool().query(
+      `ALTER TABLE roll_productions
+       ADD COLUMN kind VARCHAR(16) NOT NULL DEFAULT 'roll' AFTER id`,
+    )
+    await getPool().query(
+      `ALTER TABLE roll_productions
+       ADD KEY idx_roll_productions_kind (kind)`,
+    )
+  }
 }
 
 export async function pingDatabase() {
