@@ -48,7 +48,9 @@
 .sidebar__chevron--open { transform: rotate(180deg); }
 .sidebar__sublist { display: grid; gap: 0.15rem; margin-top: 0.15rem; }
 .sidebar__sublist--depth-1 { margin-left: 0.75rem; padding-left: 0.45rem; border-left: 1px solid var(--border); }
+.sidebar__sublist--depth-2 { margin-left: 0.55rem; padding-left: 0.4rem; border-left: 1px solid var(--border); }
 .sidebar__item-button--depth-1 { min-height: 2rem; font-size: var(--text-xs); }
+.sidebar__item-button--depth-2 { min-height: 1.9rem; font-size: var(--text-xs); padding-left: 0.45rem; }
 .sidebar__empty {
   padding: 0.45rem 0.55rem;
   color: var(--text-muted);

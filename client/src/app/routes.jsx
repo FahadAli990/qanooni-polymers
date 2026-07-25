@@ -17,7 +17,9 @@ function AppRoutes() {
         <Route path="mills-production" element={<Navigate to="/mills-production/roll" replace />} />
         <Route path="mills-production/role" element={<Navigate to="/mills-production/roll" replace />} />
         <Route path="mills-production/roll" element={<RollPage />} />
-        <Route path="mills-production/bundle" element={<EmptyPage />} />
+        <Route path="mills-production/bundle" element={<Navigate to="/mills-production/bundle/chaat" replace />} />
+        <Route path="mills-production/bundle/chaat" element={<EmptyPage />} />
+        <Route path="mills-production/bundle/dewaar" element={<EmptyPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
