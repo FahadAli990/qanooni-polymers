@@ -163,6 +163,51 @@ export async function ensureSchema() {
         ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `)
+
+  await getPool().query(`
+    CREATE TABLE IF NOT EXISTS sales_orders (
+      id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+      order_date DATE NOT NULL,
+      mill_route_id INT UNSIGNED NOT NULL,
+      route_customer_id INT UNSIGNED NOT NULL,
+      has_roll TINYINT(1) NOT NULL DEFAULT 0,
+      has_chaat TINYINT(1) NOT NULL DEFAULT 0,
+      has_dewaar TINYINT(1) NOT NULL DEFAULT 0,
+      total_bill DECIMAL(14, 2) NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_sales_orders_date (order_date),
+      KEY idx_sales_orders_route (mill_route_id),
+      KEY idx_sales_orders_customer (route_customer_id),
+      CONSTRAINT fk_sales_orders_route
+        FOREIGN KEY (mill_route_id) REFERENCES mill_routes (id)
+        ON DELETE RESTRICT,
+      CONSTRAINT fk_sales_orders_customer
+        FOREIGN KEY (route_customer_id) REFERENCES route_customers (id)
+        ON DELETE RESTRICT
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `)
+
+  await getPool().query(`
+    CREATE TABLE IF NOT EXISTS sales_order_items (
+      id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+      sales_order_id INT UNSIGNED NOT NULL,
+      raw_material_id INT UNSIGNED NOT NULL,
+      kg DECIMAL(14, 2) NOT NULL,
+      rate_per_kg DECIMAL(14, 2) NOT NULL,
+      amount DECIMAL(14, 2) NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_sales_order_items_order (sales_order_id),
+      KEY idx_sales_order_items_material (raw_material_id),
+      CONSTRAINT fk_sales_order_items_order
+        FOREIGN KEY (sales_order_id) REFERENCES sales_orders (id)
+        ON DELETE CASCADE,
+      CONSTRAINT fk_sales_order_items_material
+        FOREIGN KEY (raw_material_id) REFERENCES raw_materials (id)
+        ON DELETE RESTRICT
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `)
 }
 
 export async function pingDatabase() {

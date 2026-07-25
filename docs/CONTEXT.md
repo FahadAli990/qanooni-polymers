@@ -38,7 +38,19 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
   - Roll icon = round pipe roll; Bundle icon = stacked pipes; Chaat = roof; Dewaar = brick wall
 - Top-level **Routes** (same level as Raw Material / Mills & Production) — `/routes`
   - **No sidebar children** — open routes only from page boxes
-- Top-level **Orders** (below Routes) — `/orders` (empty shell for now)
+- Top-level **Orders** (below Routes) — `/orders`
+
+## Orders (sales)
+
+- Tables: `sales_orders` + `sales_order_items`
+- Flow: Date → Route (dropdown) → Shop (customers of that route) → product kinds (Roll / Chaat / Dewaar checkboxes, multi) → one or more raw materials each with **kg**
+- **Temporary rates** per material id (`dummyRates.js`) until real raw-material prices exist; bill = Σ(kg × rate)
+- APIs (auth required):
+  - `GET /api/orders`
+  - `GET /api/orders/rates` — materials + dummy `ratePerKg`
+  - `POST /api/orders` `{ date, routeSlug, customerId, kinds: { roll, chaat, dewaar }, items: [{ materialSlug, kg }] }`
+  - `DELETE /api/orders/:id`
+- UI table: Date, Route, Shop, Address, Phone, Ordered (kinds + materials/kg), Total Bill
 
 ## Routes (delivery / sales)
 
