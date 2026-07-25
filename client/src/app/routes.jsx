@@ -13,8 +13,9 @@ function AppRoutes() {
         <Route index element={<EmptyPage />} />
         <Route path="raw-material" element={<RawMaterialPage />} />
         <Route path="raw-material/:slug" element={<RawMaterialDetailPage />} />
-        <Route path="mills-production" element={<Navigate to="/mills-production/role" replace />} />
-        <Route path="mills-production/role" element={<EmptyPage />} />
+        <Route path="mills-production" element={<Navigate to="/mills-production/roll" replace />} />
+        <Route path="mills-production/role" element={<Navigate to="/mills-production/roll" replace />} />
+        <Route path="mills-production/roll" element={<EmptyPage />} />
         <Route path="mills-production/bundle" element={<EmptyPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

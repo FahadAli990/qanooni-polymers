@@ -1,6 +1,5 @@
 import { GiPipes } from 'react-icons/gi'
-import { MdFactory, MdGrain, MdSpaceDashboard } from 'react-icons/md'
-import { PiPipeBold } from 'react-icons/pi'
+import { MdDonutLarge, MdFactory, MdGrain, MdSpaceDashboard } from 'react-icons/md'
 
 export function buildNavItems(materials = []) {
   return [
@@ -23,10 +22,10 @@ export function buildNavItems(materials = []) {
       Icon: MdFactory,
       children: [
         {
-          id: 'mills-role',
-          label: 'Role',
-          Icon: PiPipeBold,
-          path: '/mills-production/role',
+          id: 'mills-roll',
+          label: 'Roll',
+          Icon: MdDonutLarge,
+          path: '/mills-production/roll',
         },
         {
           id: 'mills-bundle',
@@ -47,7 +46,9 @@ function parseRawMaterialPath(pathname, materials) {
 }
 
 function parseMillsPath(pathname) {
-  if (pathname === '/mills-production/role') return { section: 'mills-role' }
+  if (pathname === '/mills-production/roll' || pathname === '/mills-production/role') {
+    return { section: 'mills-roll' }
+  }
   if (pathname === '/mills-production/bundle') return { section: 'mills-bundle' }
   return null
 }
@@ -84,7 +85,7 @@ export function getNavItemByPath(pathname, materials = []) {
 
 export function getAncestorIdsForPath(pathname, materials = []) {
   const mills = parseMillsPath(pathname)
-  if (mills?.section === 'mills-role' || mills?.section === 'mills-bundle') {
+  if (mills?.section === 'mills-roll' || mills?.section === 'mills-bundle') {
     return ['mills-production']
   }
 

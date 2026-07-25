@@ -33,7 +33,8 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
 - UI: `/raw-material` — full-width rows with bags/kg + grand totals; **Add New / Edit / Delete**; sidebar from DB
 - List API returns `{ items, totals }` (each item includes `totalBags` / `totalKg`)
 - Sidebar: Raw Material accordion open/close (chevron toggle; auto-open on child route)
-- Sidebar: **Mills & Production** (folder only — no page) → empty **Role** / **Bundle** pages
+- Sidebar: **Mills & Production** (folder only — no page) → empty **Roll** (`/mills-production/roll`) / **Bundle** (`/mills-production/bundle`)
+  - Roll icon = round pipe roll; Bundle icon = straight pipe length
 - Swatch matches color name (`blue` → blue, `red` → red, also `#hex` / “dark blue”)
 
 ## Stock (per material)
