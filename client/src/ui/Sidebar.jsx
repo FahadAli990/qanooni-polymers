@@ -18,13 +18,31 @@ function Sidebar() {
   const { logout } = useAuth()
   const { items: materials } = useRawMaterials()
   const [isOpen, setIsOpen] = useState(false)
-  const [manualExpanded, setManualExpanded] = useState(() => new Set())
+  const [expandedIds, setExpandedIds] = useState(() => new Set())
 
   const navItems = useMemo(() => buildNavItems(materials), [materials])
   const activeId = getActiveNavId(pathname, materials)
   const activeItem = getNavItemByPath(pathname, materials)
   const routeExpanded = getAncestorIdsForPath(pathname, materials)
-  const expandedIds = new Set([...routeExpanded, ...manualExpanded])
+
+  // Open ancestor menus when route changes (still allow manual close after).
+  useEffect(() => {
+    const ancestors = getAncestorIdsForPath(pathname, materials)
+    if (!ancestors.length) return
+    setExpandedIds((prev) => {
+      const next = new Set(prev)
+      let changed = false
+      for (const id of ancestors) {
+        if (!next.has(id)) {
+          next.add(id)
+          changed = true
+        }
+      }
+      return changed ? next : prev
+    })
+    // Only react to path changes so a manual close is not undone by materials refresh.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname])
 
   useEffect(() => {
     if (!isOpen) return undefined
@@ -33,10 +51,19 @@ function Sidebar() {
   }, [isOpen])
 
   function toggleBranch(id) {
-    setManualExpanded((prev) => {
+    setExpandedIds((prev) => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
       else next.add(id)
+      return next
+    })
+  }
+
+  function expandBranch(id) {
+    setExpandedIds((prev) => {
+      if (prev.has(id)) return prev
+      const next = new Set(prev)
+      next.add(id)
       return next
     })
   }
@@ -45,14 +72,20 @@ function Sidebar() {
     if (window.matchMedia(SIDEBAR_MOBILE_MQ).matches) setIsOpen(false)
   }
 
+  function handleChevronClick(e, id) {
+    e.stopPropagation()
+    if (!isOpen) setIsOpen(true)
+    toggleBranch(id)
+  }
+
   function handleItemClick(item, hasChildren) {
     if (hasChildren) {
       if (!isOpen) setIsOpen(true)
+      expandBranch(item.id)
       if (item.path) {
         navigate(item.path)
         closeOnMobile()
       }
-      toggleBranch(item.id)
       return
     }
     if (!item.path) return
@@ -62,7 +95,7 @@ function Sidebar() {
 
   function renderItems(items, depth = 0) {
     return items.map((item) => {
-      const hasChildren = Boolean(item.children?.length)
+      const hasChildren = Array.isArray(item.children)
       const isExpanded = expandedIds.has(item.id)
       const isActive = activeId === item.id
       const isInActivePath = routeExpanded.includes(item.id)
@@ -74,6 +107,7 @@ function Sidebar() {
             type="button"
             className={`sidebar__item-button sidebar__item-button--depth-${depth}${isActive ? ' sidebar__item-button--active' : ''}${isInActivePath && !isActive ? ' sidebar__item-button--trail' : ''}`}
             aria-current={isActive ? 'page' : undefined}
+            aria-expanded={hasChildren ? isExpanded : undefined}
             onClick={() => handleItemClick(item, hasChildren)}
           >
             {item.swatch ? (
@@ -83,7 +117,16 @@ function Sidebar() {
             )}
             <span className="sidebar__label">{item.label}</span>
             {isOpen && hasChildren && (
-              <span className={`sidebar__chevron${isExpanded ? ' sidebar__chevron--open' : ''}`}>
+              <span
+                className={`sidebar__chevron${isExpanded ? ' sidebar__chevron--open' : ''}`}
+                role="button"
+                tabIndex={-1}
+                aria-label={isExpanded ? 'Collapse' : 'Expand'}
+                onClick={(e) => handleChevronClick(e, item.id)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') handleChevronClick(e, item.id)
+                }}
+              >
                 <MdExpandMore size={18} />
               </span>
             )}
@@ -93,7 +136,11 @@ function Sidebar() {
           </button>
           {isOpen && hasChildren && isExpanded && (
             <ul className={`sidebar__sublist sidebar__sublist--depth-${depth + 1}`}>
-              {renderItems(item.children, depth + 1)}
+              {item.children.length === 0 ? (
+                <li className="sidebar__empty">No materials yet</li>
+              ) : (
+                renderItems(item.children, depth + 1)
+              )}
             </ul>
           )}
         </li>
@@ -109,7 +156,13 @@ function Sidebar() {
       <aside className={`sidebar${isOpen ? ' sidebar--open' : ''}`}>
         <div className="sidebar__inner">
           <header className="sidebar__head">
-            <button type="button" className="sidebar__menu-button" onClick={() => setIsOpen((o) => !o)}>
+            <button
+              type="button"
+              className="sidebar__menu-button"
+              aria-label={isOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+              aria-expanded={isOpen}
+              onClick={() => setIsOpen((o) => !o)}
+            >
               <span className={`sidebar__hamburger${isOpen ? ' sidebar__hamburger--open' : ''}`}>
                 <span /><span /><span />
               </span>

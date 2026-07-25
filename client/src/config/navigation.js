@@ -46,5 +46,8 @@ export function getNavItemByPath(pathname, materials = []) {
 }
 
 export function getAncestorIdsForPath(pathname, materials = []) {
-  return parseRawMaterialPath(pathname, materials) ? ['raw-material'] : []
+  const raw = parseRawMaterialPath(pathname, materials)
+  // Only force-open when a child material page is active.
+  if (raw?.material) return ['raw-material']
+  return []
 }
