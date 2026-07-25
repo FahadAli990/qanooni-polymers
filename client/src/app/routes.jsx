@@ -3,6 +3,7 @@ import ProtectedRoute from './ProtectedRoute'
 import LoginPage from '../features/LoginPage'
 import EmptyPage from '../features/EmptyPage'
 import RawMaterialPage from '../features/RawMaterialPage'
+import RawMaterialDetailPage from '../features/RawMaterialDetailPage'
 
 function AppRoutes() {
   return (
@@ -11,7 +12,7 @@ function AppRoutes() {
       <Route element={<ProtectedRoute />}>
         <Route index element={<EmptyPage />} />
         <Route path="raw-material" element={<RawMaterialPage />} />
-        <Route path="raw-material/:slug" element={<EmptyPage />} />
+        <Route path="raw-material/:slug" element={<RawMaterialDetailPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

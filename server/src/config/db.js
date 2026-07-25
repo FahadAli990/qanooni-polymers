@@ -77,6 +77,24 @@ export async function ensureSchema() {
       UNIQUE KEY uq_raw_materials_name (name)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `)
+
+  await getPool().query(`
+    CREATE TABLE IF NOT EXISTS raw_material_stocks (
+      id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+      raw_material_id INT UNSIGNED NOT NULL,
+      stock_date DATE NOT NULL,
+      supplier VARCHAR(160) NOT NULL,
+      bags DECIMAL(12, 2) NOT NULL,
+      kg DECIMAL(14, 2) NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_raw_material_stocks_material (raw_material_id),
+      KEY idx_raw_material_stocks_date (stock_date),
+      CONSTRAINT fk_raw_material_stocks_material
+        FOREIGN KEY (raw_material_id) REFERENCES raw_materials (id)
+        ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `)
 }
 
 export async function pingDatabase() {

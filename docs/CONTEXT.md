@@ -4,7 +4,7 @@ Last updated: 2026-07-26
 
 ## Purpose
 
-Qanooni Polymers full-stack app: login + dashboard shell + raw materials.
+Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock.
 
 ## Stack
 
@@ -32,6 +32,16 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials.
   - `GET /api/raw-materials/:slug`
 - UI: `/raw-material` — **Add New / Edit / Delete**; sidebar from DB
 - Swatch matches color name (`blue` → blue, `red` → red, also `#hex` / “dark blue”)
+
+## Stock (per material)
+
+- Table: `raw_material_stocks` (`id`, `raw_material_id`, `stock_date`, `supplier`, `bags`, `kg`, `created_at`)
+- Standard: **1 bag = 40 kg** (`kg` auto-calculated server-side)
+- APIs (auth required):
+  - `GET /api/raw-materials/:slug/stocks` → material + items + totals
+  - `POST /api/raw-materials/:slug/stocks` `{ date, supplier, bags }`
+  - `DELETE /api/raw-materials/:slug/stocks/:stockId`
+- UI: `/raw-material/:slug` — total quantity (bags + kg), full-width rows, **Add Stock**
 
 ## Auth
 
