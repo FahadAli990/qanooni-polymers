@@ -9,6 +9,7 @@ import ChaatPage from '../features/ChaatPage'
 import DewaarPage from '../features/DewaarPage'
 import RoutesPage from '../features/RoutesPage'
 import RouteDetailPage from '../features/RouteDetailPage'
+import OrdersPage from '../features/OrdersPage'
 
 function RedirectLegacyRouteDetail() {
   const { slug } = useParams()
@@ -33,6 +34,7 @@ function AppRoutes() {
         <Route path="mills-production/routes/:slug" element={<RedirectLegacyRouteDetail />} />
         <Route path="routes" element={<RoutesPage />} />
         <Route path="routes/:slug" element={<RouteDetailPage />} />
+        <Route path="orders" element={<OrdersPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

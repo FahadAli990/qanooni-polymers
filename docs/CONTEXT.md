@@ -38,6 +38,7 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
   - Roll icon = round pipe roll; Bundle icon = stacked pipes; Chaat = roof; Dewaar = brick wall
 - Top-level **Routes** (same level as Raw Material / Mills & Production) — `/routes`
   - **No sidebar children** — open routes only from page boxes
+- Top-level **Orders** (below Routes) — `/orders` (empty shell for now)
 
 ## Routes (delivery / sales)
 

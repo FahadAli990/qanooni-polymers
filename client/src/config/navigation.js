@@ -1,5 +1,5 @@
 import { GiBrickWall, GiPipes } from 'react-icons/gi'
-import { MdDonutLarge, MdFactory, MdGrain, MdRoofing, MdRoute, MdSpaceDashboard } from 'react-icons/md'
+import { MdDonutLarge, MdFactory, MdGrain, MdReceiptLong, MdRoofing, MdRoute, MdSpaceDashboard } from 'react-icons/md'
 
 export function buildNavItems(materials = []) {
   return [
@@ -54,6 +54,12 @@ export function buildNavItems(materials = []) {
       Icon: MdRoute,
       path: '/routes',
     },
+    {
+      id: 'orders',
+      label: 'Orders',
+      Icon: MdReceiptLong,
+      path: '/orders',
+    },
   ]
 }
 
@@ -84,6 +90,13 @@ function parseRoutesPath(pathname) {
   return null
 }
 
+function parseOrdersPath(pathname) {
+  if (pathname === '/orders' || pathname.startsWith('/orders/')) {
+    return { section: 'orders', ancestors: [] }
+  }
+  return null
+}
+
 function findNavItemById(items, id) {
   for (const item of items) {
     if (item.id === id) return item
@@ -96,6 +109,9 @@ function findNavItemById(items, id) {
 }
 
 export function getActiveNavId(pathname, materials = []) {
+  const ordersNav = parseOrdersPath(pathname)
+  if (ordersNav) return ordersNav.section
+
   const routeNav = parseRoutesPath(pathname)
   if (routeNav) return routeNav.section
 
@@ -109,6 +125,11 @@ export function getActiveNavId(pathname, materials = []) {
 }
 
 export function getNavItemByPath(pathname, materials = []) {
+  const ordersNav = parseOrdersPath(pathname)
+  if (ordersNav) {
+    return buildNavItems(materials).find((item) => item.id === 'orders')
+  }
+
   const routeNav = parseRoutesPath(pathname)
   if (routeNav) {
     return buildNavItems(materials).find((item) => item.id === 'routes')
@@ -132,6 +153,9 @@ export function getNavItemByPath(pathname, materials = []) {
 }
 
 export function getAncestorIdsForPath(pathname, materials = []) {
+  const ordersNav = parseOrdersPath(pathname)
+  if (ordersNav) return []
+
   const routeNav = parseRoutesPath(pathname)
   if (routeNav) return []
 
