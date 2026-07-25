@@ -17,7 +17,7 @@ function Sidebar() {
   const { pathname } = useLocation()
   const { logout } = useAuth()
   const { items: materials } = useRawMaterials()
-  const [isOpen, setIsOpen] = useState(false)
+  const [isOpen, setIsOpen] = useState(true)
   const [expandedIds, setExpandedIds] = useState(() => new Set())
 
   const navItems = useMemo(() => buildNavItems(materials), [materials])
