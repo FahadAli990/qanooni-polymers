@@ -1,4 +1,4 @@
-import { MdGrain, MdSpaceDashboard } from 'react-icons/md'
+import { MdGrain, MdLayers, MdPrecisionManufacturing, MdSpaceDashboard, MdViewDay } from 'react-icons/md'
 
 export function buildNavItems(materials = []) {
   return [
@@ -15,6 +15,26 @@ export function buildNavItems(materials = []) {
         path: `/raw-material/${m.slug}`,
       })),
     },
+    {
+      id: 'mills-production',
+      label: 'Mills & Production',
+      Icon: MdPrecisionManufacturing,
+      path: '/mills-production',
+      children: [
+        {
+          id: 'mills-role',
+          label: 'Role',
+          Icon: MdViewDay,
+          path: '/mills-production/role',
+        },
+        {
+          id: 'mills-bundle',
+          label: 'Bundle',
+          Icon: MdLayers,
+          path: '/mills-production/bundle',
+        },
+      ],
+    },
   ]
 }
 
@@ -25,7 +45,17 @@ function parseRawMaterialPath(pathname, materials) {
   return { material: materials.find((m) => m.slug === slug) || null }
 }
 
+function parseMillsPath(pathname) {
+  if (pathname === '/mills-production') return { section: 'mills-production' }
+  if (pathname === '/mills-production/role') return { section: 'mills-role' }
+  if (pathname === '/mills-production/bundle') return { section: 'mills-bundle' }
+  return null
+}
+
 export function getActiveNavId(pathname, materials = []) {
+  const mills = parseMillsPath(pathname)
+  if (mills) return mills.section
+
   const raw = parseRawMaterialPath(pathname, materials)
   if (raw?.material) return raw.material.slug
   if (raw) return 'raw-material'
@@ -33,6 +63,14 @@ export function getActiveNavId(pathname, materials = []) {
 }
 
 export function getNavItemByPath(pathname, materials = []) {
+  const mills = parseMillsPath(pathname)
+  if (mills) {
+    const items = buildNavItems(materials)
+    const parent = items.find((item) => item.id === 'mills-production')
+    if (mills.section === 'mills-production') return parent
+    return parent?.children?.find((child) => child.id === mills.section) || parent
+  }
+
   const raw = parseRawMaterialPath(pathname, materials)
   if (raw?.material) {
     return {
@@ -46,6 +84,11 @@ export function getNavItemByPath(pathname, materials = []) {
 }
 
 export function getAncestorIdsForPath(pathname, materials = []) {
+  const mills = parseMillsPath(pathname)
+  if (mills?.section === 'mills-role' || mills?.section === 'mills-bundle') {
+    return ['mills-production']
+  }
+
   const raw = parseRawMaterialPath(pathname, materials)
   // Only force-open when a child material page is active.
   if (raw?.material) return ['raw-material']
