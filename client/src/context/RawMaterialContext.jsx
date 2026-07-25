@@ -9,7 +9,19 @@ function sortByName(list) {
 }
 
 function emptyTotals() {
-  return { totalBags: 0, totalKg: 0, kgPerBag: 40 }
+  return { totalBags: 0, totalKg: 0, totalValue: 0, kgPerBag: 40 }
+}
+
+function withStockValue(item) {
+  const kg = Number(item.totalKg || 0)
+  const price = Number(item.pricePerKg || 0)
+  return {
+    ...item,
+    totalBags: Number(item.totalBags || 0),
+    totalKg: kg,
+    pricePerKg: price,
+    stockValue: Number((kg * price).toFixed(2)),
+  }
 }
 
 function computeTotals(list) {
@@ -17,12 +29,14 @@ function computeTotals(list) {
     (acc, item) => ({
       totalBags: acc.totalBags + Number(item.totalBags || 0),
       totalKg: acc.totalKg + Number(item.totalKg || 0),
+      totalValue: acc.totalValue + Number(item.stockValue || 0),
     }),
-    { totalBags: 0, totalKg: 0 },
+    { totalBags: 0, totalKg: 0, totalValue: 0 },
   )
   return {
     totalBags: Number(totals.totalBags.toFixed(2)),
     totalKg: Number(totals.totalKg.toFixed(2)),
+    totalValue: Number(totals.totalValue.toFixed(2)),
     kgPerBag: 40,
   }
 }
@@ -43,9 +57,9 @@ export function RawMaterialProvider({ children }) {
     try {
       const { data } = await api.get('/raw-materials')
       const payload = data.data
-      const list = Array.isArray(payload) ? payload : payload?.items || []
+      const list = (Array.isArray(payload) ? payload : payload?.items || []).map(withStockValue)
       setItems(list)
-      setTotals(payload?.totals || computeTotals(list))
+      setTotals(payload?.totals ? { ...emptyTotals(), ...payload.totals } : computeTotals(list))
     } catch {
       setItems([])
       setTotals(emptyTotals())
@@ -60,11 +74,7 @@ export function RawMaterialProvider({ children }) {
 
   const create = useCallback(async (name) => {
     const { data } = await api.post('/raw-materials', { name })
-    const created = {
-      ...data.data,
-      totalBags: Number(data.data.totalBags || 0),
-      totalKg: Number(data.data.totalKg || 0),
-    }
+    const created = withStockValue(data.data)
     setItems((prev) => {
       const next = sortByName([...prev.filter((i) => i.id !== created.id), created])
       setTotals(computeTotals(next))
@@ -75,11 +85,21 @@ export function RawMaterialProvider({ children }) {
 
   const update = useCallback(async (slug, name) => {
     const { data } = await api.put(`/raw-materials/${slug}`, { name })
-    const updated = {
-      ...data.data,
-      totalBags: Number(data.data.totalBags || 0),
-      totalKg: Number(data.data.totalKg || 0),
-    }
+    const updated = withStockValue(data.data)
+    setItems((prev) => {
+      const next = sortByName([
+        ...prev.filter((i) => i.id !== updated.id),
+        updated,
+      ])
+      setTotals(computeTotals(next))
+      return next
+    })
+    return updated
+  }, [])
+
+  const updatePrice = useCallback(async (slug, pricePerKg) => {
+    const { data } = await api.put(`/raw-materials/${slug}/price`, { pricePerKg })
+    const updated = withStockValue(data.data)
     setItems((prev) => {
       const next = sortByName([
         ...prev.filter((i) => i.id !== updated.id),
@@ -101,8 +121,8 @@ export function RawMaterialProvider({ children }) {
   }, [])
 
   const value = useMemo(
-    () => ({ items, totals, loading, refresh, create, update, remove }),
-    [items, totals, loading, refresh, create, update, remove],
+    () => ({ items, totals, loading, refresh, create, update, updatePrice, remove }),
+    [items, totals, loading, refresh, create, update, updatePrice, remove],
   )
 
   return <RawMaterialContext.Provider value={value}>{children}</RawMaterialContext.Provider>

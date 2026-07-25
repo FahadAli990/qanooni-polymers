@@ -31,8 +31,9 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
   - `PUT /api/raw-materials/:slug/price` `{ pricePerKg }` — per-material selling rate
   - `DELETE /api/raw-materials/:slug`
   - `GET /api/raw-materials/:slug`
-- UI: `/raw-material` — list with **Price / kg**, bags/kg; `/raw-material/:slug` — **Save Price** + stock ledger
-- List API returns `{ items, totals }` (each item includes `pricePerKg`, `totalBags` / available `totalKg`)
+- UI: `/raw-material` — **Price / kg** (edit here), **In Stock Now** (bags·kg), **Stock Value** (kg×price); grand totals for all colors (qty + Rs value)
+- `/raw-material/:slug` — stock ledger only (no price editor)
+- List API returns `{ items, totals }` (`pricePerKg`, `stockValue`, `totalBags` / `totalKg`, `totals.totalValue`)
 - Sidebar: Raw Material accordion open/close (chevron toggle; auto-open on child route)
 - Sidebar: **Mills & Production** (folder only — no page) → **Roll** (`/mills-production/roll`) / **Bundle** (folder)
   - Bundle → **Chaat** / **Dewaar**

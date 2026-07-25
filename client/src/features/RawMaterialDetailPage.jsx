@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import api, { getErrorMessage } from '../api/client'
 import { useConfirm } from '../context/ConfirmContext'
-import { useRawMaterials } from '../context/RawMaterialContext'
 import { useToast } from '../context/ToastContext'
 import { formatDateDisplay, formatNum, todayIso } from '../utils/format'
 
@@ -11,15 +10,12 @@ const KG_PER_BAG = 40
 function RawMaterialDetailPage() {
   const { slug } = useParams()
   const { confirm } = useConfirm()
-  const { refresh: refreshMaterials } = useRawMaterials()
   const { showToast } = useToast()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [savingPrice, setSavingPrice] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState(null)
   const [material, setMaterial] = useState(null)
-  const [priceInput, setPriceInput] = useState('')
   const [items, setItems] = useState([])
   const [totals, setTotals] = useState({
     totalBags: 0,
@@ -46,11 +42,6 @@ function RawMaterialDetailPage() {
       const { data } = await api.get(`/raw-materials/${slug}/stocks`)
       const payload = data.data
       setMaterial(payload.material)
-      setPriceInput(
-        payload.material?.pricePerKg != null && Number(payload.material.pricePerKg) > 0
-          ? String(payload.material.pricePerKg)
-          : '',
-      )
       setItems(payload.items || [])
       setTotals(payload.totals || {
         totalBags: 0,
@@ -97,27 +88,6 @@ function RawMaterialDetailPage() {
     setSupplier(item.supplier)
     setBags(String(Math.round(Number(item.bags))))
     setShowForm(true)
-  }
-
-  async function handlePriceSave(e) {
-    e.preventDefault()
-    const pricePerKg = Number(priceInput)
-    if (!Number.isFinite(pricePerKg) || pricePerKg < 0) {
-      showToast('Price per kg must be zero or a positive number', 'error')
-      return
-    }
-    setSavingPrice(true)
-    try {
-      const { data } = await api.put(`/raw-materials/${slug}/price`, { pricePerKg })
-      setMaterial(data.data)
-      setPriceInput(String(data.data.pricePerKg ?? ''))
-      await refreshMaterials()
-      showToast('Price updated')
-    } catch (err) {
-      showToast(getErrorMessage(err), 'error')
-    } finally {
-      setSavingPrice(false)
-    }
   }
 
   async function handleSubmit(e) {
@@ -221,32 +191,6 @@ function RawMaterialDetailPage() {
           )}
         </div>
       </section>
-
-      <form className="card panel-form panel-form--price" onSubmit={handlePriceSave}>
-        <div className="form-grid form-grid--price">
-          <div>
-            <label htmlFor="material-price">Price per kg (Rs)</label>
-            <input
-              id="material-price"
-              type="number"
-              min="0"
-              step="0.01"
-              value={priceInput}
-              onChange={(e) => setPriceInput(e.target.value)}
-              placeholder="e.g. 220"
-              required
-            />
-          </div>
-          <div className="panel-form__actions panel-form__actions--inline">
-            <button type="submit" className="btn-primary" disabled={savingPrice}>
-              {savingPrice ? 'Saving…' : 'Save Price'}
-            </button>
-          </div>
-        </div>
-        <p className="help-muted" style={{ marginTop: '0.65rem' }}>
-          This rate is used when creating Orders for this material.
-        </p>
-      </form>
 
       {showForm && (
         <form className="card panel-form panel-form--stock" onSubmit={handleSubmit}>

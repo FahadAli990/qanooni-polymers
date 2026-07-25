@@ -373,11 +373,16 @@ select:focus {
 
 .stock-totals {
   display: flex;
-  align-items: center;
+  flex-wrap: wrap;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 1.25rem 2rem;
   padding: 1rem 1.25rem;
   margin-bottom: 1.25rem;
+}
+
+.stock-totals--split > div {
+  min-width: 12rem;
 }
 
 .stock-totals__label {

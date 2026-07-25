@@ -136,18 +136,28 @@ async function assertNameAvailable(name, slug, excludeId = null) {
 
 export async function listRawMaterials() {
   const items = await findAllRawMaterials()
-  const totals = items.reduce(
+  const withValue = items.map((item) => {
+    const kg = Number(item.totalKg || 0)
+    const price = Number(item.pricePerKg || 0)
+    return {
+      ...item,
+      stockValue: Number((kg * price).toFixed(2)),
+    }
+  })
+  const totals = withValue.reduce(
     (acc, item) => ({
       totalBags: acc.totalBags + Number(item.totalBags || 0),
       totalKg: acc.totalKg + Number(item.totalKg || 0),
+      totalValue: acc.totalValue + Number(item.stockValue || 0),
     }),
-    { totalBags: 0, totalKg: 0 },
+    { totalBags: 0, totalKg: 0, totalValue: 0 },
   )
   return {
-    items,
+    items: withValue,
     totals: {
       totalBags: Number(totals.totalBags.toFixed(2)),
       totalKg: Number(totals.totalKg.toFixed(2)),
+      totalValue: Number(totals.totalValue.toFixed(2)),
       kgPerBag: 40,
     },
   }
