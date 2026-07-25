@@ -227,7 +227,9 @@ function OrdersPage() {
   async function handleDeliver(order) {
     const ok = await confirm({
       title: 'Mark delivered',
-      message: `Deliver order for "${order.shopName}"? Stock will be reduced and this cannot be undone.`,
+      message: `Deliver order for "${order.shopName}"? Matching production will be reduced (FIFO) and this cannot be undone.`,
+      confirmLabel: 'Deliver',
+      confirmTone: 'primary',
     })
     if (!ok) return
     try {

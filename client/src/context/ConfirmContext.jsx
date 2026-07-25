@@ -25,6 +25,7 @@ export function ConfirmProvider({ children }) {
         message: opts.message || 'Are you sure you want to delete this?',
         confirmLabel: opts.confirmLabel || 'Delete',
         cancelLabel: opts.cancelLabel || 'Cancel',
+        confirmTone: opts.confirmTone === 'primary' ? 'primary' : 'danger',
       })
     })
   }, [])
@@ -50,7 +51,12 @@ export function ConfirmProvider({ children }) {
               <button type="button" className="btn-secondary" onClick={() => close(false)}>
                 {dialog.cancelLabel}
               </button>
-              <button type="button" className="btn-danger" onClick={() => close(true)} autoFocus>
+              <button
+                type="button"
+                className={dialog.confirmTone === 'primary' ? 'btn-primary' : 'btn-danger'}
+                onClick={() => close(true)}
+                autoFocus
+              >
                 {dialog.confirmLabel}
               </button>
             </div>
