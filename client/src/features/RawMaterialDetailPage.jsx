@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import api, { getErrorMessage } from '../api/client'
+import { useConfirm } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { formatDateDisplay, formatNum, todayIso } from '../utils/format'
 
@@ -8,6 +9,7 @@ const KG_PER_BAG = 40
 
 function RawMaterialDetailPage() {
   const { slug } = useParams()
+  const { confirm } = useConfirm()
   const { showToast } = useToast()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -119,7 +121,10 @@ function RawMaterialDetailPage() {
   }
 
   async function handleDelete(item) {
-    const ok = window.confirm(`Delete stock from ${item.supplier} (${formatNum(item.bags, 0)} bags)?`)
+    const ok = await confirm({
+      title: 'Delete stock',
+      message: `Delete stock from ${item.supplier} (${formatNum(item.bags, 0)} bags)?`,
+    })
     if (!ok) return
     try {
       const { data } = await api.delete(`/raw-materials/${slug}/stocks/${item.id}`)

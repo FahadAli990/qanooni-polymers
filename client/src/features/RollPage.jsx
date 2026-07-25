@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import api, { getErrorMessage } from '../api/client'
+import { useConfirm } from '../context/ConfirmContext'
 import { useRawMaterials } from '../context/RawMaterialContext'
 import { useToast } from '../context/ToastContext'
 import { formatDateDisplay, formatNum, todayIso } from '../utils/format'
@@ -8,6 +9,7 @@ const DEFAULT_SIZES = ['1/2"', '3/4"', '1"']
 
 function RollPage() {
   const { items: materials, refresh: refreshMaterials } = useRawMaterials()
+  const { confirm } = useConfirm()
   const { showToast } = useToast()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -116,9 +118,10 @@ function RollPage() {
   }
 
   async function handleDelete(item) {
-    const ok = window.confirm(
-      `Delete ${item.materialName} roll ${item.size} (${formatNum(item.kg)} kg)?`,
-    )
+    const ok = await confirm({
+      title: 'Delete roll',
+      message: `Delete ${item.materialName} roll ${item.size} (${formatNum(item.kg)} kg)? KG will return to raw material.`,
+    })
     if (!ok) return
     try {
       const { data } = await api.delete(`/rolls/${item.id}`)

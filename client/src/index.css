@@ -267,24 +267,67 @@ select:focus {
 
 .toast-stack {
   position: fixed;
+  top: 1rem;
   right: 1rem;
-  bottom: 1rem;
-  z-index: 100;
+  bottom: auto;
+  z-index: 200;
   display: grid;
   gap: 0.5rem;
+  max-width: min(22rem, calc(100vw - 2rem));
+  pointer-events: none;
 }
 
 .toast {
   padding: 0.85rem 1rem;
   border-radius: var(--radius-md);
-  background: var(--black);
-  color: var(--white);
+  background: #111827;
+  color: #ffffff;
   font-size: var(--text-sm);
   font-weight: 600;
   box-shadow: var(--shadow-card);
+  pointer-events: auto;
 }
 
-.toast--error { background: var(--red); }
+.toast--error {
+  background: #111827;
+  color: #ffffff;
+}
+
+.confirm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 180;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgb(15 23 42 / 0.45);
+  backdrop-filter: blur(2px);
+}
+
+.confirm-dialog {
+  width: min(100%, 24rem);
+  padding: 1.35rem 1.35rem 1.15rem;
+}
+
+.confirm-dialog h2 {
+  margin: 0 0 0.45rem;
+  font-size: 1.1rem;
+  letter-spacing: -0.02em;
+}
+
+.confirm-dialog p {
+  margin: 0;
+  color: var(--text-soft);
+  line-height: 1.5;
+}
+
+.confirm-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-top: 1.25rem;
+}
 
 .page-shell--wide { max-width: 1600px; }
 

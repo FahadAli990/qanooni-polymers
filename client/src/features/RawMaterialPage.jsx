@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useRawMaterials } from '../context/RawMaterialContext'
+import { useConfirm } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { getErrorMessage } from '../api/client'
 import { formatNum } from '../utils/format'
@@ -8,6 +9,7 @@ import { formatNum } from '../utils/format'
 function RawMaterialPage() {
   const navigate = useNavigate()
   const { items, totals, loading, refresh, create, update, remove } = useRawMaterials()
+  const { confirm } = useConfirm()
   const { showToast } = useToast()
   const [mode, setMode] = useState(null)
   const [editingSlug, setEditingSlug] = useState(null)
@@ -56,7 +58,10 @@ function RawMaterialPage() {
   }
 
   async function handleDelete(item) {
-    const ok = window.confirm(`Delete raw material "${item.name}"?`)
+    const ok = await confirm({
+      title: 'Delete raw material',
+      message: `Delete raw material "${item.name}"? This cannot be undone.`,
+    })
     if (!ok) return
     try {
       await remove(item.slug)
