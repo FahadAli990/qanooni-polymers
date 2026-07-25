@@ -12,7 +12,7 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials.
 |-------|------|
 | Frontend | React 19 + Vite + React Router + Axios |
 | Backend | Node + Express |
-| Database | Oracle MySQL 8.4 (`mysql2`) + MySQL Workbench |
+| Database | Oracle MySQL 8.4 (`mysql2`) + MySQL Workbench (local) / Railway MySQL (prod) |
 | Auth | Env credentials + JWT |
 
 ## Architecture
@@ -40,4 +40,17 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials.
 
 ## Env
 
-`MYSQL_DATABASE=Qanooni_db`
+`MYSQL_DATABASE=Qanooni_db`  
+Also supports `MYSQL_URL` / `DATABASE_URL` and Railway `MYSQLHOST` / `MYSQLUSER` / etc.  
+`CLIENT_ORIGIN` — comma-separated allowed browser origins  
+Client: `VITE_API_URL` (prod API base, e.g. `https://api.example.com/api`)
+
+## Deploy
+
+| Piece | Host |
+|-------|------|
+| Client | Vercel (`client/`) |
+| API | Railway (`server/`) |
+| MySQL | Railway MySQL plugin |
+
+GitHub: https://github.com/FahadAli990/qanooni-polymers

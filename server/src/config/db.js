@@ -5,18 +5,25 @@ import { logger } from '../utils/logger.js'
 let pool = null
 let databaseReady = false
 
+function mysqlBaseOptions() {
+  return {
+    host: env.mysql.host,
+    port: env.mysql.port,
+    user: env.mysql.user,
+    password: env.mysql.password,
+    connectTimeout: 15000,
+    ...(env.mysql.ssl ? { ssl: { rejectUnauthorized: false } } : {}),
+  }
+}
+
 export function getPool() {
   if (!pool) {
     pool = mysql.createPool({
-      host: env.mysql.host,
-      port: env.mysql.port,
-      user: env.mysql.user,
-      password: env.mysql.password,
+      ...mysqlBaseOptions(),
       database: env.mysql.database,
       waitForConnections: true,
       connectionLimit: 10,
       namedPlaceholders: true,
-      connectTimeout: 8000,
     })
   }
   return pool
@@ -25,18 +32,32 @@ export function getPool() {
 export async function ensureDatabase() {
   if (databaseReady) return
 
-  const admin = await mysql.createConnection({
-    host: env.mysql.host,
-    port: env.mysql.port,
-    user: env.mysql.user,
-    password: env.mysql.password,
-    connectTimeout: 8000,
-  })
+  try {
+    const probe = await mysql.createConnection({
+      ...mysqlBaseOptions(),
+      database: env.mysql.database,
+    })
+    await probe.query('SELECT 1')
+    await probe.end()
+    databaseReady = true
+    return
+  } catch (probeErr) {
+    logger.info('MySQL database probe needs create/fallback', { error: probeErr.message })
+  }
+
+  const admin = await mysql.createConnection(mysqlBaseOptions())
 
   try {
     await admin.query(
       `CREATE DATABASE IF NOT EXISTS \`${env.mysql.database}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`,
     )
+    databaseReady = true
+  } catch (err) {
+    // Managed MySQL often forbids CREATE DATABASE; continue if named DB is usable.
+    logger.warn('CREATE DATABASE skipped/failed; will use configured database', {
+      database: env.mysql.database,
+      error: err.message,
+    })
     databaseReady = true
   } finally {
     await admin.end()

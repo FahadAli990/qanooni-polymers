@@ -9,7 +9,17 @@ import { syncRawMaterialSwatches } from './services/rawMaterialService.js'
 
 const app = express()
 
-app.use(cors({ origin: env.clientOrigin }))
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (!origin || env.clientOrigins.includes(origin) || env.clientOrigins.includes('*')) {
+        callback(null, true)
+        return
+      }
+      callback(new Error(`CORS blocked for origin: ${origin}`))
+    },
+  }),
+)
 app.use(express.json({ limit: '16kb' }))
 app.use('/api', apiRoutes)
 app.use(notFoundHandler)

@@ -1,7 +1,8 @@
 import axios from 'axios'
 import { TOKEN_KEY } from '../constants/app'
 
-const api = axios.create({ baseURL: '/api' })
+const apiBase = (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '')
+const api = axios.create({ baseURL: apiBase })
 
 let onUnauthorized = null
 
