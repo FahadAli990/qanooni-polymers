@@ -48,8 +48,13 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
   - `GET /api/routes/:slug`
   - `PUT /api/routes/:slug` `{ name }`
   - `DELETE /api/routes/:slug`
-- UI: `/routes` — box/card grid (Add New / Edit / Delete); click box → `/routes/:slug` (empty shell for now)
+- UI: `/routes` — box/card grid (Add New / Edit / Delete); click box → `/routes/:slug`
 - Each route box gets a **stable unique icon + accent** from slug (`routeVisual.js`)
+- Route detail (`/routes/:slug`): **Add Customer** (multiple) — Shop Name, Address, Owner Name, Contact Number
+  - All fields required
+  - Contact: digits only, **exactly 11** (`/^\d{11}$/`)
+  - APIs: `GET|POST /api/routes/:slug/customers`, `PUT|DELETE /api/routes/:slug/customers/:customerId`
+  - Table: `route_customers` (FK → `mill_routes`, cascade delete)
 - Swatch matches color name (`blue` → blue, `red` → red, also `#hex` / “dark blue”)
 
 ## Stock (per material)

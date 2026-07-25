@@ -145,6 +145,24 @@ export async function ensureSchema() {
       UNIQUE KEY uq_mill_routes_name (name)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `)
+
+  await getPool().query(`
+    CREATE TABLE IF NOT EXISTS route_customers (
+      id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+      mill_route_id INT UNSIGNED NOT NULL,
+      shop_name VARCHAR(160) NOT NULL,
+      address VARCHAR(255) NOT NULL,
+      owner_name VARCHAR(120) NOT NULL,
+      contact_number CHAR(11) NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_route_customers_route (mill_route_id),
+      KEY idx_route_customers_contact (contact_number),
+      CONSTRAINT fk_route_customers_route
+        FOREIGN KEY (mill_route_id) REFERENCES mill_routes (id)
+        ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `)
 }
 
 export async function pingDatabase() {
