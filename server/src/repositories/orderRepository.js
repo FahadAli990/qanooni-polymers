@@ -19,6 +19,7 @@ function mapOrderRow(row) {
       chaat: Boolean(row.has_chaat),
       dewaar: Boolean(row.has_dewaar),
     },
+    status: row.status === 'delivered' ? 'delivered' : 'pending',
     totalBill: Number(row.total_bill),
     createdAt: row.created_at,
   }
@@ -38,28 +39,35 @@ function mapItemRow(row) {
   }
 }
 
+const ORDER_SELECT = `
+  o.id,
+  o.order_date,
+  o.mill_route_id,
+  o.route_customer_id,
+  o.has_roll,
+  o.has_chaat,
+  o.has_dewaar,
+  o.status,
+  o.total_bill,
+  o.created_at,
+  r.name AS route_name,
+  r.slug AS route_slug,
+  c.shop_name,
+  c.address,
+  c.owner_name,
+  c.contact_number
+`
+
 export async function findAllOrders() {
   const [rows] = await getPool().query(
-    `SELECT
-       o.id,
-       o.order_date,
-       o.mill_route_id,
-       o.route_customer_id,
-       o.has_roll,
-       o.has_chaat,
-       o.has_dewaar,
-       o.total_bill,
-       o.created_at,
-       r.name AS route_name,
-       r.slug AS route_slug,
-       c.shop_name,
-       c.address,
-       c.owner_name,
-       c.contact_number
+    `SELECT ${ORDER_SELECT}
      FROM sales_orders o
      INNER JOIN mill_routes r ON r.id = o.mill_route_id
      INNER JOIN route_customers c ON c.id = o.route_customer_id
-     ORDER BY o.order_date DESC, o.id DESC`,
+     ORDER BY
+       CASE WHEN o.status = 'pending' THEN 0 ELSE 1 END,
+       o.order_date DESC,
+       o.id DESC`,
   )
   return rows.map(mapOrderRow)
 }
@@ -88,22 +96,7 @@ export async function findOrderItemsByOrderIds(orderIds) {
 
 export async function findOrderById(id) {
   const [rows] = await getPool().query(
-    `SELECT
-       o.id,
-       o.order_date,
-       o.mill_route_id,
-       o.route_customer_id,
-       o.has_roll,
-       o.has_chaat,
-       o.has_dewaar,
-       o.total_bill,
-       o.created_at,
-       r.name AS route_name,
-       r.slug AS route_slug,
-       c.shop_name,
-       c.address,
-       c.owner_name,
-       c.contact_number
+    `SELECT ${ORDER_SELECT}
      FROM sales_orders o
      INNER JOIN mill_routes r ON r.id = o.mill_route_id
      INNER JOIN route_customers c ON c.id = o.route_customer_id
@@ -130,9 +123,9 @@ export async function insertOrderWithItems({
     await conn.beginTransaction()
     const [result] = await conn.query(
       `INSERT INTO sales_orders
-         (order_date, mill_route_id, route_customer_id, has_roll, has_chaat, has_dewaar, total_bill)
+         (order_date, mill_route_id, route_customer_id, has_roll, has_chaat, has_dewaar, status, total_bill)
        VALUES
-         (:date, :millRouteId, :routeCustomerId, :hasRoll, :hasChaat, :hasDewaar, :totalBill)`,
+         (:date, :millRouteId, :routeCustomerId, :hasRoll, :hasChaat, :hasDewaar, 'pending', :totalBill)`,
       {
         date,
         millRouteId,
@@ -169,9 +162,19 @@ export async function insertOrderWithItems({
   }
 }
 
+export async function markOrderDeliveredById(id) {
+  const [result] = await getPool().query(
+    `UPDATE sales_orders
+     SET status = 'delivered'
+     WHERE id = :id AND status = 'pending'`,
+    { id },
+  )
+  return result.affectedRows > 0
+}
+
 export async function deleteOrderById(id) {
   const [result] = await getPool().query(
-    `DELETE FROM sales_orders WHERE id = :id`,
+    `DELETE FROM sales_orders WHERE id = :id AND status = 'pending'`,
     { id },
   )
   return result.affectedRows > 0

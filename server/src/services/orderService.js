@@ -1,4 +1,4 @@
-import { findAllRawMaterials, findRawMaterialBySlug } from '../repositories/rawMaterialRepository.js'
+import { findAllRawMaterials, findRawMaterialById, findRawMaterialBySlug } from '../repositories/rawMaterialRepository.js'
 import { findMillRouteBySlug } from '../repositories/millRouteRepository.js'
 import { findCustomerById } from '../repositories/routeCustomerRepository.js'
 import {
@@ -7,6 +7,7 @@ import {
   findOrderById,
   findOrderItemsByOrderIds,
   insertOrderWithItems,
+  markOrderDeliveredById,
 } from '../repositories/orderRepository.js'
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
@@ -35,6 +36,13 @@ function attachItems(orders, items) {
     ...order,
     items: byOrder.get(order.id) || [],
   }))
+}
+
+async function getOrderWithItems(orderId) {
+  const order = await findOrderById(orderId)
+  if (!order) return null
+  const items = await findOrderItemsByOrderIds([orderId])
+  return { ...order, items }
 }
 
 export async function listOrders() {
@@ -128,14 +136,51 @@ export async function createOrder(body = {}) {
     items,
   })
 
-  const order = await findOrderById(orderId)
-  const orderItems = await findOrderItemsByOrderIds([orderId])
-  return { ...order, items: orderItems }
+  return getOrderWithItems(orderId)
+}
+
+export async function deliverOrder(idInput) {
+  const id = Number(idInput)
+  if (!Number.isInteger(id) || id <= 0) throw badRequest('Invalid order id')
+
+  const order = await getOrderWithItems(id)
+  if (!order) throw notFound('Order not found')
+  if (order.status === 'delivered') {
+    throw badRequest('Order is already delivered and cannot go back to pending')
+  }
+  if (order.status !== 'pending') throw badRequest('Only pending orders can be delivered')
+
+  for (const item of order.items) {
+    const material = await findRawMaterialById(item.rawMaterialId)
+    if (!material) {
+      throw badRequest(`Raw material missing for order line (${item.materialName || item.rawMaterialId})`)
+    }
+    const available = Number(material.totalKg || 0)
+    if (available + 1e-9 < Number(item.kg)) {
+      throw badRequest(
+        `Not enough stock for "${material.name}". Need ${item.kg} kg, available ${available} kg`,
+      )
+    }
+  }
+
+  const updated = await markOrderDeliveredById(id)
+  if (!updated) {
+    throw badRequest('Order is already delivered and cannot go back to pending')
+  }
+
+  return getOrderWithItems(id)
 }
 
 export async function removeOrder(idInput) {
   const id = Number(idInput)
   if (!Number.isInteger(id) || id <= 0) throw badRequest('Invalid order id')
+
+  const existing = await findOrderById(id)
+  if (!existing) throw notFound('Order not found')
+  if (existing.status === 'delivered') {
+    throw badRequest('Delivered orders cannot be deleted')
+  }
+
   const deleted = await deleteOrderById(id)
   if (!deleted) throw notFound('Order not found')
   return { deleted: true }

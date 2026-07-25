@@ -189,10 +189,12 @@ export async function ensureSchema() {
       has_roll TINYINT(1) NOT NULL DEFAULT 0,
       has_chaat TINYINT(1) NOT NULL DEFAULT 0,
       has_dewaar TINYINT(1) NOT NULL DEFAULT 0,
+      status VARCHAR(16) NOT NULL DEFAULT 'pending',
       total_bill DECIMAL(14, 2) NOT NULL,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       PRIMARY KEY (id),
       KEY idx_sales_orders_date (order_date),
+      KEY idx_sales_orders_status (status),
       KEY idx_sales_orders_route (mill_route_id),
       KEY idx_sales_orders_customer (route_customer_id),
       CONSTRAINT fk_sales_orders_route
@@ -203,6 +205,25 @@ export async function ensureSchema() {
         ON DELETE RESTRICT
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `)
+
+  // Existing DBs created before status column
+  const [orderStatusCols] = await getPool().query(
+    `SELECT COLUMN_NAME
+     FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'sales_orders'
+       AND COLUMN_NAME = 'status'`,
+  )
+  if (!orderStatusCols.length) {
+    await getPool().query(
+      `ALTER TABLE sales_orders
+       ADD COLUMN status VARCHAR(16) NOT NULL DEFAULT 'pending' AFTER has_dewaar`,
+    )
+    await getPool().query(
+      `ALTER TABLE sales_orders
+       ADD KEY idx_sales_orders_status (status)`,
+    )
+  }
 
   await getPool().query(`
     CREATE TABLE IF NOT EXISTS sales_order_items (

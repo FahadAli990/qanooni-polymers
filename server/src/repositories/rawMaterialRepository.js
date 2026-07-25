@@ -34,9 +34,19 @@ const MATERIAL_SELECT = `
   COALESCE(SUM(s.bags), 0) AS total_bags,
   COALESCE(SUM(s.kg), 0) AS stocked_kg,
   (
-    SELECT COALESCE(SUM(r.kg), 0)
-    FROM roll_productions r
-    WHERE r.raw_material_id = m.id
+    (
+      SELECT COALESCE(SUM(r.kg), 0)
+      FROM roll_productions r
+      WHERE r.raw_material_id = m.id
+    )
+    +
+    (
+      SELECT COALESCE(SUM(i.kg), 0)
+      FROM sales_order_items i
+      INNER JOIN sales_orders o ON o.id = i.sales_order_id
+      WHERE i.raw_material_id = m.id
+        AND o.status = 'delivered'
+    )
   ) AS used_kg
 `
 

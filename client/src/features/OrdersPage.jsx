@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import api, { getErrorMessage } from '../api/client'
 import { useConfirm } from '../context/ConfirmContext'
+import { useRawMaterials } from '../context/RawMaterialContext'
 import { useRoutes } from '../context/RouteContext'
 import { useToast } from '../context/ToastContext'
 import { formatDateDisplay, formatNum, todayIso } from '../utils/format'
@@ -29,6 +30,7 @@ function formatMoney(value) {
 
 function OrdersPage() {
   const { items: routes, refresh: refreshRoutes } = useRoutes()
+  const { refresh: refreshMaterials } = useRawMaterials()
   const { confirm } = useConfirm()
   const { showToast } = useToast()
 
@@ -205,10 +207,36 @@ function OrdersPage() {
     }
   }
 
+  async function handleDeliver(order) {
+    const ok = await confirm({
+      title: 'Mark delivered',
+      message: `Deliver order for "${order.shopName}"? Stock will be reduced and this cannot be undone.`,
+    })
+    if (!ok) return
+    try {
+      const { data } = await api.post(`/orders/${order.id}/deliver`)
+      setOrders((prev) => {
+        const next = prev.map((row) => (row.id === order.id ? data.data : row))
+        return [...next].sort((a, b) => {
+          if (a.status !== b.status) return a.status === 'pending' ? -1 : 1
+          return String(b.date).localeCompare(String(a.date))
+        })
+      })
+      await refreshMaterials()
+      showToast('Order delivered — stock updated')
+    } catch (err) {
+      showToast(getErrorMessage(err), 'error')
+    }
+  }
+
   async function handleDelete(order) {
+    if (order.status === 'delivered') {
+      showToast('Delivered orders cannot be deleted', 'error')
+      return
+    }
     const ok = await confirm({
       title: 'Delete order',
-      message: `Delete order for "${order.shopName}" on ${formatDateDisplay(order.date)}?`,
+      message: `Delete pending order for "${order.shopName}" on ${formatDateDisplay(order.date)}?`,
     })
     if (!ok) return
     try {
@@ -225,7 +253,7 @@ function OrdersPage() {
       <header className="page-toolbar">
         <div>
           <h1>Orders</h1>
-          <p>Create orders by route & shop — bill uses each material&apos;s price per kg.</p>
+          <p>Pending orders cut stock only when marked Delivered (cannot go back).</p>
         </div>
         <button
           type="button"
@@ -402,13 +430,14 @@ function OrdersPage() {
                 <th>Phone</th>
                 <th>Ordered</th>
                 <th>Total Bill</th>
+                <th>Status</th>
                 <th aria-label="Actions" />
               </tr>
             </thead>
             <tbody>
               {orders.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="stock-table__empty">
+                  <td colSpan={9} className="stock-table__empty">
                     No orders yet. Click Add New Order to create one.
                   </td>
                 </tr>
@@ -429,14 +458,32 @@ function OrdersPage() {
                       </div>
                     </td>
                     <td>{formatMoney(order.totalBill)}</td>
-                    <td className="stock-table__actions">
-                      <button
-                        type="button"
-                        className="btn-danger btn-compact"
-                        onClick={() => handleDelete(order)}
+                    <td>
+                      <span
+                        className={`status-pill status-pill--${order.status === 'delivered' ? 'delivered' : 'pending'}`}
                       >
-                        Delete
-                      </button>
+                        {order.status === 'delivered' ? 'Delivered' : 'Pending'}
+                      </span>
+                    </td>
+                    <td className="stock-table__actions">
+                      {order.status !== 'delivered' && (
+                        <button
+                          type="button"
+                          className="btn-primary btn-compact"
+                          onClick={() => handleDeliver(order)}
+                        >
+                          Deliver
+                        </button>
+                      )}
+                      {order.status !== 'delivered' && (
+                        <button
+                          type="button"
+                          className="btn-danger btn-compact"
+                          onClick={() => handleDelete(order)}
+                        >
+                          Delete
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))

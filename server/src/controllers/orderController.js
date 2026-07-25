@@ -1,5 +1,6 @@
 import {
   createOrder,
+  deliverOrder,
   getOrderRates,
   listOrders,
   removeOrder,
@@ -25,6 +26,14 @@ export async function getOrderRatesController(_req, res, next) {
 export async function createOrderController(req, res, next) {
   try {
     return ok(res, await createOrder(req.body), 201)
+  } catch (err) {
+    return next(err)
+  }
+}
+
+export async function deliverOrderController(req, res, next) {
+  try {
+    return ok(res, await deliverOrder(req.params.id))
   } catch (err) {
     return next(err)
   }
