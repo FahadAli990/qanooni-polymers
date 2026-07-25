@@ -1,7 +1,7 @@
 import { GiBrickWall, GiPipes } from 'react-icons/gi'
 import { MdDonutLarge, MdFactory, MdGrain, MdRoofing, MdRoute, MdSpaceDashboard } from 'react-icons/md'
 
-export function buildNavItems(materials = [], routes = []) {
+export function buildNavItems(materials = []) {
   return [
     { id: 'dashboard', label: 'Dashboard', Icon: MdSpaceDashboard, path: '/' },
     {
@@ -53,12 +53,6 @@ export function buildNavItems(materials = [], routes = []) {
       label: 'Routes',
       Icon: MdRoute,
       path: '/routes',
-      children: routes.map((r) => ({
-        id: `route-${r.slug}`,
-        label: r.name,
-        Icon: MdRoute,
-        path: `/routes/${r.slug}`,
-      })),
     },
   ]
 }
@@ -83,20 +77,9 @@ function parseMillsPath(pathname) {
   return null
 }
 
-function parseRoutesPath(pathname, routes = []) {
-  if (pathname === '/routes') {
+function parseRoutesPath(pathname) {
+  if (pathname === '/routes' || pathname.startsWith('/routes/')) {
     return { section: 'routes', ancestors: [] }
-  }
-  if (pathname.startsWith('/routes/')) {
-    const slug = pathname.split('/')[2]
-    const route = routes.find((r) => r.slug === slug)
-    if (!route) {
-      return { section: 'routes', ancestors: ['routes'] }
-    }
-    return {
-      section: `route-${route.slug}`,
-      ancestors: ['routes'],
-    }
   }
   return null
 }
@@ -112,8 +95,8 @@ function findNavItemById(items, id) {
   return null
 }
 
-export function getActiveNavId(pathname, materials = [], routes = []) {
-  const routeNav = parseRoutesPath(pathname, routes)
+export function getActiveNavId(pathname, materials = []) {
+  const routeNav = parseRoutesPath(pathname)
   if (routeNav) return routeNav.section
 
   const mills = parseMillsPath(pathname)
@@ -125,15 +108,15 @@ export function getActiveNavId(pathname, materials = [], routes = []) {
   return 'dashboard'
 }
 
-export function getNavItemByPath(pathname, materials = [], routes = []) {
-  const routeNav = parseRoutesPath(pathname, routes)
+export function getNavItemByPath(pathname, materials = []) {
+  const routeNav = parseRoutesPath(pathname)
   if (routeNav) {
-    return findNavItemById(buildNavItems(materials, routes), routeNav.section)
+    return buildNavItems(materials).find((item) => item.id === 'routes')
   }
 
   const mills = parseMillsPath(pathname)
   if (mills) {
-    return findNavItemById(buildNavItems(materials, routes), mills.section)
+    return findNavItemById(buildNavItems(materials), mills.section)
   }
 
   const raw = parseRawMaterialPath(pathname, materials)
@@ -145,14 +128,12 @@ export function getNavItemByPath(pathname, materials = [], routes = []) {
       path: pathname,
     }
   }
-  return buildNavItems(materials, routes).find((item) => item.path === pathname)
+  return buildNavItems(materials).find((item) => item.path === pathname)
 }
 
-export function getAncestorIdsForPath(pathname, materials = [], routes = []) {
-  const routeNav = parseRoutesPath(pathname, routes)
-  if (routeNav?.ancestors?.length) return routeNav.ancestors
-  // Open Routes when on the list page itself? No - only when child active (same as raw material)
-  if (routeNav?.section === 'routes') return []
+export function getAncestorIdsForPath(pathname, materials = []) {
+  const routeNav = parseRoutesPath(pathname)
+  if (routeNav) return []
 
   const mills = parseMillsPath(pathname)
   if (mills?.ancestors?.length) return mills.ancestors

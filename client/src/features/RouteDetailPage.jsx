@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import api, { getErrorMessage } from '../api/client'
 import { useToast } from '../context/ToastContext'
 
@@ -43,6 +43,9 @@ function RouteDetailPage() {
     return (
       <div className="page-shell">
         <p className="help-muted">Route not found.</p>
+        <Link to="/routes" className="btn-secondary" style={{ display: 'inline-flex', marginTop: '1rem' }}>
+          Back to Routes
+        </Link>
       </div>
     )
   }
@@ -54,6 +57,9 @@ function RouteDetailPage() {
           <div className="detail-title-row">
             <h1>{route.name}</h1>
           </div>
+          <Link to="/routes" className="btn-secondary">
+            Back to Routes
+          </Link>
         </div>
       </header>
     </div>

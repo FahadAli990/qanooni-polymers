@@ -10,7 +10,6 @@ import {
 import { APP_NAME, SIDEBAR_MOBILE_MQ } from '../constants/app'
 import { useAuth } from '../context/AuthContext'
 import { useRawMaterials } from '../context/RawMaterialContext'
-import { useRoutes } from '../context/RouteContext'
 import './Sidebar.css'
 
 function Sidebar() {
@@ -18,18 +17,17 @@ function Sidebar() {
   const { pathname } = useLocation()
   const { logout } = useAuth()
   const { items: materials } = useRawMaterials()
-  const { items: routes } = useRoutes()
   const [isOpen, setIsOpen] = useState(false)
   const [expandedIds, setExpandedIds] = useState(() => new Set())
 
-  const navItems = useMemo(() => buildNavItems(materials, routes), [materials, routes])
-  const activeId = getActiveNavId(pathname, materials, routes)
-  const activeItem = getNavItemByPath(pathname, materials, routes)
-  const routeExpanded = getAncestorIdsForPath(pathname, materials, routes)
+  const navItems = useMemo(() => buildNavItems(materials), [materials])
+  const activeId = getActiveNavId(pathname, materials)
+  const activeItem = getNavItemByPath(pathname, materials)
+  const routeExpanded = getAncestorIdsForPath(pathname, materials)
 
   // Open ancestor menus when route changes (still allow manual close after).
   useEffect(() => {
-    const ancestors = getAncestorIdsForPath(pathname, materials, routes)
+    const ancestors = getAncestorIdsForPath(pathname, materials)
     if (!ancestors.length) return
     setExpandedIds((prev) => {
       const next = new Set(prev)

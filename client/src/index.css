@@ -207,6 +207,17 @@ select:focus {
   border: 1px solid var(--border-strong);
 }
 
+.material-card__icon {
+  width: 2.25rem;
+  height: 2.25rem;
+  display: grid;
+  place-items: center;
+  border-radius: 0.65rem;
+  border: 1px solid var(--border);
+  background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
+  color: var(--text);
+}
+
 .material-card__actions {
   display: flex;
   flex-wrap: wrap;

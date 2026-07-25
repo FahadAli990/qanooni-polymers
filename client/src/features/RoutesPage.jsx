@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { MdRoute } from 'react-icons/md'
 import { useConfirm } from '../context/ConfirmContext'
 import { useRoutes } from '../context/RouteContext'
 import { useToast } from '../context/ToastContext'
@@ -78,18 +79,18 @@ function RoutesPage() {
   }
 
   return (
-    <div className="page-shell page-shell--wide">
+    <div className="page-shell">
       <header className="page-toolbar">
         <div>
           <h1>Routes</h1>
-          <p>Add routes — each route appears under Routes in the sidebar.</p>
+          <p>Add routes as boxes — click a box to open it.</p>
         </div>
         <button
           type="button"
           className="btn-primary"
           onClick={() => (mode === 'create' ? closeForm() : openCreate())}
         >
-          {mode === 'create' ? 'Cancel' : 'Add Route'}
+          {mode === 'create' ? 'Cancel' : 'Add New'}
         </button>
       </header>
 
@@ -124,36 +125,27 @@ function RoutesPage() {
       {loading ? (
         <p className="help-muted">Loading routes…</p>
       ) : items.length === 0 ? (
-        <p className="help-muted">No routes yet. Click Add Route to create one.</p>
+        <p className="help-muted">No routes yet. Click Add New to create one.</p>
       ) : (
-        <div className="stock-table-wrap card">
-          <table className="stock-table">
-            <thead>
-              <tr>
-                <th>Route Name</th>
-                <th aria-label="Actions" />
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((item) => (
-                <tr key={item.id}>
-                  <td>
-                    <Link to={`/routes/${item.slug}`} className="material-row-link">
-                      <strong>{item.name}</strong>
-                    </Link>
-                  </td>
-                  <td className="stock-table__actions">
-                    <button type="button" className="btn-secondary btn-compact" onClick={() => openEdit(item)}>
-                      Edit
-                    </button>
-                    <button type="button" className="btn-danger btn-compact" onClick={() => handleDelete(item)}>
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="material-grid">
+          {items.map((item) => (
+            <div key={item.id} className="material-card card">
+              <Link to={`/routes/${item.slug}`} className="material-card__main">
+                <span className="material-card__icon" aria-hidden>
+                  <MdRoute size={22} />
+                </span>
+                <strong>{item.name}</strong>
+              </Link>
+              <div className="material-card__actions">
+                <button type="button" className="btn-secondary btn-compact" onClick={() => openEdit(item)}>
+                  Edit
+                </button>
+                <button type="button" className="btn-danger btn-compact" onClick={() => handleDelete(item)}>
+                  Delete
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>

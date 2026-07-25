@@ -37,6 +37,7 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
   - Bundle → **Chaat** / **Dewaar**
   - Roll icon = round pipe roll; Bundle icon = stacked pipes; Chaat = roof; Dewaar = brick wall
 - Top-level **Routes** (same level as Raw Material / Mills & Production) — `/routes`
+  - **No sidebar children** — open routes only from page boxes
 
 ## Routes (delivery / sales)
 
@@ -47,7 +48,7 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
   - `GET /api/routes/:slug`
   - `PUT /api/routes/:slug` `{ name }`
   - `DELETE /api/routes/:slug`
-- UI: `/routes` list + `/routes/:slug` detail (empty shell for now)
+- UI: `/routes` — box/card grid (Add New / Edit / Delete); click box → `/routes/:slug` (empty shell for now)
 - Swatch matches color name (`blue` → blue, `red` → red, also `#hex` / “dark blue”)
 
 ## Stock (per material)
