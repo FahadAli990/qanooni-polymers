@@ -21,7 +21,6 @@ export function buildNavItems(materials = []) {
       id: 'mills-production',
       label: 'Mills & Production',
       Icon: MdFactory,
-      path: '/mills-production',
       children: [
         {
           id: 'mills-role',
@@ -48,7 +47,6 @@ function parseRawMaterialPath(pathname, materials) {
 }
 
 function parseMillsPath(pathname) {
-  if (pathname === '/mills-production') return { section: 'mills-production' }
   if (pathname === '/mills-production/role') return { section: 'mills-role' }
   if (pathname === '/mills-production/bundle') return { section: 'mills-bundle' }
   return null
@@ -69,8 +67,7 @@ export function getNavItemByPath(pathname, materials = []) {
   if (mills) {
     const items = buildNavItems(materials)
     const parent = items.find((item) => item.id === 'mills-production')
-    if (mills.section === 'mills-production') return parent
-    return parent?.children?.find((child) => child.id === mills.section) || parent
+    return parent?.children?.find((child) => child.id === mills.section) || null
   }
 
   const raw = parseRawMaterialPath(pathname, materials)

@@ -81,10 +81,12 @@ function Sidebar() {
   function handleItemClick(item, hasChildren) {
     if (hasChildren) {
       if (!isOpen) setIsOpen(true)
-      expandBranch(item.id)
       if (item.path) {
+        expandBranch(item.id)
         navigate(item.path)
         closeOnMobile()
+      } else {
+        toggleBranch(item.id)
       }
       return
     }
