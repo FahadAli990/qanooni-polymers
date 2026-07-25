@@ -5,7 +5,6 @@ import {
   findRawMaterialBySlug,
   insertRawMaterial,
   updateRawMaterial,
-  updateRawMaterialPrice,
   updateRawMaterialSwatch,
 } from '../repositories/rawMaterialRepository.js'
 
@@ -136,28 +135,18 @@ async function assertNameAvailable(name, slug, excludeId = null) {
 
 export async function listRawMaterials() {
   const items = await findAllRawMaterials()
-  const withValue = items.map((item) => {
-    const kg = Number(item.totalKg || 0)
-    const price = Number(item.pricePerKg || 0)
-    return {
-      ...item,
-      stockValue: Number((kg * price).toFixed(2)),
-    }
-  })
-  const totals = withValue.reduce(
+  const totals = items.reduce(
     (acc, item) => ({
       totalBags: acc.totalBags + Number(item.totalBags || 0),
       totalKg: acc.totalKg + Number(item.totalKg || 0),
-      totalValue: acc.totalValue + Number(item.stockValue || 0),
     }),
-    { totalBags: 0, totalKg: 0, totalValue: 0 },
+    { totalBags: 0, totalKg: 0 },
   )
   return {
-    items: withValue,
+    items,
     totals: {
       totalBags: Number(totals.totalBags.toFixed(2)),
       totalKg: Number(totals.totalKg.toFixed(2)),
-      totalValue: Number(totals.totalValue.toFixed(2)),
       kgPerBag: 40,
     },
   }
@@ -196,24 +185,6 @@ export async function updateRawMaterialBySlug(currentSlug, inputName) {
   const payload = normalizeMaterialName(inputName)
   await assertNameAvailable(payload.name, payload.slug, existing.id)
   return updateRawMaterial(existing.id, payload)
-}
-
-export async function updateRawMaterialPriceBySlug(slug, inputPrice) {
-  const existing = await findRawMaterialBySlug(slug)
-  if (!existing) {
-    const error = new Error('Raw material not found')
-    error.status = 404
-    throw error
-  }
-
-  const pricePerKg = Number(inputPrice)
-  if (!Number.isFinite(pricePerKg) || pricePerKg < 0) {
-    const error = new Error('Price per kg must be zero or a positive number')
-    error.status = 400
-    throw error
-  }
-
-  return updateRawMaterialPrice(existing.id, Number(pricePerKg.toFixed(2)))
 }
 
 export async function removeRawMaterialBySlug(slug) {

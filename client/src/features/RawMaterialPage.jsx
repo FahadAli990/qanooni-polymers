@@ -6,19 +6,14 @@ import { useToast } from '../context/ToastContext'
 import { getErrorMessage } from '../api/client'
 import { formatNum } from '../utils/format'
 
-function formatMoney(value) {
-  return `Rs ${formatNum(value)}`
-}
-
 function RawMaterialPage() {
   const navigate = useNavigate()
-  const { items, totals, loading, refresh, create, update, updatePrice, remove } = useRawMaterials()
+  const { items, totals, loading, refresh, create, update, remove } = useRawMaterials()
   const { confirm } = useConfirm()
   const { showToast } = useToast()
   const [mode, setMode] = useState(null)
   const [editingSlug, setEditingSlug] = useState(null)
   const [name, setName] = useState('')
-  const [pricePerKg, setPricePerKg] = useState('')
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -29,48 +24,29 @@ function RawMaterialPage() {
     setMode('create')
     setEditingSlug(null)
     setName('')
-    setPricePerKg('')
   }
 
   function openEdit(item) {
     setMode('edit')
     setEditingSlug(item.slug)
     setName(item.name)
-    setPricePerKg(
-      item.pricePerKg != null && Number(item.pricePerKg) >= 0
-        ? String(item.pricePerKg)
-        : '',
-    )
   }
 
   function closeForm() {
     setMode(null)
     setEditingSlug(null)
     setName('')
-    setPricePerKg('')
   }
 
   async function handleSubmit(e) {
     e.preventDefault()
-    const price = Number(pricePerKg)
-    if (pricePerKg !== '' && (!Number.isFinite(price) || price < 0)) {
-      showToast('Price per kg must be zero or a positive number', 'error')
-      return
-    }
-
     setSaving(true)
     try {
       if (mode === 'edit' && editingSlug) {
         const updated = await update(editingSlug, name)
-        if (pricePerKg !== '') {
-          await updatePrice(editingSlug, price)
-        }
         showToast(`Updated ${updated.name}`)
       } else {
         const created = await create(name)
-        if (pricePerKg !== '' && Number.isFinite(price) && price >= 0) {
-          await updatePrice(created.slug, price)
-        }
         showToast(`Added ${created.name}`)
       }
       closeForm()
@@ -104,7 +80,7 @@ function RawMaterialPage() {
       <header className="page-toolbar">
         <div>
           <h1>Raw Material</h1>
-          <p>Price per kg, current stock, and stock value for every color.</p>
+          <p>Colors / materials and current stock for every item.</p>
         </div>
         <button
           type="button"
@@ -115,7 +91,7 @@ function RawMaterialPage() {
         </button>
       </header>
 
-      <section className="stock-totals card stock-totals--split">
+      <section className="stock-totals card">
         <div>
           <span className="stock-totals__label">Total Material (All Colors)</span>
           <strong className="stock-totals__value">
@@ -124,43 +100,23 @@ function RawMaterialPage() {
             {formatNum(totals.totalKg)} kg
           </strong>
         </div>
-        <div>
-          <span className="stock-totals__label">Total Stock Value</span>
-          <strong className="stock-totals__value">{formatMoney(totals.totalValue || 0)}</strong>
-        </div>
       </section>
 
       {mode && (
         <form className="card panel-form" onSubmit={handleSubmit}>
-          <div className="form-grid form-grid--price">
-            <div>
-              <label htmlFor="material-name">
-                {mode === 'edit' ? 'Edit Color / Material Name' : 'Color / Material Name'}
-              </label>
-              <input
-                id="material-name"
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Red, Blue, Custom Mix"
-                required
-                maxLength={120}
-                autoFocus
-              />
-            </div>
-            <div>
-              <label htmlFor="material-price">Sell Amount / kg (Rs)</label>
-              <input
-                id="material-price"
-                type="number"
-                min="0"
-                step="0.01"
-                value={pricePerKg}
-                onChange={(e) => setPricePerKg(e.target.value)}
-                placeholder="e.g. 220"
-              />
-            </div>
-          </div>
+          <label htmlFor="material-name">
+            {mode === 'edit' ? 'Edit Color / Material Name' : 'Color / Material Name'}
+          </label>
+          <input
+            id="material-name"
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="e.g. Red, Blue, Custom Mix"
+            required
+            maxLength={120}
+            autoFocus
+          />
           <div className="panel-form__actions">
             <button type="submit" className="btn-primary" disabled={saving}>
               {saving ? 'Saving...' : mode === 'edit' ? 'Update' : 'Save'}
@@ -184,9 +140,7 @@ function RawMaterialPage() {
             <thead>
               <tr>
                 <th>Material</th>
-                <th>Sell Amount / kg</th>
                 <th>In Stock Now</th>
-                <th>Stock Value</th>
                 <th aria-label="Actions" />
               </tr>
             </thead>
@@ -199,13 +153,11 @@ function RawMaterialPage() {
                       <strong>{item.name}</strong>
                     </Link>
                   </td>
-                  <td>{formatMoney(Number(item.pricePerKg) || 0)}</td>
                   <td>
                     {formatNum(item.totalBags)} bags
                     <span className="stock-totals__sep">·</span>
                     {formatNum(item.totalKg)} kg
                   </td>
-                  <td>{formatMoney(Number(item.stockValue) || 0)}</td>
                   <td className="stock-table__actions">
                     <button type="button" className="btn-secondary btn-compact" onClick={() => openEdit(item)}>
                       Edit

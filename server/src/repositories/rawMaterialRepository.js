@@ -128,14 +128,6 @@ export async function updateRawMaterial(id, { slug, name, swatch }) {
   return findRawMaterialById(id)
 }
 
-export async function updateRawMaterialPrice(id, pricePerKg) {
-  await getPool().query(
-    `UPDATE raw_materials SET price_per_kg = :pricePerKg WHERE id = :id`,
-    { id, pricePerKg },
-  )
-  return findRawMaterialById(id)
-}
-
 export async function deleteRawMaterialBySlug(slug) {
   const [result] = await getPool().query(
     `DELETE FROM raw_materials WHERE slug = :slug`,

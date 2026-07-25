@@ -4,7 +4,6 @@ import {
   listRawMaterials,
   removeRawMaterialBySlug,
   updateRawMaterialBySlug,
-  updateRawMaterialPriceBySlug,
 } from '../services/rawMaterialService.js'
 import { ok } from '../utils/apiResponse.js'
 
@@ -41,17 +40,6 @@ export async function createRawMaterialController(req, res, next) {
 export async function updateRawMaterialController(req, res, next) {
   try {
     return ok(res, await updateRawMaterialBySlug(req.params.slug, req.body?.name))
-  } catch (err) {
-    return next(err)
-  }
-}
-
-export async function updateRawMaterialPriceController(req, res, next) {
-  try {
-    return ok(
-      res,
-      await updateRawMaterialPriceBySlug(req.params.slug, req.body?.pricePerKg ?? req.body?.price_per_kg),
-    )
   } catch (err) {
     return next(err)
   }

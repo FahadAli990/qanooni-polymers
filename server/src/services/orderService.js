@@ -63,7 +63,6 @@ export async function getOrderRates() {
       slug: m.slug,
       name: m.name,
       swatch: m.swatch,
-      ratePerKg: Number(m.pricePerKg || 0),
     })),
   }
 }
@@ -122,11 +121,9 @@ export async function createOrder(body = {}) {
       throw badRequest(`KG must be a positive number for ${material.name}`)
     }
 
-    const ratePerKg = Number(material.pricePerKg || 0)
-    if (!(ratePerKg > 0)) {
-      throw badRequest(
-        `Set price per kg for "${material.name}" in Raw Material before creating an order`,
-      )
+    const ratePerKg = Number(row.ratePerKg ?? row.rate_per_kg)
+    if (!Number.isFinite(ratePerKg) || ratePerKg <= 0) {
+      throw badRequest(`Sell rate / kg must be a positive number for ${material.name}`)
     }
 
     if (kind === 'roll') hasRoll = true

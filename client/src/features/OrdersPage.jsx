@@ -20,6 +20,7 @@ function newLine(defaults = {}) {
     size: defaults.size || '1/2"',
     materialSlug: '',
     kg: '',
+    ratePerKg: '',
   }
 }
 
@@ -59,20 +60,14 @@ function OrdersPage() {
   const [shopsLoading, setShopsLoading] = useState(false)
   const [lines, setLines] = useState([newLine()])
 
-  const rateBySlug = useMemo(() => {
-    const map = new Map()
-    for (const row of materials) map.set(row.slug, row)
-    return map
-  }, [materials])
-
   const previewTotal = useMemo(() => {
     return lines.reduce((sum, line) => {
-      const material = rateBySlug.get(line.materialSlug)
       const kg = Number(line.kg)
-      if (!material || !Number.isFinite(kg) || kg <= 0) return sum
-      return sum + kg * Number(material.ratePerKg)
+      const rate = Number(line.ratePerKg)
+      if (!Number.isFinite(kg) || kg <= 0 || !Number.isFinite(rate) || rate <= 0) return sum
+      return sum + kg * rate
     }, 0)
-  }, [lines, rateBySlug])
+  }, [lines])
 
   const loadOrders = useCallback(async () => {
     setLoading(true)
@@ -181,9 +176,11 @@ function OrdersPage() {
       used.add(lineKey)
       const kg = Number(line.kg)
       if (!Number.isFinite(kg) || kg <= 0) return 'KG must be a positive number'
+      const rate = Number(line.ratePerKg)
+      if (!Number.isFinite(rate) || rate <= 0) return 'Sell rate / kg must be a positive number'
       hasValidLine = true
     }
-    if (!hasValidLine) return 'Add at least one order line with type, size, material and kg'
+    if (!hasValidLine) return 'Add at least one order line with type, size, material, kg and rate'
     return null
   }
 
@@ -202,6 +199,7 @@ function OrdersPage() {
         size: line.size,
         materialSlug: line.materialSlug,
         kg: Number(line.kg),
+        ratePerKg: Number(line.ratePerKg),
       }))
 
     setSaving(true)
@@ -343,12 +341,10 @@ function OrdersPage() {
               </button>
             </div>
             {lines.map((line) => {
-              const material = rateBySlug.get(line.materialSlug)
               const kg = Number(line.kg)
+              const rate = Number(line.ratePerKg)
               const lineTotal =
-                material && Number.isFinite(kg) && kg > 0
-                  ? kg * Number(material.ratePerKg)
-                  : 0
+                Number.isFinite(kg) && kg > 0 && Number.isFinite(rate) && rate > 0 ? kg * rate : 0
               return (
                 <div key={line.key} className="order-line order-line--full">
                   <div>
@@ -407,11 +403,15 @@ function OrdersPage() {
                     />
                   </div>
                   <div>
-                    <label>Rate / kg</label>
+                    <label>Sell Rate / kg (Rs)</label>
                     <input
-                      type="text"
-                      value={material ? formatMoney(material.ratePerKg) : '—'}
-                      readOnly
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      value={line.ratePerKg}
+                      onChange={(e) => updateLine(line.key, { ratePerKg: e.target.value })}
+                      placeholder="e.g. 220"
+                      required
                     />
                   </div>
                   <div>

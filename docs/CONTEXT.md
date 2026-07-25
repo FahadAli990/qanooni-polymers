@@ -22,18 +22,17 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
 
 ## Raw materials
 
-- Table: `raw_materials` (`id`, `slug`, `name`, `swatch`, `price_per_kg`, `created_at`)
+- Table: `raw_materials` (`id`, `slug`, `name`, `swatch`, `price_per_kg` legacy unused, `created_at`)
 - Auto-created on server start (`ensureSchema`)
 - APIs (auth required):
   - `GET /api/raw-materials`
   - `POST /api/raw-materials` `{ name }`
   - `PUT /api/raw-materials/:slug` `{ name }`
-  - `PUT /api/raw-materials/:slug/price` `{ pricePerKg }` — per-material selling rate
   - `DELETE /api/raw-materials/:slug`
   - `GET /api/raw-materials/:slug`
-- UI: `/raw-material` — **Price / kg** (edit here), **In Stock Now** (bags·kg), **Stock Value** (kg×price); grand totals for all colors (qty + Rs value)
-- `/raw-material/:slug` — stock ledger only (no price editor)
-- List API returns `{ items, totals }` (`pricePerKg`, `stockValue`, `totalBags` / `totalKg`, `totals.totalValue`)
+- UI: `/raw-material` — material name + **In Stock Now** (bags·kg); total qty across all colors
+- `/raw-material/:slug` — stock ledger; **Purchase Amount / kg** per supplier entry (no sell rate on materials)
+- List API returns `{ items, totals }` (`totalBags` / `totalKg`)
 - Sidebar: Raw Material accordion open/close (chevron toggle; auto-open on child route)
 - Sidebar: **Mills & Production** (folder only — no page) → **Roll** (`/mills-production/roll`) / **Bundle** (folder)
   - Bundle → **Chaat** / **Dewaar**
@@ -45,15 +44,15 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
 ## Orders (sales)
 
 - Tables: `sales_orders` + `sales_order_items` (`kind`, `size`, material, kg, rate, amount)
-- Flow: Date → Route → Shop → **order lines** (each: Roll/Chaat/Dewaar + size `1/2"|3/4"|1"` + material + kg) → **Pending**
+- Flow: Date → Route → Shop → **order lines** (each: Roll/Chaat/Dewaar + size `1/2"|3/4"|1"` + material + kg + **sell rate/kg**) → **Pending**
 - **Deliver** (one-way): Pending → Delivered only; cannot return to Pending
 - On deliver: stock cut by **material kg** (size/type are product specs; raw pool is shared like production)
 - Deliver blocked if available kg is insufficient; delivered orders cannot be deleted
-- Bill = Σ(kg × material `price_per_kg`); order blocked if a selected material has no price set
+- Bill = Σ(kg × line `ratePerKg`); rate entered on each order line (not from raw materials)
 - APIs (auth required):
   - `GET /api/orders`
-  - `GET /api/orders/rates` → `{ sizes, kinds, materials[{ ratePerKg }] }`
-  - `POST /api/orders` `{ date, routeSlug, customerId, items: [{ kind, size, materialSlug, kg }] }` → `pending`
+  - `GET /api/orders/rates` → `{ sizes, kinds, materials }`
+  - `POST /api/orders` `{ date, routeSlug, customerId, items: [{ kind, size, materialSlug, kg, ratePerKg }] }` → `pending`
   - `POST /api/orders/:id/deliver`
   - `DELETE /api/orders/:id` (pending only)
 - UI table: Date, Route, Shop, Address, Phone, Ordered (type · size · material · kg), Total Bill, Status
@@ -88,7 +87,7 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
   - `POST /api/raw-materials/:slug/stocks` `{ date, supplier, bags }`
   - `PUT /api/raw-materials/:slug/stocks/:stockId` `{ date, supplier, bags }`
   - `DELETE /api/raw-materials/:slug/stocks/:stockId`
-- UI: `/raw-material/:slug` — stock ledger with **purchase Amount/kg** + **Total Paid** per supplier entry; Add Stock requires bags + purchase price/kg (total = kg × price)
+- UI: `/raw-material/:slug` — stock ledger with **Purchase Amount / kg** + **Total Paid** per supplier entry; Add Stock requires bags + purchase price/kg (total = kg × price)
 - Stock table column: `price_per_kg` on `raw_material_stocks`
 
 ## Roll / Chaat / Dewaar production
