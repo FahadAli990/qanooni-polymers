@@ -1,17 +1,26 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useRawMaterials } from '../context/RawMaterialContext'
 import { useToast } from '../context/ToastContext'
 import { getErrorMessage } from '../api/client'
 
+function formatNum(value) {
+  const n = Number(value || 0)
+  return n.toLocaleString(undefined, { maximumFractionDigits: 2 })
+}
+
 function RawMaterialPage() {
   const navigate = useNavigate()
-  const { items, loading, create, update, remove } = useRawMaterials()
+  const { items, totals, loading, refresh, create, update, remove } = useRawMaterials()
   const { showToast } = useToast()
   const [mode, setMode] = useState(null)
   const [editingSlug, setEditingSlug] = useState(null)
   const [name, setName] = useState('')
   const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    refresh()
+  }, [refresh])
 
   function openCreate() {
     setMode('create')
@@ -66,11 +75,11 @@ function RawMaterialPage() {
   }
 
   return (
-    <div className="page-shell">
+    <div className="page-shell page-shell--wide">
       <header className="page-toolbar">
         <div>
           <h1>Raw Material</h1>
-          <p>Add, edit, or delete material colors — saved in database.</p>
+          <p>All materials in one list — bags & kg from stock ledger.</p>
         </div>
         <button
           type="button"
@@ -80,6 +89,17 @@ function RawMaterialPage() {
           {mode === 'create' ? 'Cancel' : 'Add New'}
         </button>
       </header>
+
+      <section className="stock-totals card">
+        <div>
+          <span className="stock-totals__label">Total Quantity (All Materials)</span>
+          <strong className="stock-totals__value">
+            {formatNum(totals.totalBags)} bags
+            <span className="stock-totals__sep">·</span>
+            {formatNum(totals.totalKg)} kg
+          </strong>
+        </div>
+      </section>
 
       {mode && (
         <form className="card panel-form" onSubmit={handleSubmit}>
@@ -114,23 +134,39 @@ function RawMaterialPage() {
       ) : items.length === 0 ? (
         <p className="help-muted">No raw materials yet. Click Add New to create one.</p>
       ) : (
-        <div className="material-grid">
-          {items.map((item) => (
-            <div key={item.id} className="material-card card">
-              <Link to={`/raw-material/${item.slug}`} className="material-card__main">
-                <span className="material-card__swatch" style={{ backgroundColor: item.swatch }} />
-                <strong>{item.name}</strong>
-              </Link>
-              <div className="material-card__actions">
-                <button type="button" className="btn-secondary btn-compact" onClick={() => openEdit(item)}>
-                  Edit
-                </button>
-                <button type="button" className="btn-danger btn-compact" onClick={() => handleDelete(item)}>
-                  Delete
-                </button>
-              </div>
-            </div>
-          ))}
+        <div className="stock-table-wrap card">
+          <table className="stock-table">
+            <thead>
+              <tr>
+                <th>Material</th>
+                <th>Bags</th>
+                <th>KG</th>
+                <th aria-label="Actions" />
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((item) => (
+                <tr key={item.id}>
+                  <td>
+                    <Link to={`/raw-material/${item.slug}`} className="material-row-link">
+                      <span className="material-card__swatch" style={{ backgroundColor: item.swatch }} />
+                      <strong>{item.name}</strong>
+                    </Link>
+                  </td>
+                  <td>{formatNum(item.totalBags)}</td>
+                  <td>{formatNum(item.totalKg)}</td>
+                  <td className="stock-table__actions">
+                    <button type="button" className="btn-secondary btn-compact" onClick={() => openEdit(item)}>
+                      Edit
+                    </button>
+                    <button type="button" className="btn-danger btn-compact" onClick={() => handleDelete(item)}>
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>

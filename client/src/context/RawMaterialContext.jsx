@@ -8,22 +8,47 @@ function sortByName(list) {
   return [...list].sort((a, b) => a.name.localeCompare(b.name))
 }
 
+function emptyTotals() {
+  return { totalBags: 0, totalKg: 0, kgPerBag: 40 }
+}
+
+function computeTotals(list) {
+  const totals = list.reduce(
+    (acc, item) => ({
+      totalBags: acc.totalBags + Number(item.totalBags || 0),
+      totalKg: acc.totalKg + Number(item.totalKg || 0),
+    }),
+    { totalBags: 0, totalKg: 0 },
+  )
+  return {
+    totalBags: Number(totals.totalBags.toFixed(2)),
+    totalKg: Number(totals.totalKg.toFixed(2)),
+    kgPerBag: 40,
+  }
+}
+
 export function RawMaterialProvider({ children }) {
   const { user } = useAuth()
   const [items, setItems] = useState([])
+  const [totals, setTotals] = useState(emptyTotals)
   const [loading, setLoading] = useState(false)
 
   const refresh = useCallback(async () => {
     if (!user) {
       setItems([])
+      setTotals(emptyTotals())
       return
     }
     setLoading(true)
     try {
       const { data } = await api.get('/raw-materials')
-      setItems(data.data || [])
+      const payload = data.data
+      const list = Array.isArray(payload) ? payload : payload?.items || []
+      setItems(list)
+      setTotals(payload?.totals || computeTotals(list))
     } catch {
       setItems([])
+      setTotals(emptyTotals())
     } finally {
       setLoading(false)
     }
@@ -35,29 +60,49 @@ export function RawMaterialProvider({ children }) {
 
   const create = useCallback(async (name) => {
     const { data } = await api.post('/raw-materials', { name })
-    const created = data.data
-    setItems((prev) => sortByName([...prev.filter((i) => i.id !== created.id), created]))
+    const created = {
+      ...data.data,
+      totalBags: Number(data.data.totalBags || 0),
+      totalKg: Number(data.data.totalKg || 0),
+    }
+    setItems((prev) => {
+      const next = sortByName([...prev.filter((i) => i.id !== created.id), created])
+      setTotals(computeTotals(next))
+      return next
+    })
     return created
   }, [])
 
   const update = useCallback(async (slug, name) => {
     const { data } = await api.put(`/raw-materials/${slug}`, { name })
-    const updated = data.data
-    setItems((prev) => sortByName([
-      ...prev.filter((i) => i.id !== updated.id),
-      updated,
-    ]))
+    const updated = {
+      ...data.data,
+      totalBags: Number(data.data.totalBags || 0),
+      totalKg: Number(data.data.totalKg || 0),
+    }
+    setItems((prev) => {
+      const next = sortByName([
+        ...prev.filter((i) => i.id !== updated.id),
+        updated,
+      ])
+      setTotals(computeTotals(next))
+      return next
+    })
     return updated
   }, [])
 
   const remove = useCallback(async (slug) => {
     await api.delete(`/raw-materials/${slug}`)
-    setItems((prev) => prev.filter((i) => i.slug !== slug))
+    setItems((prev) => {
+      const next = prev.filter((i) => i.slug !== slug)
+      setTotals(computeTotals(next))
+      return next
+    })
   }, [])
 
   const value = useMemo(
-    () => ({ items, loading, refresh, create, update, remove }),
-    [items, loading, refresh, create, update, remove],
+    () => ({ items, totals, loading, refresh, create, update, remove }),
+    [items, totals, loading, refresh, create, update, remove],
   )
 
   return <RawMaterialContext.Provider value={value}>{children}</RawMaterialContext.Provider>

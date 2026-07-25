@@ -7,23 +7,43 @@ function mapRow(row) {
     name: row.name,
     swatch: row.swatch,
     createdAt: row.created_at,
+    totalBags: Number(row.total_bags ?? 0),
+    totalKg: Number(row.total_kg ?? 0),
   }
 }
 
 export async function findAllRawMaterials() {
   const [rows] = await getPool().query(
-    `SELECT id, slug, name, swatch, created_at
-     FROM raw_materials
-     ORDER BY name ASC`,
+    `SELECT
+       m.id,
+       m.slug,
+       m.name,
+       m.swatch,
+       m.created_at,
+       COALESCE(SUM(s.bags), 0) AS total_bags,
+       COALESCE(SUM(s.kg), 0) AS total_kg
+     FROM raw_materials m
+     LEFT JOIN raw_material_stocks s ON s.raw_material_id = m.id
+     GROUP BY m.id, m.slug, m.name, m.swatch, m.created_at
+     ORDER BY m.name ASC`,
   )
   return rows.map(mapRow)
 }
 
 export async function findRawMaterialById(id) {
   const [rows] = await getPool().query(
-    `SELECT id, slug, name, swatch, created_at
-     FROM raw_materials
-     WHERE id = :id
+    `SELECT
+       m.id,
+       m.slug,
+       m.name,
+       m.swatch,
+       m.created_at,
+       COALESCE(SUM(s.bags), 0) AS total_bags,
+       COALESCE(SUM(s.kg), 0) AS total_kg
+     FROM raw_materials m
+     LEFT JOIN raw_material_stocks s ON s.raw_material_id = m.id
+     WHERE m.id = :id
+     GROUP BY m.id, m.slug, m.name, m.swatch, m.created_at
      LIMIT 1`,
     { id },
   )
@@ -32,9 +52,18 @@ export async function findRawMaterialById(id) {
 
 export async function findRawMaterialBySlug(slug) {
   const [rows] = await getPool().query(
-    `SELECT id, slug, name, swatch, created_at
-     FROM raw_materials
-     WHERE slug = :slug
+    `SELECT
+       m.id,
+       m.slug,
+       m.name,
+       m.swatch,
+       m.created_at,
+       COALESCE(SUM(s.bags), 0) AS total_bags,
+       COALESCE(SUM(s.kg), 0) AS total_kg
+     FROM raw_materials m
+     LEFT JOIN raw_material_stocks s ON s.raw_material_id = m.id
+     WHERE m.slug = :slug
+     GROUP BY m.id, m.slug, m.name, m.swatch, m.created_at
      LIMIT 1`,
     { slug },
   )
@@ -43,9 +72,18 @@ export async function findRawMaterialBySlug(slug) {
 
 export async function findRawMaterialByName(name) {
   const [rows] = await getPool().query(
-    `SELECT id, slug, name, swatch, created_at
-     FROM raw_materials
-     WHERE name = :name
+    `SELECT
+       m.id,
+       m.slug,
+       m.name,
+       m.swatch,
+       m.created_at,
+       COALESCE(SUM(s.bags), 0) AS total_bags,
+       COALESCE(SUM(s.kg), 0) AS total_kg
+     FROM raw_materials m
+     LEFT JOIN raw_material_stocks s ON s.raw_material_id = m.id
+     WHERE m.name = :name
+     GROUP BY m.id, m.slug, m.name, m.swatch, m.created_at
      LIMIT 1`,
     { name },
   )

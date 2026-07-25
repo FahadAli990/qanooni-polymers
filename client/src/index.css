@@ -379,6 +379,21 @@ input:focus {
 
 .stock-table__actions {
   text-align: right;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.45rem;
+}
+
+.material-row-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.material-row-link:hover strong {
+  text-decoration: underline;
 }
 
 @media (max-width: 900px) {

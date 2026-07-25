@@ -30,7 +30,8 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
   - `PUT /api/raw-materials/:slug` `{ name }`
   - `DELETE /api/raw-materials/:slug`
   - `GET /api/raw-materials/:slug`
-- UI: `/raw-material` — **Add New / Edit / Delete**; sidebar from DB
+- UI: `/raw-material` — full-width rows with bags/kg + grand totals; **Add New / Edit / Delete**; sidebar from DB
+- List API returns `{ items, totals }` (each item includes `totalBags` / `totalKg`)
 - Sidebar: Raw Material accordion open/close (chevron toggle; auto-open on child route)
 - Swatch matches color name (`blue` → blue, `red` → red, also `#hex` / “dark blue”)
 
