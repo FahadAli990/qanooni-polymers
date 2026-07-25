@@ -48,7 +48,7 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
 - **Deliver** (one-way): Pending → Delivered only; cannot return to Pending
 - On deliver: **FIFO consume finished production** matching each line (`kind` + `size` + material), oldest `production_date` first
   - Partial: one production row remaining drops; overflow takes from next older/newer date in FIFO order
-  - When remaining hits 0 → production `status = used`
+  - When remaining hits 0 → `status = used` and row **leaves Mills & Production list** (history stays on Orders / Delivered)
   - Deliver blocked if matching production remaining kg is insufficient
 - Raw stock is only cut when production is recorded (not again on deliver)
 - Delivered orders cannot be deleted
@@ -100,7 +100,7 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
 - `kind`: `roll` | `chaat` | `dewaar` (all deduct original `kg` from same raw material stock)
 - Sizes: `1/2"`, `3/4"`, `1"`
 - KG can be fractional (e.g. `18.5`)
-- Delivered orders reduce `remaining_kg` FIFO; **Used** rows show Delete; Available (incl. partial) show Edit + Delete
+- Delivered orders reduce `remaining_kg` FIFO; fully used batches are hidden from production UI (kept in DB for raw accounting); list shows only remaining stock with Edit + Delete
 - Lists sorted by **created_at ASC** (newest at bottom) across app tables
 - APIs (auth required):
   - `GET /api/productions/:kind`
@@ -111,7 +111,7 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
   - `/mills-production/roll`
   - `/mills-production/bundle/chaat`
   - `/mills-production/bundle/dewaar`
-- Color picker shows swatch + name; table shows Remaining KG + Used/Available
+- Color picker shows swatch + name; table shows Remaining KG only for still-available batches
 
 ## Auth
 

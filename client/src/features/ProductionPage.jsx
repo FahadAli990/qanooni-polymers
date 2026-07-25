@@ -145,12 +145,9 @@ function ProductionPage({ kind }) {
 
   async function handleDelete(item) {
     const remaining = Number(item.remainingKg ?? item.kg)
-    const isUsed = item.status === 'used' || remaining <= 0
     const ok = await confirm({
       title: meta.deleteTitle,
-      message: isUsed
-        ? `Delete used ${item.materialName} ${meta.entity} ${item.size}? This removes the record from the list.`
-        : `Delete ${item.materialName} ${meta.entity} ${item.size} (${formatNum(remaining)} kg remaining)?`,
+      message: `Delete ${item.materialName} ${meta.entity} ${item.size} (${formatNum(remaining)} kg remaining)?`,
     })
     if (!ok) return
     try {
@@ -159,7 +156,7 @@ function ProductionPage({ kind }) {
       setTotals(data.data.totals)
       if (editingId === item.id) closeForm()
       await refreshMaterials()
-      showToast(isUsed ? `${meta.title} record deleted` : `${meta.title} deleted — kg returned to raw material`)
+      showToast(`${meta.title} deleted — kg returned to raw material`)
     } catch (err) {
       showToast(getErrorMessage(err), 'error')
     }
@@ -273,14 +270,13 @@ function ProductionPage({ kind }) {
                 <th>Color</th>
                 <th>Size</th>
                 <th>Remaining KG</th>
-                <th>Status</th>
                 <th aria-label="Actions" />
               </tr>
             </thead>
             <tbody>
               {items.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="stock-table__empty">
+                  <td colSpan={5} className="stock-table__empty">
                     {meta.empty}
                   </td>
                 </tr>
@@ -288,9 +284,8 @@ function ProductionPage({ kind }) {
                 items.map((item) => {
                   const remaining = Number(item.remainingKg ?? item.kg)
                   const produced = Number(item.kg)
-                  const used = item.status === 'used' || remaining <= 0
                   return (
-                    <tr key={item.id} className={used ? 'stock-table__row--used' : undefined}>
+                    <tr key={item.id}>
                       <td>{formatDateDisplay(item.date)}</td>
                       <td>
                         <span className="material-row-link">
@@ -308,21 +303,14 @@ function ProductionPage({ kind }) {
                           <span className="help-muted"> / {formatNum(produced)}</span>
                         ) : null}
                       </td>
-                      <td>
-                        <span className={`status-pill ${used ? 'status-pill--used' : 'status-pill--available'}`}>
-                          {used ? 'Used' : 'Available'}
-                        </span>
-                      </td>
                       <td className="stock-table__actions">
-                        {!used && (
-                          <button
-                            type="button"
-                            className="btn-secondary btn-compact"
-                            onClick={() => openEdit(item)}
-                          >
-                            Edit
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          className="btn-secondary btn-compact"
+                          onClick={() => openEdit(item)}
+                        >
+                          Edit
+                        </button>
                         <button
                           type="button"
                           className="btn-danger btn-compact"

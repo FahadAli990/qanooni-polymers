@@ -46,6 +46,8 @@ export async function findAllRolls(kind = 'roll') {
      FROM roll_productions r
      INNER JOIN raw_materials m ON m.id = r.raw_material_id
      WHERE r.kind = :kind
+       AND r.remaining_kg > 0
+       AND r.status = 'available'
      ORDER BY r.created_at ASC, r.id ASC`,
     { kind },
   )
