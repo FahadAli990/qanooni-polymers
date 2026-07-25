@@ -70,8 +70,12 @@ function ProductionPage({ kind }) {
       const list = (payload.items || []).filter((row) => Number(row.remainingKg ?? row.kg) > 0)
       setItems(list)
       setSizes(payload.sizes?.length ? payload.sizes : DEFAULT_SIZES)
-      const totalKg = list.reduce((sum, row) => sum + Number(row.remainingKg ?? row.kg || 0), 0)
-      setTotals(payload.totals?.totalKg != null ? { totalKg: Number(Number(totalKg).toFixed(2)) } : { totalKg })
+      const totalKg = Number(
+        list
+          .reduce((sum, row) => sum + Number(row.remainingKg ?? row.kg ?? 0), 0)
+          .toFixed(2),
+      )
+      setTotals({ totalKg })
       await refreshMaterials()
     } catch (err) {
       setItems([])
