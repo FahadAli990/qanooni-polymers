@@ -133,6 +133,18 @@ export async function ensureSchema() {
        ADD KEY idx_roll_productions_kind (kind)`,
     )
   }
+
+  await getPool().query(`
+    CREATE TABLE IF NOT EXISTS mill_routes (
+      id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+      slug VARCHAR(120) NOT NULL,
+      name VARCHAR(120) NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      UNIQUE KEY uq_mill_routes_slug (slug),
+      UNIQUE KEY uq_mill_routes_name (name)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `)
 }
 
 export async function pingDatabase() {

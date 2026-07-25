@@ -7,6 +7,8 @@ import RawMaterialDetailPage from '../features/RawMaterialDetailPage'
 import RollPage from '../features/RollPage'
 import ChaatPage from '../features/ChaatPage'
 import DewaarPage from '../features/DewaarPage'
+import RoutesPage from '../features/RoutesPage'
+import RouteDetailPage from '../features/RouteDetailPage'
 
 function AppRoutes() {
   return (
@@ -22,6 +24,8 @@ function AppRoutes() {
         <Route path="mills-production/bundle" element={<Navigate to="/mills-production/bundle/chaat" replace />} />
         <Route path="mills-production/bundle/chaat" element={<ChaatPage />} />
         <Route path="mills-production/bundle/dewaar" element={<DewaarPage />} />
+        <Route path="mills-production/routes" element={<RoutesPage />} />
+        <Route path="mills-production/routes/:slug" element={<RouteDetailPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

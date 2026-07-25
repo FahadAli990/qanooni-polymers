@@ -35,7 +35,19 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
 - Sidebar: Raw Material accordion open/close (chevron toggle; auto-open on child route)
 - Sidebar: **Mills & Production** (folder only — no page) → **Roll** (`/mills-production/roll`) / **Bundle** (folder)
   - Bundle → empty **Chaat** (roof) `/mills-production/bundle/chaat` + **Dewaar** (wall) `/mills-production/bundle/dewaar`
+  - **Routes** (`MdRoute` icon) `/mills-production/routes` — Add Route; each route becomes a sidebar subcategory
   - Roll icon = round pipe roll; Bundle icon = stacked pipes; Chaat = roof; Dewaar = brick wall
+
+## Routes (delivery / sales)
+
+- Table: `mill_routes` (`id`, `slug`, `name`, `created_at`)
+- APIs (auth required):
+  - `GET /api/routes`
+  - `POST /api/routes` `{ name }`
+  - `GET /api/routes/:slug`
+  - `PUT /api/routes/:slug` `{ name }`
+  - `DELETE /api/routes/:slug`
+- UI: `/mills-production/routes` list + `/mills-production/routes/:slug` detail (empty shell for now)
 - Swatch matches color name (`blue` → blue, `red` → red, also `#hex` / “dark blue”)
 
 ## Stock (per material)
