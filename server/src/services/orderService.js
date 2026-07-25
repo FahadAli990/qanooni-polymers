@@ -1,6 +1,7 @@
 import { findAllRawMaterials, findRawMaterialById, findRawMaterialBySlug } from '../repositories/rawMaterialRepository.js'
 import { findMillRouteBySlug } from '../repositories/millRouteRepository.js'
 import { findCustomerById } from '../repositories/routeCustomerRepository.js'
+import { ROLL_SIZES } from '../repositories/rollRepository.js'
 import {
   deleteOrderById,
   findAllOrders,
@@ -12,6 +13,7 @@ import {
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 const KIND_KEYS = ['roll', 'chaat', 'dewaar']
+const KIND_LABEL = { roll: 'Roll', chaat: 'Chaat', dewaar: 'Dewaar' }
 
 function badRequest(message) {
   const error = new Error(message)
@@ -53,13 +55,17 @@ export async function listOrders() {
 
 export async function getOrderRates() {
   const materials = await findAllRawMaterials()
-  return materials.map((m) => ({
-    id: m.id,
-    slug: m.slug,
-    name: m.name,
-    swatch: m.swatch,
-    ratePerKg: Number(m.pricePerKg || 0),
-  }))
+  return {
+    sizes: ROLL_SIZES,
+    kinds: KIND_KEYS.map((key) => ({ key, label: KIND_LABEL[key] })),
+    materials: materials.map((m) => ({
+      id: m.id,
+      slug: m.slug,
+      name: m.name,
+      swatch: m.swatch,
+      ratePerKg: Number(m.pricePerKg || 0),
+    })),
+  }
 }
 
 export async function createOrder(body = {}) {
@@ -79,26 +85,34 @@ export async function createOrder(body = {}) {
   const customer = await findCustomerById(customerId, route.id)
   if (!customer) throw badRequest('Selected shop does not belong to this route')
 
-  const kindsInput = body.kinds && typeof body.kinds === 'object' ? body.kinds : {}
-  const hasRoll = Boolean(kindsInput.roll)
-  const hasChaat = Boolean(kindsInput.chaat)
-  const hasDewaar = Boolean(kindsInput.dewaar)
-  if (!hasRoll && !hasChaat && !hasDewaar) {
-    throw badRequest('Select at least one product type: Roll, Chaat, or Dewaar')
-  }
-
   const rawItems = Array.isArray(body.items) ? body.items : []
-  if (!rawItems.length) throw badRequest('Add at least one raw material with kg')
+  if (!rawItems.length) throw badRequest('Add at least one order line')
 
   const seen = new Set()
   const items = []
+  let hasRoll = false
+  let hasChaat = false
+  let hasDewaar = false
+
   for (const row of rawItems) {
+    const kind = String(row.kind || '').trim().toLowerCase()
+    if (!KIND_KEYS.includes(kind)) {
+      throw badRequest(`Product type must be one of: ${KIND_KEYS.join(', ')}`)
+    }
+
+    const size = String(row.size || '').trim()
+    if (!ROLL_SIZES.includes(size)) {
+      throw badRequest(`Size must be one of: ${ROLL_SIZES.join(', ')}`)
+    }
+
     const materialSlug = String(row.materialSlug || row.slug || '').trim()
     if (!materialSlug) throw badRequest('Raw material is required on each line')
-    if (seen.has(materialSlug)) {
-      throw badRequest(`Duplicate raw material: ${materialSlug}`)
+
+    const lineKey = `${kind}|${size}|${materialSlug}`
+    if (seen.has(lineKey)) {
+      throw badRequest(`Duplicate line: ${KIND_LABEL[kind]} ${size} / ${materialSlug}`)
     }
-    seen.add(materialSlug)
+    seen.add(lineKey)
 
     const material = await findRawMaterialBySlug(materialSlug)
     if (!material) throw badRequest(`Unknown raw material: ${materialSlug}`)
@@ -115,8 +129,14 @@ export async function createOrder(body = {}) {
       )
     }
 
+    if (kind === 'roll') hasRoll = true
+    if (kind === 'chaat') hasChaat = true
+    if (kind === 'dewaar') hasDewaar = true
+
     const amount = Number((kg * ratePerKg).toFixed(2))
     items.push({
+      kind,
+      size,
       rawMaterialId: material.id,
       kg: Number(kg.toFixed(2)),
       ratePerKg,
@@ -150,15 +170,26 @@ export async function deliverOrder(idInput) {
   }
   if (order.status !== 'pending') throw badRequest('Only pending orders can be delivered')
 
+  // Stock is by raw material kg (size/kind are product specs; material pool is shared)
+  const needByMaterial = new Map()
   for (const item of order.items) {
-    const material = await findRawMaterialById(item.rawMaterialId)
+    const prev = needByMaterial.get(item.rawMaterialId) || {
+      name: item.materialName,
+      kg: 0,
+    }
+    prev.kg += Number(item.kg)
+    needByMaterial.set(item.rawMaterialId, prev)
+  }
+
+  for (const [materialId, need] of needByMaterial.entries()) {
+    const material = await findRawMaterialById(materialId)
     if (!material) {
-      throw badRequest(`Raw material missing for order line (${item.materialName || item.rawMaterialId})`)
+      throw badRequest(`Raw material missing for order line (${need.name || materialId})`)
     }
     const available = Number(material.totalKg || 0)
-    if (available + 1e-9 < Number(item.kg)) {
+    if (available + 1e-9 < need.kg) {
       throw badRequest(
-        `Not enough stock for "${material.name}". Need ${item.kg} kg, available ${available} kg`,
+        `Not enough stock for "${material.name}". Need ${need.kg} kg, available ${available} kg`,
       )
     }
   }

@@ -229,6 +229,8 @@ export async function ensureSchema() {
     CREATE TABLE IF NOT EXISTS sales_order_items (
       id INT UNSIGNED NOT NULL AUTO_INCREMENT,
       sales_order_id INT UNSIGNED NOT NULL,
+      kind VARCHAR(16) NOT NULL DEFAULT 'roll',
+      size VARCHAR(16) NOT NULL DEFAULT '1"',
       raw_material_id INT UNSIGNED NOT NULL,
       kg DECIMAL(14, 2) NOT NULL,
       rate_per_kg DECIMAL(14, 2) NOT NULL,
@@ -237,6 +239,7 @@ export async function ensureSchema() {
       PRIMARY KEY (id),
       KEY idx_sales_order_items_order (sales_order_id),
       KEY idx_sales_order_items_material (raw_material_id),
+      KEY idx_sales_order_items_kind (kind),
       CONSTRAINT fk_sales_order_items_order
         FOREIGN KEY (sales_order_id) REFERENCES sales_orders (id)
         ON DELETE CASCADE,
@@ -245,6 +248,38 @@ export async function ensureSchema() {
         ON DELETE RESTRICT
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `)
+
+  const [itemKindCols] = await getPool().query(
+    `SELECT COLUMN_NAME
+     FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'sales_order_items'
+       AND COLUMN_NAME = 'kind'`,
+  )
+  if (!itemKindCols.length) {
+    await getPool().query(
+      `ALTER TABLE sales_order_items
+       ADD COLUMN kind VARCHAR(16) NOT NULL DEFAULT 'roll' AFTER sales_order_id`,
+    )
+    await getPool().query(
+      `ALTER TABLE sales_order_items
+       ADD KEY idx_sales_order_items_kind (kind)`,
+    )
+  }
+
+  const [itemSizeCols] = await getPool().query(
+    `SELECT COLUMN_NAME
+     FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'sales_order_items'
+       AND COLUMN_NAME = 'size'`,
+  )
+  if (!itemSizeCols.length) {
+    await getPool().query(
+      `ALTER TABLE sales_order_items
+       ADD COLUMN size VARCHAR(16) NOT NULL DEFAULT '1"' AFTER kind`,
+    )
+  }
 }
 
 export async function pingDatabase() {

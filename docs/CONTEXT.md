@@ -43,19 +43,19 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
 
 ## Orders (sales)
 
-- Tables: `sales_orders` + `sales_order_items`
-- Flow: Date → Route → Shop → product kinds → materials/kg → saved as **Pending**
+- Tables: `sales_orders` + `sales_order_items` (`kind`, `size`, material, kg, rate, amount)
+- Flow: Date → Route → Shop → **order lines** (each: Roll/Chaat/Dewaar + size `1/2"|3/4"|1"` + material + kg) → **Pending**
 - **Deliver** (one-way): Pending → Delivered only; cannot return to Pending
-- On deliver: each material’s available stock drops by ordered kg (same pool as production: stocked − production used − delivered orders)
+- On deliver: stock cut by **material kg** (size/type are product specs; raw pool is shared like production)
 - Deliver blocked if available kg is insufficient; delivered orders cannot be deleted
 - Bill = Σ(kg × material `price_per_kg`); order blocked if a selected material has no price set
 - APIs (auth required):
   - `GET /api/orders`
-  - `GET /api/orders/rates` — materials + live `ratePerKg` from `price_per_kg`
-  - `POST /api/orders` `{ date, routeSlug, customerId, kinds, items }` → status `pending`
+  - `GET /api/orders/rates` → `{ sizes, kinds, materials[{ ratePerKg }] }`
+  - `POST /api/orders` `{ date, routeSlug, customerId, items: [{ kind, size, materialSlug, kg }] }` → `pending`
   - `POST /api/orders/:id/deliver`
   - `DELETE /api/orders/:id` (pending only)
-- UI table: Date, Route, Shop, Address, Phone, Ordered (kinds + materials/kg), Total Bill
+- UI table: Date, Route, Shop, Address, Phone, Ordered (type · size · material · kg), Total Bill, Status
 
 ## Routes (delivery / sales)
 

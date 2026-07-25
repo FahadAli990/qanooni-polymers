@@ -482,6 +482,17 @@ select:focus {
   align-items: end;
 }
 
+.order-line--full {
+  grid-template-columns: 0.85fr 0.7fr 1.2fr 0.7fr 0.85fr 0.85fr auto;
+}
+
+.order-items-list {
+  margin: 0;
+  padding-left: 1rem;
+  display: grid;
+  gap: 0.2rem;
+}
+
 .order-line__actions {
   display: flex;
   align-items: center;

@@ -6,22 +6,32 @@ import { useRoutes } from '../context/RouteContext'
 import { useToast } from '../context/ToastContext'
 import { formatDateDisplay, formatNum, todayIso } from '../utils/format'
 
-const KIND_OPTIONS = [
+const DEFAULT_SIZES = ['1/2"', '3/4"', '1"']
+const DEFAULT_KINDS = [
   { key: 'roll', label: 'Roll' },
   { key: 'chaat', label: 'Chaat' },
   { key: 'dewaar', label: 'Dewaar' },
 ]
 
-function emptyKinds() {
-  return { roll: false, chaat: false, dewaar: false }
+function newLine(defaults = {}) {
+  return {
+    key: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    kind: defaults.kind || 'roll',
+    size: defaults.size || '1/2"',
+    materialSlug: '',
+    kg: '',
+  }
 }
 
-function newLine() {
-  return { key: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, materialSlug: '', kg: '' }
+function kindLabel(kind, kinds) {
+  return kinds.find((k) => k.key === kind)?.label || kind || '—'
 }
 
-function kindsLabel(kinds = {}) {
-  return KIND_OPTIONS.filter((k) => kinds[k.key]).map((k) => k.label).join(', ') || '—'
+function formatOrderLine(item, kinds) {
+  const type = kindLabel(item.kind, kinds)
+  const size = item.size || '—'
+  const material = item.materialName || '—'
+  return `${type} ${size} · ${material} ${formatNum(item.kg)} kg`
 }
 
 function formatMoney(value) {
@@ -38,21 +48,22 @@ function OrdersPage() {
   const [saving, setSaving] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [orders, setOrders] = useState([])
-  const [rates, setRates] = useState([])
+  const [materials, setMaterials] = useState([])
+  const [sizes, setSizes] = useState(DEFAULT_SIZES)
+  const [kinds, setKinds] = useState(DEFAULT_KINDS)
 
   const [date, setDate] = useState(todayIso())
   const [routeSlug, setRouteSlug] = useState('')
   const [customerId, setCustomerId] = useState('')
   const [shops, setShops] = useState([])
   const [shopsLoading, setShopsLoading] = useState(false)
-  const [kinds, setKinds] = useState(emptyKinds)
   const [lines, setLines] = useState([newLine()])
 
   const rateBySlug = useMemo(() => {
     const map = new Map()
-    for (const row of rates) map.set(row.slug, row)
+    for (const row of materials) map.set(row.slug, row)
     return map
-  }, [rates])
+  }, [materials])
 
   const previewTotal = useMemo(() => {
     return lines.reduce((sum, line) => {
@@ -71,7 +82,11 @@ function OrdersPage() {
         api.get('/orders/rates'),
       ])
       setOrders(ordersRes.data.data || [])
-      setRates(ratesRes.data.data || [])
+      const meta = ratesRes.data.data || {}
+      const list = Array.isArray(meta) ? meta : meta.materials || []
+      setMaterials(list)
+      setSizes(Array.isArray(meta.sizes) && meta.sizes.length ? meta.sizes : DEFAULT_SIZES)
+      setKinds(Array.isArray(meta.kinds) && meta.kinds.length ? meta.kinds : DEFAULT_KINDS)
     } catch (err) {
       setOrders([])
       showToast(getErrorMessage(err), 'error')
@@ -121,8 +136,7 @@ function OrdersPage() {
     setRouteSlug('')
     setCustomerId('')
     setShops([])
-    setKinds(emptyKinds())
-    setLines([newLine()])
+    setLines([newLine({ size: sizes[0], kind: kinds[0]?.key })])
   }
 
   function closeForm() {
@@ -135,16 +149,12 @@ function OrdersPage() {
     setShowForm(true)
   }
 
-  function toggleKind(key) {
-    setKinds((prev) => ({ ...prev, [key]: !prev[key] }))
-  }
-
   function updateLine(key, patch) {
     setLines((prev) => prev.map((line) => (line.key === key ? { ...line, ...patch } : line)))
   }
 
   function addLine() {
-    setLines((prev) => [...prev, newLine()])
+    setLines((prev) => [...prev, newLine({ size: sizes[0], kind: kinds[0]?.key })])
   }
 
   function removeLine(key) {
@@ -155,21 +165,25 @@ function OrdersPage() {
     if (!date) return 'Date is required'
     if (!routeSlug) return 'Route is required'
     if (!customerId) return 'Shop name is required'
-    if (!kinds.roll && !kinds.chaat && !kinds.dewaar) {
-      return 'Select at least one of Roll, Chaat, or Dewaar'
-    }
+
     const used = new Set()
     let hasValidLine = false
     for (const line of lines) {
-      if (!line.materialSlug && !line.kg) continue
+      const empty = !line.materialSlug && !line.kg
+      if (empty) continue
+      if (!line.kind) return 'Select product type (Roll / Chaat / Dewaar) on each line'
+      if (!line.size) return 'Select size (1/2", 3/4", 1") on each line'
       if (!line.materialSlug) return 'Select raw material on each filled line'
-      if (used.has(line.materialSlug)) return 'Each raw material can only appear once'
-      used.add(line.materialSlug)
+      const lineKey = `${line.kind}|${line.size}|${line.materialSlug}`
+      if (used.has(lineKey)) {
+        return 'Duplicate line: same type, size and material cannot repeat'
+      }
+      used.add(lineKey)
       const kg = Number(line.kg)
       if (!Number.isFinite(kg) || kg <= 0) return 'KG must be a positive number'
       hasValidLine = true
     }
-    if (!hasValidLine) return 'Add at least one raw material with kg'
+    if (!hasValidLine) return 'Add at least one order line with type, size, material and kg'
     return null
   }
 
@@ -184,6 +198,8 @@ function OrdersPage() {
     const items = lines
       .filter((line) => line.materialSlug)
       .map((line) => ({
+        kind: line.kind,
+        size: line.size,
         materialSlug: line.materialSlug,
         kg: Number(line.kg),
       }))
@@ -194,7 +210,6 @@ function OrdersPage() {
         date,
         routeSlug,
         customerId: Number(customerId),
-        kinds,
         items,
       })
       setOrders((prev) => [data.data, ...prev])
@@ -253,7 +268,7 @@ function OrdersPage() {
       <header className="page-toolbar">
         <div>
           <h1>Orders</h1>
-          <p>Pending orders cut stock only when marked Delivered (cannot go back).</p>
+          <p>Each line: product type + inch size + material + kg. Stock cuts on Deliver.</p>
         </div>
         <button
           type="button"
@@ -318,28 +333,13 @@ function OrdersPage() {
                 ))}
               </select>
             </div>
-            <div className="order-kinds">
-              <span className="order-kinds__label">Product type</span>
-              <div className="order-kinds__list" role="group" aria-label="Product type">
-                {KIND_OPTIONS.map((opt) => (
-                  <label key={opt.key} className="order-check">
-                    <input
-                      type="checkbox"
-                      checked={Boolean(kinds[opt.key])}
-                      onChange={() => toggleKind(opt.key)}
-                    />
-                    <span>{opt.label}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
           </div>
 
           <div className="order-lines">
             <div className="order-lines__head">
-              <h2>Raw materials & kg</h2>
+              <h2>Order lines</h2>
               <button type="button" className="btn-secondary btn-compact" onClick={addLine}>
-                Add material
+                Add line
               </button>
             </div>
             {lines.map((line) => {
@@ -350,7 +350,35 @@ function OrdersPage() {
                   ? kg * Number(material.ratePerKg)
                   : 0
               return (
-                <div key={line.key} className="order-line">
+                <div key={line.key} className="order-line order-line--full">
+                  <div>
+                    <label>Type</label>
+                    <select
+                      value={line.kind}
+                      onChange={(e) => updateLine(line.key, { kind: e.target.value })}
+                      required
+                    >
+                      {kinds.map((k) => (
+                        <option key={k.key} value={k.key}>
+                          {k.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label>Size</label>
+                    <select
+                      value={line.size}
+                      onChange={(e) => updateLine(line.key, { size: e.target.value })}
+                      required
+                    >
+                      {sizes.map((size) => (
+                        <option key={size} value={size}>
+                          {size}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                   <div>
                     <label>Raw material</label>
                     <select
@@ -359,7 +387,7 @@ function OrdersPage() {
                       required
                     >
                       <option value="">Select material</option>
-                      {rates.map((m) => (
+                      {materials.map((m) => (
                         <option key={m.id} value={m.slug}>
                           {m.name}
                         </option>
@@ -450,12 +478,15 @@ function OrdersPage() {
                     <td className="stock-table__wrap">{order.address}</td>
                     <td>{order.contactNumber}</td>
                     <td className="stock-table__wrap">
-                      <div><strong>{kindsLabel(order.kinds)}</strong></div>
-                      <div className="help-muted">
-                        {(order.items || [])
-                          .map((item) => `${item.materialName} ${formatNum(item.kg)} kg`)
-                          .join(' · ') || '—'}
-                      </div>
+                      {(order.items || []).length === 0 ? (
+                        '—'
+                      ) : (
+                        <ul className="order-items-list">
+                          {(order.items || []).map((item) => (
+                            <li key={item.id}>{formatOrderLine(item, kinds)}</li>
+                          ))}
+                        </ul>
+                      )}
                     </td>
                     <td>{formatMoney(order.totalBill)}</td>
                     <td>

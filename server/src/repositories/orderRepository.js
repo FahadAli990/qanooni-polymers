@@ -29,6 +29,8 @@ function mapItemRow(row) {
   return {
     id: row.id,
     salesOrderId: row.sales_order_id,
+    kind: row.kind || 'roll',
+    size: row.size || '1"',
     rawMaterialId: row.raw_material_id,
     materialSlug: row.material_slug,
     materialName: row.material_name,
@@ -78,6 +80,8 @@ export async function findOrderItemsByOrderIds(orderIds) {
     `SELECT
        i.id,
        i.sales_order_id,
+       i.kind,
+       i.size,
        i.raw_material_id,
        i.kg,
        i.rate_per_kg,
@@ -140,11 +144,13 @@ export async function insertOrderWithItems({
     for (const item of items) {
       await conn.query(
         `INSERT INTO sales_order_items
-           (sales_order_id, raw_material_id, kg, rate_per_kg, amount)
+           (sales_order_id, kind, size, raw_material_id, kg, rate_per_kg, amount)
          VALUES
-           (:orderId, :rawMaterialId, :kg, :ratePerKg, :amount)`,
+           (:orderId, :kind, :size, :rawMaterialId, :kg, :ratePerKg, :amount)`,
         {
           orderId,
+          kind: item.kind,
+          size: item.size,
           rawMaterialId: item.rawMaterialId,
           kg: item.kg,
           ratePerKg: item.ratePerKg,
