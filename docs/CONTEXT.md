@@ -40,6 +40,7 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
 - Top-level **Routes** (same level as Raw Material / Mills & Production) — `/routes`
   - **No sidebar children** — open routes only from page boxes
 - Top-level **Orders** (below Routes) — `/orders`
+- Top-level **Bills & Payments** (below Orders) — `/bills-payments` (placeholder page for now)
 
 ## Orders (sales)
 

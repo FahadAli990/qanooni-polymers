@@ -1,5 +1,14 @@
 import { GiBrickWall, GiPipes } from 'react-icons/gi'
-import { MdDonutLarge, MdFactory, MdGrain, MdReceiptLong, MdRoofing, MdRoute, MdSpaceDashboard } from 'react-icons/md'
+import {
+  MdDonutLarge,
+  MdFactory,
+  MdGrain,
+  MdPayments,
+  MdReceiptLong,
+  MdRoofing,
+  MdRoute,
+  MdSpaceDashboard,
+} from 'react-icons/md'
 
 export function buildNavItems(materials = []) {
   return [
@@ -60,6 +69,12 @@ export function buildNavItems(materials = []) {
       Icon: MdReceiptLong,
       path: '/orders',
     },
+    {
+      id: 'bills-payments',
+      label: 'Bills & Payments',
+      Icon: MdPayments,
+      path: '/bills-payments',
+    },
   ]
 }
 
@@ -97,6 +112,13 @@ function parseOrdersPath(pathname) {
   return null
 }
 
+function parseBillsPaymentsPath(pathname) {
+  if (pathname === '/bills-payments' || pathname.startsWith('/bills-payments/')) {
+    return { section: 'bills-payments', ancestors: [] }
+  }
+  return null
+}
+
 function findNavItemById(items, id) {
   for (const item of items) {
     if (item.id === id) return item
@@ -109,6 +131,9 @@ function findNavItemById(items, id) {
 }
 
 export function getActiveNavId(pathname, materials = []) {
+  const billsNav = parseBillsPaymentsPath(pathname)
+  if (billsNav) return billsNav.section
+
   const ordersNav = parseOrdersPath(pathname)
   if (ordersNav) return ordersNav.section
 
@@ -125,6 +150,11 @@ export function getActiveNavId(pathname, materials = []) {
 }
 
 export function getNavItemByPath(pathname, materials = []) {
+  const billsNav = parseBillsPaymentsPath(pathname)
+  if (billsNav) {
+    return buildNavItems(materials).find((item) => item.id === 'bills-payments')
+  }
+
   const ordersNav = parseOrdersPath(pathname)
   if (ordersNav) {
     return buildNavItems(materials).find((item) => item.id === 'orders')
@@ -153,6 +183,9 @@ export function getNavItemByPath(pathname, materials = []) {
 }
 
 export function getAncestorIdsForPath(pathname, materials = []) {
+  const billsNav = parseBillsPaymentsPath(pathname)
+  if (billsNav) return []
+
   const ordersNav = parseOrdersPath(pathname)
   if (ordersNav) return []
 
