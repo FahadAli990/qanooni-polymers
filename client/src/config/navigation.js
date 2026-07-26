@@ -3,6 +3,7 @@ import {
   MdDonutLarge,
   MdFactory,
   MdGrain,
+  MdLocalShipping,
   MdPayments,
   MdReceiptLong,
   MdRoofing,
@@ -75,6 +76,12 @@ export function buildNavItems(materials = []) {
       Icon: MdPayments,
       path: '/bills-payments',
     },
+    {
+      id: 'suppliers',
+      label: 'Suppliers',
+      Icon: MdLocalShipping,
+      path: '/suppliers',
+    },
   ]
 }
 
@@ -119,6 +126,13 @@ function parseBillsPaymentsPath(pathname) {
   return null
 }
 
+function parseSuppliersPath(pathname) {
+  if (pathname === '/suppliers' || pathname.startsWith('/suppliers/')) {
+    return { section: 'suppliers', ancestors: [] }
+  }
+  return null
+}
+
 function findNavItemById(items, id) {
   for (const item of items) {
     if (item.id === id) return item
@@ -131,6 +145,9 @@ function findNavItemById(items, id) {
 }
 
 export function getActiveNavId(pathname, materials = []) {
+  const suppliersNav = parseSuppliersPath(pathname)
+  if (suppliersNav) return suppliersNav.section
+
   const billsNav = parseBillsPaymentsPath(pathname)
   if (billsNav) return billsNav.section
 
@@ -150,6 +167,11 @@ export function getActiveNavId(pathname, materials = []) {
 }
 
 export function getNavItemByPath(pathname, materials = []) {
+  const suppliersNav = parseSuppliersPath(pathname)
+  if (suppliersNav) {
+    return buildNavItems(materials).find((item) => item.id === 'suppliers')
+  }
+
   const billsNav = parseBillsPaymentsPath(pathname)
   if (billsNav) {
     return buildNavItems(materials).find((item) => item.id === 'bills-payments')
@@ -183,6 +205,9 @@ export function getNavItemByPath(pathname, materials = []) {
 }
 
 export function getAncestorIdsForPath(pathname, materials = []) {
+  const suppliersNav = parseSuppliersPath(pathname)
+  if (suppliersNav) return []
+
   const billsNav = parseBillsPaymentsPath(pathname)
   if (billsNav) return []
 

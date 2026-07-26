@@ -9,6 +9,7 @@ function mapRow(row) {
     date: row.stock_date instanceof Date
       ? row.stock_date.toISOString().slice(0, 10)
       : String(row.stock_date).slice(0, 10),
+    supplierId: row.supplier_id != null ? Number(row.supplier_id) : null,
     supplier: row.supplier,
     bags: Number(row.bags),
     kg,
@@ -20,7 +21,7 @@ function mapRow(row) {
 
 export async function findStocksByMaterialId(rawMaterialId) {
   const [rows] = await getPool().query(
-    `SELECT id, raw_material_id, stock_date, supplier, bags, kg, price_per_kg, created_at
+    `SELECT id, raw_material_id, stock_date, supplier, supplier_id, bags, kg, price_per_kg, created_at
      FROM raw_material_stocks
      WHERE raw_material_id = :rawMaterialId
      ORDER BY created_at ASC, id ASC`,
@@ -48,7 +49,7 @@ export async function sumStocksByMaterialId(rawMaterialId) {
 
 export async function findStockById(id) {
   const [rows] = await getPool().query(
-    `SELECT id, raw_material_id, stock_date, supplier, bags, kg, price_per_kg, created_at
+    `SELECT id, raw_material_id, stock_date, supplier, supplier_id, bags, kg, price_per_kg, created_at
      FROM raw_material_stocks
      WHERE id = :id
      LIMIT 1`,
@@ -57,27 +58,40 @@ export async function findStockById(id) {
   return rows[0] ? mapRow(rows[0]) : null
 }
 
-export async function insertStock({ rawMaterialId, date, supplier, bags, kg, pricePerKg }) {
+export async function insertStock({
+  rawMaterialId,
+  date,
+  supplier,
+  supplierId,
+  bags,
+  kg,
+  pricePerKg,
+}) {
   const [result] = await getPool().query(
     `INSERT INTO raw_material_stocks
-       (raw_material_id, stock_date, supplier, bags, kg, price_per_kg)
+       (raw_material_id, stock_date, supplier, supplier_id, bags, kg, price_per_kg)
      VALUES
-       (:rawMaterialId, :date, :supplier, :bags, :kg, :pricePerKg)`,
-    { rawMaterialId, date, supplier, bags, kg, pricePerKg },
+       (:rawMaterialId, :date, :supplier, :supplierId, :bags, :kg, :pricePerKg)`,
+    { rawMaterialId, date, supplier, supplierId, bags, kg, pricePerKg },
   )
   return findStockById(result.insertId)
 }
 
-export async function updateStockById(id, rawMaterialId, { date, supplier, bags, kg, pricePerKg }) {
+export async function updateStockById(
+  id,
+  rawMaterialId,
+  { date, supplier, supplierId, bags, kg, pricePerKg },
+) {
   const [result] = await getPool().query(
     `UPDATE raw_material_stocks
      SET stock_date = :date,
          supplier = :supplier,
+         supplier_id = :supplierId,
          bags = :bags,
          kg = :kg,
          price_per_kg = :pricePerKg
      WHERE id = :id AND raw_material_id = :rawMaterialId`,
-    { id, rawMaterialId, date, supplier, bags, kg, pricePerKg },
+    { id, rawMaterialId, date, supplier, supplierId, bags, kg, pricePerKg },
   )
   if (result.affectedRows === 0) return null
   return findStockById(id)

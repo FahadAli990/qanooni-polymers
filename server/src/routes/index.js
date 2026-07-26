@@ -6,6 +6,7 @@ import productionRoutes from './productionRoutes.js'
 import millRouteRoutes from './millRouteRoutes.js'
 import orderRoutes from './orderRoutes.js'
 import billRoutes from './billRoutes.js'
+import supplierRoutes from './supplierRoutes.js'
 
 const router = Router()
 
@@ -16,5 +17,6 @@ router.use('/productions', productionRoutes)
 router.use('/routes', millRouteRoutes)
 router.use('/orders', orderRoutes)
 router.use('/bills', billRoutes)
+router.use('/suppliers', supplierRoutes)
 
 export default router

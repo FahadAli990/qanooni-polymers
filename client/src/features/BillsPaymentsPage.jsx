@@ -4,6 +4,7 @@ import { useConfirm } from '../context/ConfirmContext'
 import { useRoutes } from '../context/RouteContext'
 import { useToast } from '../context/ToastContext'
 import { formatDateDisplay, formatNum, todayIso } from '../utils/format'
+import { downloadCustomerLedgerPdf } from '../utils/ledgerPdf'
 
 function formatMoney(value) {
   return `Rs ${formatNum(value)}`
@@ -196,6 +197,25 @@ function BillsPaymentsPage() {
     }
   }
 
+  function handlePrintPdf() {
+    if (!shop) {
+      showToast('Select a shop first', 'error')
+      return
+    }
+    try {
+      downloadCustomerLedgerPdf({
+        routeName: routeInfo?.name,
+        shop,
+        summary,
+        bills,
+        payments,
+      })
+      showToast('PDF downloaded')
+    } catch (err) {
+      showToast(getErrorMessage(err) || 'Could not create PDF', 'error')
+    }
+  }
+
   return (
     <div className="page-shell page-shell--wide">
       <header className="page-toolbar">
@@ -267,6 +287,11 @@ function BillsPaymentsPage() {
                 {shop.ownerName} · {shop.contactNumber}
               </p>
               <p className="help-muted">{shop.address}</p>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-end' }}>
+              <button type="button" className="btn-secondary" onClick={handlePrintPdf}>
+                Print PDF
+              </button>
             </div>
           </section>
 

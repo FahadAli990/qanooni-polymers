@@ -11,6 +11,7 @@ import RoutesPage from '../features/RoutesPage'
 import RouteDetailPage from '../features/RouteDetailPage'
 import OrdersPage from '../features/OrdersPage'
 import BillsPaymentsPage from '../features/BillsPaymentsPage'
+import SuppliersPage from '../features/SuppliersPage'
 
 function RedirectLegacyRouteDetail() {
   const { slug } = useParams()
@@ -37,6 +38,7 @@ function AppRoutes() {
         <Route path="routes/:slug" element={<RouteDetailPage />} />
         <Route path="orders" element={<OrdersPage />} />
         <Route path="bills-payments" element={<BillsPaymentsPage />} />
+        <Route path="suppliers" element={<SuppliersPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

@@ -386,6 +386,59 @@ export async function ensureSchema() {
         ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `)
+
+  await getPool().query(`
+    CREATE TABLE IF NOT EXISTS suppliers (
+      id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+      name VARCHAR(160) NOT NULL,
+      contact VARCHAR(20) NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      UNIQUE KEY uq_suppliers_name (name),
+      KEY idx_suppliers_contact (contact)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `)
+
+  await getPool().query(`
+    CREATE TABLE IF NOT EXISTS supplier_payments (
+      id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+      supplier_id INT UNSIGNED NOT NULL,
+      payment_date DATE NOT NULL,
+      amount DECIMAL(14, 2) NOT NULL,
+      note VARCHAR(255) NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_supplier_payments_supplier (supplier_id),
+      KEY idx_supplier_payments_date (payment_date),
+      CONSTRAINT fk_supplier_payments_supplier
+        FOREIGN KEY (supplier_id) REFERENCES suppliers (id)
+        ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `)
+
+  const [stockSupplierIdCols] = await getPool().query(
+    `SELECT COLUMN_NAME
+     FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'raw_material_stocks'
+       AND COLUMN_NAME = 'supplier_id'`,
+  )
+  if (!stockSupplierIdCols.length) {
+    await getPool().query(
+      `ALTER TABLE raw_material_stocks
+       ADD COLUMN supplier_id INT UNSIGNED NULL AFTER supplier`,
+    )
+    await getPool().query(
+      `ALTER TABLE raw_material_stocks
+       ADD KEY idx_raw_material_stocks_supplier (supplier_id)`,
+    )
+    await getPool().query(
+      `ALTER TABLE raw_material_stocks
+       ADD CONSTRAINT fk_raw_material_stocks_supplier
+         FOREIGN KEY (supplier_id) REFERENCES suppliers (id)
+         ON DELETE SET NULL`,
+    )
+  }
 }
 
 export async function pingDatabase() {

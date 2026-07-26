@@ -32,7 +32,9 @@ function RawMaterialDetailPage() {
     kgPerBag: KG_PER_BAG,
   })
   const [date, setDate] = useState(todayIso())
-  const [supplier, setSupplier] = useState('')
+  const [supplierId, setSupplierId] = useState('')
+  const [suppliers, setSuppliers] = useState([])
+  const [suppliersLoading, setSuppliersLoading] = useState(false)
   const [bags, setBags] = useState('')
   const [pricePerKg, setPricePerKg] = useState('')
 
@@ -78,10 +80,34 @@ function RawMaterialDetailPage() {
     load()
   }, [load])
 
+  useEffect(() => {
+    let cancelled = false
+    async function loadSuppliers() {
+      setSuppliersLoading(true)
+      try {
+        const { data } = await api.get('/suppliers')
+        if (cancelled) return
+        const list = Array.isArray(data.data) ? data.data : data.data?.items || []
+        setSuppliers(list)
+      } catch (err) {
+        if (!cancelled) {
+          setSuppliers([])
+          showToast(getErrorMessage(err), 'error')
+        }
+      } finally {
+        if (!cancelled) setSuppliersLoading(false)
+      }
+    }
+    loadSuppliers()
+    return () => {
+      cancelled = true
+    }
+  }, [showToast])
+
   function resetForm() {
     setEditingId(null)
     setDate(todayIso())
-    setSupplier('')
+    setSupplierId('')
     setBags('')
     setPricePerKg('')
   }
@@ -99,7 +125,7 @@ function RawMaterialDetailPage() {
   function openEdit(item) {
     setEditingId(item.id)
     setDate(item.date)
-    setSupplier(item.supplier)
+    setSupplierId(item.supplierId != null ? String(item.supplierId) : '')
     setBags(String(Math.round(Number(item.bags))))
     setPricePerKg(item.pricePerKg != null ? String(item.pricePerKg) : '')
     setShowForm(true)
@@ -107,6 +133,10 @@ function RawMaterialDetailPage() {
 
   async function handleSubmit(e) {
     e.preventDefault()
+    if (!supplierId) {
+      showToast('Select a supplier', 'error')
+      return
+    }
     const price = Number(pricePerKg)
     if (!Number.isFinite(price) || price <= 0) {
       showToast('Purchase price per kg is required', 'error')
@@ -117,7 +147,7 @@ function RawMaterialDetailPage() {
     try {
       const body = {
         date,
-        supplier,
+        supplierId: Number(supplierId),
         bags: Number(bags),
         pricePerKg: price,
       }
@@ -235,15 +265,26 @@ function RawMaterialDetailPage() {
             </div>
             <div>
               <label htmlFor="stock-supplier">Supplier</label>
-              <input
+              <select
                 id="stock-supplier"
-                type="text"
-                value={supplier}
-                onChange={(e) => setSupplier(e.target.value)}
-                placeholder="Supplier name"
+                value={supplierId}
+                onChange={(e) => setSupplierId(e.target.value)}
                 required
-                maxLength={160}
-              />
+                disabled={suppliersLoading}
+              >
+                <option value="">
+                  {suppliersLoading
+                    ? 'Loading suppliers…'
+                    : suppliers.length
+                      ? 'Select supplier'
+                      : 'No suppliers — add in Suppliers'}
+                </option>
+                {suppliers.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
               <label htmlFor="stock-bags">Quantity (Bags)</label>

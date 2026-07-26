@@ -1,6 +1,6 @@
 # CONTEXT — Qanooni Polymers System Truth
 
-Last updated: 2026-07-27 (Customer Bills & Payments)
+Last updated: 2026-07-27 (Suppliers + ledger PDF)
 
 ## Purpose
 
@@ -10,7 +10,7 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
 
 | Layer | Tech |
 |-------|------|
-| Frontend | React 19 + Vite + React Router + Axios |
+| Frontend | React 19 + Vite + React Router + Axios + jsPDF |
 | Backend | Node + Express |
 | Database | Oracle MySQL 8.4 (`mysql2`) + MySQL Workbench (local) / Railway MySQL (prod) |
 | Auth | Env credentials + JWT |
@@ -31,7 +31,7 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
   - `DELETE /api/raw-materials/:slug`
   - `GET /api/raw-materials/:slug`
 - UI: `/raw-material` — material name + **In Stock Now** (bags·kg); total qty across all colors
-- `/raw-material/:slug` — stock ledger; **Purchase Amount / kg** per supplier entry (no sell rate on materials)
+- `/raw-material/:slug` — stock ledger; **Purchase Amount / kg** per supplier entry (no sell rate on materials); supplier from **dropdown** (`supplierId`)
 - List API returns `{ items, totals }` (`totalBags` / `totalKg`)
 - Sidebar: Raw Material accordion open/close (chevron toggle; auto-open on child route)
 - Sidebar: **Mills & Production** (folder only — no page) → **Roll** (`/mills-production/roll`) / **Bundle** (folder)
@@ -40,7 +40,25 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
 - Top-level **Routes** (same level as Raw Material / Mills & Production) — `/routes`
   - **No sidebar children** — open routes only from page boxes
 - Top-level **Orders** (below Routes) — `/orders`
-- Top-level **Bills & Payments** (below Orders) — `/bills-payments` (customer / shop ledger only; suppliers later)
+- Top-level **Bills & Payments** (below Orders) — `/bills-payments` (customer / shop ledger + Print PDF)
+- Top-level **Suppliers** (below Bills & Payments) — `/suppliers`
+
+## Suppliers
+
+- Tables:
+  - `suppliers` (`id`, `name`, `contact` 11 digits, `created_at`) — unique name
+  - `supplier_payments` (`id`, `supplier_id`, `payment_date`, `amount`, `note`, `created_at`)
+- Stock links via `raw_material_stocks.supplier_id` (+ denormalized `supplier` name)
+- Hisab: purchases = stock totals for supplier; payments allocate FIFO → Unpaid / Partial / Paid
+- Summary: `totalPurchased`, `totalPaid`, `remaining` (due), `advance` (if overpaid)
+- UI: Name + Contact CRUD → select supplier → purchases table + payments CRUD + **Print PDF**
+- APIs (auth required):
+  - `GET|POST /api/suppliers`
+  - `PUT|DELETE /api/suppliers/:id` (delete blocked if purchase/payment history)
+  - `GET /api/suppliers/:id/ledger`
+  - `POST /api/suppliers/:id/payments`
+  - `PUT|DELETE /api/suppliers/:id/payments/:paymentId`
+- PDF: simple jsPDF download of supplier ledger (purchases + payments + due/advance)
 
 ## Bills & Payments (customers)
 
@@ -48,12 +66,13 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
 - Bills = **delivered** `sales_orders` for that shop (`total_bill`); pending orders excluded
 - Balance: `totalBilled − totalPaid = remaining`
 - Bill pay status (display): Unpaid / Partial / Paid — payments allocate FIFO to oldest bills
-- UI: Route dropdown → Shop dropdown → shop details + summary + bills table + payments CRUD
+- UI: Route dropdown → Shop dropdown → shop details + summary + bills table + payments CRUD + **Print PDF**
 - APIs (auth required):
   - `GET /api/bills/shop?routeSlug=&customerId=` → shop, summary, bills[], payments[]
   - `POST /api/bills/payments` `{ routeSlug, customerId, date, amount, note? }`
   - `PUT /api/bills/payments/:id`
   - `DELETE /api/bills/payments/:id?routeSlug=&customerId=`
+- PDF: simple jsPDF download of customer ledger (bills + payments + remaining)
 
 ## Orders (sales)
 
@@ -100,17 +119,18 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
 
 ## Stock (per material)
 
-- Table: `raw_material_stocks` (`id`, `raw_material_id`, `stock_date`, `supplier`, `bags`, `kg`, `created_at`)
+- Table: `raw_material_stocks` (`id`, `raw_material_id`, `stock_date`, `supplier`, `supplier_id`, `bags`, `kg`, `price_per_kg`, `created_at`)
 - Standard: **1 bag = 40 kg** (`kg` auto-calculated server-side)
 - Bags must be whole numbers on stock entry (`1, 2, 3…`)
 - When rolls consume kg, available bags also drop (`usedKg / 40`)
 - Dates display as **DD-MM-YYYY**
+- Supplier must be selected from `suppliers` (`supplierId` required); name denormalized onto `supplier`
 - APIs (auth required):
   - `GET /api/raw-materials/:slug/stocks` → material + items + totals (available kg after rolls)
-  - `POST /api/raw-materials/:slug/stocks` `{ date, supplier, bags }`
-  - `PUT /api/raw-materials/:slug/stocks/:stockId` `{ date, supplier, bags }`
+  - `POST /api/raw-materials/:slug/stocks` `{ date, supplierId, bags, pricePerKg }`
+  - `PUT /api/raw-materials/:slug/stocks/:stockId` `{ date, supplierId, bags, pricePerKg }`
   - `DELETE /api/raw-materials/:slug/stocks/:stockId`
-- UI: `/raw-material/:slug` — stock ledger with **Purchase Amount / kg** + **Total Paid** per supplier entry; Add Stock requires bags + purchase price/kg (total = kg × price)
+- UI: `/raw-material/:slug` — stock ledger with **Purchase Amount / kg** + **Total Paid** per supplier entry; Add Stock requires supplier dropdown + bags + purchase price/kg (total = kg × price)
 - Stock table column: `price_per_kg` on `raw_material_stocks`
 
 ## Roll / Chaat / Dewaar production

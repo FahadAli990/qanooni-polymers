@@ -1,4 +1,5 @@
 import { findRawMaterialBySlug } from '../repositories/rawMaterialRepository.js'
+import { findSupplierById } from '../repositories/supplierRepository.js'
 import {
   deleteStockById,
   findStocksByMaterialId,
@@ -28,18 +29,22 @@ async function requireMaterial(slug) {
   return material
 }
 
-function normalizeStockInput(body) {
+async function normalizeStockInput(body) {
   const date = String(body?.date || '').trim()
-  const supplier = String(body?.supplier || '').trim()
   const bagsRaw = body?.bags
   const priceRaw = body?.pricePerKg ?? body?.price_per_kg
+  const supplierIdRaw = body?.supplierId ?? body?.supplier_id
 
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     throw badRequest('Date is required (YYYY-MM-DD)')
   }
 
-  if (!supplier) throw badRequest('Supplier is required')
-  if (supplier.length > 160) throw badRequest('Supplier must be 160 characters or less')
+  const supplierId = Number(supplierIdRaw)
+  if (!Number.isInteger(supplierId) || supplierId <= 0) {
+    throw badRequest('Supplier is required')
+  }
+  const supplierRow = await findSupplierById(supplierId)
+  if (!supplierRow) throw badRequest('Selected supplier not found')
 
   const bags = Number(bagsRaw)
   if (!Number.isFinite(bags) || bags <= 0 || !Number.isInteger(bags)) {
@@ -54,7 +59,8 @@ function normalizeStockInput(body) {
   const kg = Number((bags * KG_PER_BAG).toFixed(2))
   return {
     date,
-    supplier,
+    supplierId: supplierRow.id,
+    supplier: supplierRow.name,
     bags,
     kg,
     pricePerKg: Number(pricePerKg.toFixed(2)),
@@ -95,7 +101,7 @@ export async function listStocksByMaterialSlug(slug) {
 
 export async function createStockForMaterialSlug(slug, body) {
   const material = await requireMaterial(slug)
-  const payload = normalizeStockInput(body)
+  const payload = await normalizeStockInput(body)
   const created = await insertStock({
     rawMaterialId: material.id,
     ...payload,
@@ -113,7 +119,7 @@ export async function updateStockForMaterialSlug(slug, stockId, body) {
   const id = Number(stockId)
   if (!Number.isInteger(id) || id <= 0) throw badRequest('Invalid stock id')
 
-  const payload = normalizeStockInput(body)
+  const payload = await normalizeStockInput(body)
   const updated = await updateStockById(id, material.id, payload)
   if (!updated) throw notFound('Stock entry not found')
 
