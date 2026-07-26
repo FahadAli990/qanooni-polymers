@@ -20,7 +20,7 @@ app.use(
     },
   }),
 )
-app.use(express.json({ limit: '16kb' }))
+app.use(express.json({ limit: '5mb' }))
 app.use('/api', apiRoutes)
 app.use(notFoundHandler)
 app.use(errorHandler)

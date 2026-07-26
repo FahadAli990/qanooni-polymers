@@ -2,6 +2,7 @@ import {
   createSalaryPayment,
   createWorker,
   createWorkerLeave,
+  getWorker,
   getWorkerLedger,
   listWorkers,
   removeSalaryPayment,
@@ -16,6 +17,14 @@ import { ok } from '../utils/apiResponse.js'
 export async function listWorkersController(_req, res, next) {
   try {
     return ok(res, await listWorkers())
+  } catch (err) {
+    return next(err)
+  }
+}
+
+export async function getWorkerController(req, res, next) {
+  try {
+    return ok(res, await getWorker(req.params.id))
   } catch (err) {
     return next(err)
   }

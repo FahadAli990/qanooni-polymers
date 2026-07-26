@@ -1,14 +1,22 @@
 import { getPool } from '../config/db.js'
 
-function mapWorker(row) {
-  return {
+function mapWorker(row, { includeImages = true } = {}) {
+  const base = {
     id: row.id,
     name: row.name,
     contact: row.contact,
     fixedSalary: Number(row.fixed_salary),
+    address: row.address || '',
     note: row.note || '',
+    hasIdCardFront: Boolean(row.has_id_front ?? row.id_card_front),
+    hasIdCardBack: Boolean(row.has_id_back ?? row.id_card_back),
     createdAt: row.created_at,
   }
+  if (includeImages) {
+    base.idCardFront = row.id_card_front || ''
+    base.idCardBack = row.id_card_back || ''
+  }
+  return base
 }
 
 function mapLeave(row) {
@@ -43,46 +51,90 @@ function mapPayment(row) {
 
 export async function findAllWorkers() {
   const [rows] = await getPool().query(
-    `SELECT id, name, contact, fixed_salary, note, created_at
+    `SELECT
+       id, name, contact, fixed_salary, address, note, created_at,
+       (id_card_front IS NOT NULL AND CHAR_LENGTH(id_card_front) > 0) AS has_id_front,
+       (id_card_back IS NOT NULL AND CHAR_LENGTH(id_card_back) > 0) AS has_id_back
      FROM workers
      ORDER BY created_at ASC, id ASC`,
   )
-  return rows.map(mapWorker)
+  return rows.map((row) => mapWorker(row, { includeImages: false }))
 }
 
 export async function findWorkerById(id) {
   const [rows] = await getPool().query(
-    `SELECT id, name, contact, fixed_salary, note, created_at
+    `SELECT id, name, contact, fixed_salary, address, id_card_front, id_card_back, note, created_at
      FROM workers WHERE id = :id LIMIT 1`,
     { id },
   )
-  return rows[0] ? mapWorker(rows[0]) : null
+  return rows[0] ? mapWorker(rows[0], { includeImages: true }) : null
 }
 
 export async function findWorkerByName(name) {
   const [rows] = await getPool().query(
-    `SELECT id, name, contact, fixed_salary, note, created_at
+    `SELECT id, name, contact, fixed_salary, address, id_card_front, id_card_back, note, created_at
      FROM workers WHERE name = :name LIMIT 1`,
     { name },
   )
-  return rows[0] ? mapWorker(rows[0]) : null
+  return rows[0] ? mapWorker(rows[0], { includeImages: true }) : null
 }
 
-export async function insertWorker({ name, contact, fixedSalary, note }) {
+export async function insertWorker({
+  name,
+  contact,
+  fixedSalary,
+  address,
+  idCardFront,
+  idCardBack,
+  note,
+}) {
   const [result] = await getPool().query(
-    `INSERT INTO workers (name, contact, fixed_salary, note)
-     VALUES (:name, :contact, :fixedSalary, :note)`,
-    { name, contact, fixedSalary, note: note || null },
+    `INSERT INTO workers
+       (name, contact, fixed_salary, address, id_card_front, id_card_back, note)
+     VALUES
+       (:name, :contact, :fixedSalary, :address, :idCardFront, :idCardBack, :note)`,
+    {
+      name,
+      contact,
+      fixedSalary,
+      address: address || null,
+      idCardFront: idCardFront || null,
+      idCardBack: idCardBack || null,
+      note: note || null,
+    },
   )
   return findWorkerById(result.insertId)
 }
 
-export async function updateWorkerById(id, { name, contact, fixedSalary, note }) {
+export async function updateWorkerById(id, {
+  name,
+  contact,
+  fixedSalary,
+  address,
+  idCardFront,
+  idCardBack,
+  note,
+}) {
   const [result] = await getPool().query(
     `UPDATE workers
-     SET name = :name, contact = :contact, fixed_salary = :fixedSalary, note = :note
+     SET name = :name,
+         contact = :contact,
+         fixed_salary = :fixedSalary,
+         address = :address,
+         id_card_front = :idCardFront,
+         id_card_back = :idCardBack,
+         note = :note
      WHERE id = :id`,
-    { id, name, contact, fixedSalary, note: note || null },
+    {
+      id,
+      name,
+      contact,
+      fixedSalary,
+      address: address || null,
+      idCardFront: idCardFront || null,
+      idCardBack: idCardBack || null,
+      note: note || null,
+    },
   )
   if (result.affectedRows === 0) return null
   return findWorkerById(id)

@@ -1,6 +1,6 @@
 # CONTEXT — Qanooni Polymers System Truth
 
-Last updated: 2026-07-27 (Rents = vehicles)
+Last updated: 2026-07-27 (Workers ID card + address)
 
 ## Purpose
 
@@ -65,11 +65,13 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
 
 ## Workers & Salary
 
-- Tables: `workers` (`name`, `contact` 11 digits, `fixed_salary`, `note`), `worker_leaves` (`leave_date`, `days`), `worker_salary_payments` (`for_month`, `amount`)
+- Tables: `workers` (`name`, `contact` 11 digits, `fixed_salary`, `address`, `id_card_front`, `id_card_back`, `note`), `worker_leaves` (`leave_date`, `days`), `worker_salary_payments` (`for_month`, `amount`)
+- ID card front/back stored as compressed JPEG data-URLs (`MEDIUMTEXT`); list API omits blobs (flags only)
 - Month ledger: `leaveCut = fixedSalary/30 * leaveDays`; `payable = max(fixed - cut, 0)`; payments → Unpaid/Partial/Paid + advance
-- UI: workers CRUD → select worker + month → leaves + salary payments
+- UI: workers CRUD (name, contact, address, salary, ID front/back) → select worker + month → leaves + salary payments
 - Delete worker blocked if leave/salary history
-- APIs: `GET|POST /api/workers`, `PUT|DELETE /api/workers/:id`, `GET /api/workers/:id/ledger?month=`, leaves + payments nested
+- APIs: `GET|POST /api/workers`, `GET /api/workers/:id` (full + images), `PUT|DELETE /api/workers/:id`, `GET /api/workers/:id/ledger?month=`, leaves + payments nested
+- JSON body limit raised to `5mb` for ID image uploads
 
 ## Daily Expense
 

@@ -24,6 +24,8 @@ import {
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 const MONTH_RE = /^\d{4}-\d{2}$/
 const CONTACT_RE = /^\d{11}$/
+const IMAGE_DATA_URL_RE = /^data:image\/(jpeg|jpg|png|webp);base64,[A-Za-z0-9+/=\s]+$/i
+const MAX_IMAGE_CHARS = 1_800_000
 
 function badRequest(message) {
   const error = new Error(message)
@@ -35,6 +37,73 @@ function notFound(message) {
   const error = new Error(message)
   error.status = 404
   return error
+}
+
+function normalizeImage(value, fieldLabel, { required = false } = {}) {
+  const raw = String(value || '').trim()
+  if (!raw) {
+    if (required) throw badRequest(`${fieldLabel} is required`)
+    return ''
+  }
+  if (!IMAGE_DATA_URL_RE.test(raw)) {
+    throw badRequest(`${fieldLabel} must be a JPEG/PNG/WebP image`)
+  }
+  if (raw.length > MAX_IMAGE_CHARS) {
+    throw badRequest(`${fieldLabel} is too large (max ~1.2MB compressed)`)
+  }
+  return raw
+}
+
+function normalizeWorkerInput(body = {}, { existing = null } = {}) {
+  const name = String(body.name || '').trim()
+  const contact = String(body.contact || '').trim()
+  const address = String(body.address || '').trim()
+  const note = String(body.note || '').trim().slice(0, 255)
+  const fixedSalary = Number(body.fixedSalary ?? body.fixed_salary)
+
+  if (!name) throw badRequest('Worker name is required')
+  if (name.length > 160) throw badRequest('Worker name must be 160 characters or less')
+  if (!CONTACT_RE.test(contact)) throw badRequest('Contact must be exactly 11 digits')
+  if (!address) throw badRequest('Address is required')
+  if (address.length > 255) throw badRequest('Address must be 255 characters or less')
+  if (!Number.isFinite(fixedSalary) || fixedSalary <= 0) {
+    throw badRequest('Fixed salary must be a positive number')
+  }
+
+  const frontProvided = Object.prototype.hasOwnProperty.call(body, 'idCardFront')
+    || Object.prototype.hasOwnProperty.call(body, 'id_card_front')
+  const backProvided = Object.prototype.hasOwnProperty.call(body, 'idCardBack')
+    || Object.prototype.hasOwnProperty.call(body, 'id_card_back')
+
+  const frontRaw = body.idCardFront ?? body.id_card_front
+  const backRaw = body.idCardBack ?? body.id_card_back
+
+  let idCardFront
+  let idCardBack
+
+  if (existing) {
+    idCardFront = frontProvided
+      ? normalizeImage(frontRaw, 'ID card front', { required: true })
+      : (existing.idCardFront || '')
+    idCardBack = backProvided
+      ? normalizeImage(backRaw, 'ID card back', { required: true })
+      : (existing.idCardBack || '')
+    if (!idCardFront) throw badRequest('ID card front is required')
+    if (!idCardBack) throw badRequest('ID card back is required')
+  } else {
+    idCardFront = normalizeImage(frontRaw, 'ID card front', { required: true })
+    idCardBack = normalizeImage(backRaw, 'ID card back', { required: true })
+  }
+
+  return {
+    name,
+    contact,
+    address,
+    fixedSalary: Number(fixedSalary.toFixed(2)),
+    idCardFront,
+    idCardBack,
+    note,
+  }
 }
 
 function currentMonth() {
@@ -59,20 +128,6 @@ function payStatus(payable, paid) {
   if (paid <= 0) return 'unpaid'
   if (paid + 1e-9 >= payable) return 'paid'
   return 'partial'
-}
-
-function normalizeWorkerInput(body = {}) {
-  const name = String(body.name || '').trim()
-  const contact = String(body.contact || '').trim()
-  const note = String(body.note || '').trim().slice(0, 255)
-  const fixedSalary = Number(body.fixedSalary ?? body.fixed_salary)
-  if (!name) throw badRequest('Worker name is required')
-  if (name.length > 160) throw badRequest('Worker name must be 160 characters or less')
-  if (!CONTACT_RE.test(contact)) throw badRequest('Contact must be exactly 11 digits')
-  if (!Number.isFinite(fixedSalary) || fixedSalary <= 0) {
-    throw badRequest('Fixed salary must be a positive number')
-  }
-  return { name, contact, fixedSalary: Number(fixedSalary.toFixed(2)), note }
 }
 
 function normalizeLeaveInput(body = {}) {
@@ -120,12 +175,20 @@ export async function createWorker(body = {}) {
   return insertWorker(payload)
 }
 
+export async function getWorker(idInput) {
+  const id = Number(idInput)
+  if (!Number.isInteger(id) || id <= 0) throw badRequest('Invalid worker id')
+  const worker = await findWorkerById(id)
+  if (!worker) throw notFound('Worker not found')
+  return worker
+}
+
 export async function updateWorker(idInput, body = {}) {
   const id = Number(idInput)
   if (!Number.isInteger(id) || id <= 0) throw badRequest('Invalid worker id')
   const existing = await findWorkerById(id)
   if (!existing) throw notFound('Worker not found')
-  const payload = normalizeWorkerInput(body)
+  const payload = normalizeWorkerInput(body, { existing })
   const byName = await findWorkerByName(payload.name)
   if (byName && byName.id !== id) {
     const error = new Error('A worker with this name already exists')
@@ -172,7 +235,17 @@ export async function getWorkerLedger(workerIdInput, query = {}) {
   const advance = Number(Math.max(paid - payable, 0).toFixed(2))
 
   return {
-    worker,
+    worker: {
+      id: worker.id,
+      name: worker.name,
+      contact: worker.contact,
+      fixedSalary: worker.fixedSalary,
+      address: worker.address,
+      note: worker.note,
+      hasIdCardFront: Boolean(worker.idCardFront),
+      hasIdCardBack: Boolean(worker.idCardBack),
+      createdAt: worker.createdAt,
+    },
     month,
     leaves,
     payments,

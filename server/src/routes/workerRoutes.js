@@ -6,6 +6,7 @@ import {
   deleteSalaryPaymentController,
   deleteWorkerController,
   deleteWorkerLeaveController,
+  getWorkerController,
   getWorkerLedgerController,
   listWorkersController,
   updateSalaryPaymentController,
@@ -20,6 +21,7 @@ router.use(requireAuth)
 router.get('/', listWorkersController)
 router.post('/', createWorkerController)
 router.get('/:id/ledger', getWorkerLedgerController)
+router.get('/:id', getWorkerController)
 router.post('/:id/leaves', createWorkerLeaveController)
 router.put('/:id/leaves/:leaveId', updateWorkerLeaveController)
 router.delete('/:id/leaves/:leaveId', deleteWorkerLeaveController)

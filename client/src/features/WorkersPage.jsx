@@ -3,6 +3,7 @@ import api, { getErrorMessage } from '../api/client'
 import { useConfirm } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { formatDateDisplay, formatNum, todayIso } from '../utils/format'
+import { fileToCompressedDataUrl } from '../utils/imageUpload'
 
 const CONTACT_RE = /^\d{11}$/
 
@@ -21,7 +22,15 @@ function payStatusLabel(status) {
 }
 
 function emptyWorkerForm() {
-  return { name: '', contact: '', fixedSalary: '', note: '' }
+  return {
+    name: '',
+    contact: '',
+    address: '',
+    fixedSalary: '',
+    note: '',
+    idCardFront: '',
+    idCardBack: '',
+  }
 }
 
 function WorkersPage() {
@@ -124,8 +133,19 @@ function WorkersPage() {
     }
     setLedgerLoading(true)
     try {
-      const { data } = await api.get(`/workers/${workerId}/ledger`, { params: { month } })
-      applyLedger(data.data || {})
+      const [ledgerRes, detailRes] = await Promise.all([
+        api.get(`/workers/${workerId}/ledger`, { params: { month } }),
+        api.get(`/workers/${workerId}`),
+      ])
+      const ledger = ledgerRes.data.data || {}
+      const detail = detailRes.data.data || {}
+      applyLedger({
+        ...ledger,
+        worker: {
+          ...(ledger.worker || {}),
+          ...detail,
+        },
+      })
     } catch (err) {
       setWorker(null)
       setLeaves([])
@@ -155,15 +175,33 @@ function WorkersPage() {
     setShowWorkerForm(true)
   }
 
-  function openEditWorker(row) {
+  async function openEditWorker(row) {
     setEditingWorkerId(row.id)
-    setWorkerForm({
-      name: row.name,
-      contact: row.contact || '',
-      fixedSalary: String(row.fixedSalary),
-      note: row.note || '',
-    })
     setShowWorkerForm(true)
+    try {
+      const { data } = await api.get(`/workers/${row.id}`)
+      const full = data.data || row
+      setWorkerForm({
+        name: full.name || '',
+        contact: full.contact || '',
+        address: full.address || '',
+        fixedSalary: full.fixedSalary != null ? String(full.fixedSalary) : '',
+        note: full.note || '',
+        idCardFront: full.idCardFront || '',
+        idCardBack: full.idCardBack || '',
+      })
+    } catch (err) {
+      showToast(getErrorMessage(err), 'error')
+      setWorkerForm({
+        name: row.name,
+        contact: row.contact || '',
+        address: row.address || '',
+        fixedSalary: String(row.fixedSalary || ''),
+        note: row.note || '',
+        idCardFront: '',
+        idCardBack: '',
+      })
+    }
   }
 
   function onContactChange(value) {
@@ -171,10 +209,24 @@ function WorkersPage() {
     setWorkerForm((prev) => ({ ...prev, contact: digits }))
   }
 
+  async function onIdCardChange(side, file) {
+    if (!file) return
+    try {
+      const dataUrl = await fileToCompressedDataUrl(file)
+      setWorkerForm((prev) => ({
+        ...prev,
+        [side === 'front' ? 'idCardFront' : 'idCardBack']: dataUrl,
+      }))
+    } catch (err) {
+      showToast(err.message || 'Could not process image', 'error')
+    }
+  }
+
   async function handleWorkerSubmit(e) {
     e.preventDefault()
     const name = workerForm.name.trim()
     const contact = workerForm.contact.trim()
+    const address = workerForm.address.trim()
     const fixedSalary = Number(workerForm.fixedSalary)
     if (!name) {
       showToast('Worker name is required', 'error')
@@ -184,8 +236,20 @@ function WorkersPage() {
       showToast('Contact must be exactly 11 digits', 'error')
       return
     }
+    if (!address) {
+      showToast('Address is required', 'error')
+      return
+    }
     if (!Number.isFinite(fixedSalary) || fixedSalary <= 0) {
       showToast('Fixed salary must be a positive number', 'error')
+      return
+    }
+    if (!workerForm.idCardFront) {
+      showToast('ID card front image is required', 'error')
+      return
+    }
+    if (!workerForm.idCardBack) {
+      showToast('ID card back image is required', 'error')
       return
     }
     setSavingWorker(true)
@@ -193,13 +257,28 @@ function WorkersPage() {
       const body = {
         name,
         contact,
+        address,
         fixedSalary,
         note: workerForm.note.trim(),
+        idCardFront: workerForm.idCardFront,
+        idCardBack: workerForm.idCardBack,
       }
       if (editingWorkerId) {
         const { data } = await api.put(`/workers/${editingWorkerId}`, body)
         const updated = data.data
-        setWorkers((prev) => prev.map((row) => (row.id === editingWorkerId ? updated : row)))
+        setWorkers((prev) =>
+          prev.map((row) =>
+            row.id === editingWorkerId
+              ? {
+                  ...updated,
+                  idCardFront: undefined,
+                  idCardBack: undefined,
+                  hasIdCardFront: Boolean(updated.idCardFront),
+                  hasIdCardBack: Boolean(updated.idCardBack),
+                }
+              : row,
+          ),
+        )
         if (String(workerId) === String(editingWorkerId)) {
           setWorker(updated)
           loadLedger()
@@ -208,7 +287,16 @@ function WorkersPage() {
       } else {
         const { data } = await api.post('/workers', body)
         const created = data.data
-        setWorkers((prev) => [...prev, created])
+        setWorkers((prev) => [
+          ...prev,
+          {
+            ...created,
+            idCardFront: undefined,
+            idCardBack: undefined,
+            hasIdCardFront: Boolean(created.idCardFront),
+            hasIdCardBack: Boolean(created.idCardBack),
+          },
+        ])
         setWorkerId(String(created.id))
         showToast('Worker added')
       }
@@ -469,6 +557,72 @@ function WorkersPage() {
                 maxLength={255}
               />
             </div>
+            <div style={{ gridColumn: '1 / -1' }}>
+              <label htmlFor="worker-address">Address</label>
+              <input
+                id="worker-address"
+                type="text"
+                value={workerForm.address}
+                onChange={(e) => setWorkerForm((p) => ({ ...p, address: e.target.value }))}
+                placeholder="Full residential address"
+                required
+                maxLength={255}
+              />
+            </div>
+            <div>
+              <label htmlFor="worker-id-front">ID card front</label>
+              <input
+                id="worker-id-front"
+                type="file"
+                accept="image/*"
+                onChange={(e) => onIdCardChange('front', e.target.files?.[0])}
+              />
+              {workerForm.idCardFront ? (
+                <img
+                  src={workerForm.idCardFront}
+                  alt="ID card front preview"
+                  style={{
+                    marginTop: '0.5rem',
+                    width: '100%',
+                    maxHeight: '160px',
+                    objectFit: 'cover',
+                    borderRadius: '8px',
+                    border: '1px solid #d1d5db',
+                  }}
+                />
+              ) : (
+                <p className="help-muted" style={{ marginTop: '0.35rem' }}>
+                  Front photo required
+                </p>
+              )}
+            </div>
+            <div>
+              <label htmlFor="worker-id-back">ID card back</label>
+              <input
+                id="worker-id-back"
+                type="file"
+                accept="image/*"
+                onChange={(e) => onIdCardChange('back', e.target.files?.[0])}
+              />
+              {workerForm.idCardBack ? (
+                <img
+                  src={workerForm.idCardBack}
+                  alt="ID card back preview"
+                  style={{
+                    marginTop: '0.5rem',
+                    width: '100%',
+                    maxHeight: '160px',
+                    objectFit: 'cover',
+                    borderRadius: '8px',
+                    border: '1px solid #d1d5db',
+                  }}
+                />
+              ) : (
+                <p className="help-muted" style={{ marginTop: '0.35rem' }}>
+                  Back photo required
+                </p>
+              )}
+            </div>
           </div>
           <div className="panel-form__actions">
             <button type="submit" className="btn-primary" disabled={savingWorker}>
@@ -525,7 +679,9 @@ function WorkersPage() {
             <tr>
               <th>Name</th>
               <th>Contact</th>
+              <th>Address</th>
               <th>Fixed salary</th>
+              <th>ID card</th>
               <th>Note</th>
               <th aria-label="Actions" />
             </tr>
@@ -533,7 +689,7 @@ function WorkersPage() {
           <tbody>
             {workers.length === 0 ? (
               <tr>
-                <td colSpan={5} className="stock-table__empty">
+                <td colSpan={7} className="stock-table__empty">
                   No workers yet. Click Add Worker.
                 </td>
               </tr>
@@ -542,7 +698,13 @@ function WorkersPage() {
                 <tr key={row.id}>
                   <td>{row.name}</td>
                   <td>{row.contact}</td>
+                  <td className="stock-table__wrap">{row.address || '—'}</td>
                   <td>{formatMoney(row.fixedSalary)}</td>
+                  <td>
+                    {row.hasIdCardFront || row.hasIdCardBack
+                      ? `${row.hasIdCardFront ? 'Front' : ''}${row.hasIdCardFront && row.hasIdCardBack ? ' + ' : ''}${row.hasIdCardBack ? 'Back' : ''}`
+                      : '—'}
+                  </td>
                   <td className="stock-table__wrap">{row.note || '—'}</td>
                   <td className="stock-table__actions">
                     <button
@@ -569,7 +731,6 @@ function WorkersPage() {
           </tbody>
         </table>
       </div>
-
       {!workerId ? (
         <p className="help-muted">Select a worker to open leave & salary hisab.</p>
       ) : ledgerLoading ? (
@@ -585,7 +746,48 @@ function WorkersPage() {
               <p className="help-muted" style={{ marginTop: '0.35rem' }}>
                 {worker.contact} · Month {month}
               </p>
+              <p className="help-muted">{worker.address || 'No address'}</p>
               {worker.note ? <p className="help-muted">{worker.note}</p> : null}
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+              <div>
+                <span className="stock-totals__label">ID front</span>
+                {worker.idCardFront ? (
+                  <img
+                    src={worker.idCardFront}
+                    alt="ID card front"
+                    style={{
+                      marginTop: '0.35rem',
+                      width: '100%',
+                      maxHeight: '140px',
+                      objectFit: 'cover',
+                      borderRadius: '8px',
+                      border: '1px solid #d1d5db',
+                    }}
+                  />
+                ) : (
+                  <p className="help-muted">Not attached</p>
+                )}
+              </div>
+              <div>
+                <span className="stock-totals__label">ID back</span>
+                {worker.idCardBack ? (
+                  <img
+                    src={worker.idCardBack}
+                    alt="ID card back"
+                    style={{
+                      marginTop: '0.35rem',
+                      width: '100%',
+                      maxHeight: '140px',
+                      objectFit: 'cover',
+                      borderRadius: '8px',
+                      border: '1px solid #d1d5db',
+                    }}
+                  />
+                ) : (
+                  <p className="help-muted">Not attached</p>
+                )}
+              </div>
             </div>
           </section>
 

@@ -562,6 +562,9 @@ export async function ensureSchema() {
       name VARCHAR(160) NOT NULL,
       contact VARCHAR(20) NOT NULL,
       fixed_salary DECIMAL(14, 2) NOT NULL,
+      address VARCHAR(255) NULL,
+      id_card_front MEDIUMTEXT NULL,
+      id_card_back MEDIUMTEXT NULL,
       note VARCHAR(255) NULL,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       PRIMARY KEY (id),
@@ -569,6 +572,25 @@ export async function ensureSchema() {
       KEY idx_workers_contact (contact)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `)
+
+  const workerExtraCols = [
+    { name: 'address', ddl: 'VARCHAR(255) NULL AFTER fixed_salary' },
+    { name: 'id_card_front', ddl: 'MEDIUMTEXT NULL AFTER address' },
+    { name: 'id_card_back', ddl: 'MEDIUMTEXT NULL AFTER id_card_front' },
+  ]
+  for (const col of workerExtraCols) {
+    const [cols] = await getPool().query(
+      `SELECT COLUMN_NAME
+       FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE()
+         AND TABLE_NAME = 'workers'
+         AND COLUMN_NAME = :name`,
+      { name: col.name },
+    )
+    if (!cols.length) {
+      await getPool().query(`ALTER TABLE workers ADD COLUMN ${col.name} ${col.ddl}`)
+    }
+  }
 
   await getPool().query(`
     CREATE TABLE IF NOT EXISTS worker_leaves (
