@@ -101,10 +101,10 @@ export function buildNavItems(materials = []) {
       path: '/maintenance',
     },
     {
-      id: 'rents',
+      id: 'vehicle-fare',
       label: 'Vehicle Fare',
       Icon: MdDirectionsCar,
-      path: '/rents',
+      path: '/vehicle-fare',
     },
     {
       id: 'utility-bills',
@@ -190,9 +190,14 @@ function parseMaintenancePath(pathname) {
   return null
 }
 
-function parseRentsPath(pathname) {
-  if (pathname === '/rents' || pathname.startsWith('/rents/')) {
-    return { section: 'rents', ancestors: [] }
+function parseVehicleFarePath(pathname) {
+  if (
+    pathname === '/vehicle-fare' ||
+    pathname.startsWith('/vehicle-fare/') ||
+    pathname === '/rents' ||
+    pathname.startsWith('/rents/')
+  ) {
+    return { section: 'vehicle-fare', ancestors: [] }
   }
   return null
 }
@@ -233,7 +238,7 @@ const TOP_LEVEL_PARSERS = [
   parseManagersPath,
   parseWorkersPath,
   parseUtilityBillsPath,
-  parseRentsPath,
+  parseVehicleFarePath,
   parseMaintenancePath,
   parseDailyExpensePath,
   parseSuppliersPath,

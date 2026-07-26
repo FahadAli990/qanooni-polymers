@@ -44,7 +44,7 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
 - Top-level **Suppliers** (below Bills & Payments) — `/suppliers`
 - Top-level **Daily Expense** (below Suppliers) — `/daily-expense`
 - Top-level **Maintenance** — `/maintenance`
-- Top-level **Vehicle Fare** — `/rents`
+- Top-level **Vehicle Fare** — `/vehicle-fare` (legacy `/rents` redirects)
 - Top-level **Utility Bills** — `/utility-bills` (above Workers)
 - Top-level **Workers & Salary** — `/workers`
 - Top-level **Managers** (admin only) — `/managers`
@@ -59,7 +59,7 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
 ## Vehicle Fare
 
 - Use: vehicles that carry goods — **per delivery** fare (not fixed daily)
-- Sidebar label: **Vehicle Fare** (`/rents`)
+- Sidebar label: **Vehicle Fare** (`/vehicle-fare`; `/rents` redirects here)
 - Tables:
   - `rent_vehicles` (`name`, `note`) — no fixed fare
   - `rent_trips` (`vehicle_id`, `trip_date`, `destination`, `fare_amount`, `note`) — where maal gaya + kitne paise

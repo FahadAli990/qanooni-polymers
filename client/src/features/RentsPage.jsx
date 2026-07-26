@@ -598,7 +598,7 @@ function RentsPage() {
                     />
                   </div>
                   <div>
-                    <label htmlFor="rent-trip-dest">Where maal gaya</label>
+                    <label htmlFor="rent-trip-dest">Destination</label>
                     <input
                       id="rent-trip-dest"
                       type="text"
@@ -610,7 +610,7 @@ function RentsPage() {
                     />
                   </div>
                   <div>
-                    <label htmlFor="rent-trip-fare">Fare asked (Rs)</label>
+                    <label htmlFor="rent-trip-fare">Fare (Rs)</label>
                     <input
                       id="rent-trip-fare"
                       type="number"

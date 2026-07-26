@@ -47,7 +47,8 @@ function AppRoutes() {
         <Route path="suppliers" element={<SuppliersPage />} />
         <Route path="daily-expense" element={<DailyExpensePage />} />
         <Route path="maintenance" element={<MaintenancePage />} />
-        <Route path="rents" element={<RentsPage />} />
+        <Route path="vehicle-fare" element={<RentsPage />} />
+        <Route path="rents" element={<Navigate to="/vehicle-fare" replace />} />
         <Route path="utility-bills" element={<UtilityBillsPage />} />
         <Route path="workers" element={<WorkersPage />} />
         <Route path="managers" element={<ManagersPage />} />
