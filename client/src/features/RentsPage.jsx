@@ -18,7 +18,7 @@ function payStatusLabel(status) {
   return 'Unpaid'
 }
 
-function emptyBuildingForm() {
+function emptyVehicleForm() {
   return { name: '', monthlyRent: '', note: '' }
 }
 
@@ -26,18 +26,18 @@ function RentsPage() {
   const { confirm } = useConfirm()
   const { showToast } = useToast()
 
-  const [buildings, setBuildings] = useState([])
-  const [buildingsLoading, setBuildingsLoading] = useState(true)
-  const [buildingId, setBuildingId] = useState('')
+  const [vehicles, setVehicles] = useState([])
+  const [vehiclesLoading, setVehiclesLoading] = useState(true)
+  const [vehicleId, setVehicleId] = useState('')
   const [month, setMonth] = useState(currentMonth())
 
-  const [showBuildingForm, setShowBuildingForm] = useState(false)
-  const [editingBuildingId, setEditingBuildingId] = useState(null)
-  const [buildingForm, setBuildingForm] = useState(emptyBuildingForm())
-  const [savingBuilding, setSavingBuilding] = useState(false)
+  const [showVehicleForm, setShowVehicleForm] = useState(false)
+  const [editingVehicleId, setEditingVehicleId] = useState(null)
+  const [vehicleForm, setVehicleForm] = useState(emptyVehicleForm())
+  const [savingVehicle, setSavingVehicle] = useState(false)
 
   const [ledgerLoading, setLedgerLoading] = useState(false)
-  const [building, setBuilding] = useState(null)
+  const [vehicle, setVehicle] = useState(null)
   const [summary, setSummary] = useState({
     due: 0,
     paid: 0,
@@ -54,27 +54,27 @@ function RentsPage() {
   const [paymentNote, setPaymentNote] = useState('')
   const [savingPayment, setSavingPayment] = useState(false)
 
-  const loadBuildings = useCallback(async () => {
-    setBuildingsLoading(true)
+  const loadVehicles = useCallback(async () => {
+    setVehiclesLoading(true)
     try {
       const { data } = await api.get('/rents')
       const list = Array.isArray(data.data) ? data.data : []
-      setBuildings(list)
-      setBuildingId((prev) => (list.some((b) => String(b.id) === String(prev)) ? prev : ''))
+      setVehicles(list)
+      setVehicleId((prev) => (list.some((v) => String(v.id) === String(prev)) ? prev : ''))
     } catch (err) {
-      setBuildings([])
+      setVehicles([])
       showToast(getErrorMessage(err), 'error')
     } finally {
-      setBuildingsLoading(false)
+      setVehiclesLoading(false)
     }
   }, [showToast])
 
   useEffect(() => {
-    loadBuildings()
-  }, [loadBuildings])
+    loadVehicles()
+  }, [loadVehicles])
 
   const applyLedger = useCallback((payload) => {
-    setBuilding(payload.building || null)
+    setVehicle(payload.vehicle || null)
     setSummary(
       payload.summary || { due: 0, paid: 0, remaining: 0, advance: 0, payStatus: 'unpaid' },
     )
@@ -83,105 +83,105 @@ function RentsPage() {
   }, [])
 
   const loadLedger = useCallback(async () => {
-    if (!buildingId) {
-      setBuilding(null)
+    if (!vehicleId) {
+      setVehicle(null)
       setSummary({ due: 0, paid: 0, remaining: 0, advance: 0, payStatus: 'unpaid' })
       setPayments([])
       return
     }
     setLedgerLoading(true)
     try {
-      const { data } = await api.get(`/rents/${buildingId}/ledger`, { params: { month } })
+      const { data } = await api.get(`/rents/${vehicleId}/ledger`, { params: { month } })
       applyLedger(data.data || {})
     } catch (err) {
-      setBuilding(null)
+      setVehicle(null)
       setPayments([])
       showToast(getErrorMessage(err), 'error')
     } finally {
       setLedgerLoading(false)
     }
-  }, [buildingId, month, applyLedger, showToast])
+  }, [vehicleId, month, applyLedger, showToast])
 
   useEffect(() => {
     loadLedger()
   }, [loadLedger])
 
-  function resetBuildingForm() {
-    setEditingBuildingId(null)
-    setBuildingForm(emptyBuildingForm())
+  function resetVehicleForm() {
+    setEditingVehicleId(null)
+    setVehicleForm(emptyVehicleForm())
   }
 
-  function closeBuildingForm() {
-    setShowBuildingForm(false)
-    resetBuildingForm()
+  function closeVehicleForm() {
+    setShowVehicleForm(false)
+    resetVehicleForm()
   }
 
-  function openCreateBuilding() {
-    resetBuildingForm()
-    setShowBuildingForm(true)
+  function openCreateVehicle() {
+    resetVehicleForm()
+    setShowVehicleForm(true)
   }
 
-  function openEditBuilding(row) {
-    setEditingBuildingId(row.id)
-    setBuildingForm({
+  function openEditVehicle(row) {
+    setEditingVehicleId(row.id)
+    setVehicleForm({
       name: row.name,
       monthlyRent: String(row.monthlyRent),
       note: row.note || '',
     })
-    setShowBuildingForm(true)
+    setShowVehicleForm(true)
   }
 
-  async function handleBuildingSubmit(e) {
+  async function handleVehicleSubmit(e) {
     e.preventDefault()
-    const name = buildingForm.name.trim()
-    const monthlyRent = Number(buildingForm.monthlyRent)
+    const name = vehicleForm.name.trim()
+    const monthlyRent = Number(vehicleForm.monthlyRent)
     if (!name) {
-      showToast('Building name is required', 'error')
+      showToast('Vehicle name is required', 'error')
       return
     }
     if (!Number.isFinite(monthlyRent) || monthlyRent <= 0) {
       showToast('Monthly rent must be a positive number', 'error')
       return
     }
-    setSavingBuilding(true)
+    setSavingVehicle(true)
     try {
-      const body = { name, monthlyRent, note: buildingForm.note.trim() }
-      if (editingBuildingId) {
-        const { data } = await api.put(`/rents/${editingBuildingId}`, body)
+      const body = { name, monthlyRent, note: vehicleForm.note.trim() }
+      if (editingVehicleId) {
+        const { data } = await api.put(`/rents/${editingVehicleId}`, body)
         const updated = data.data
-        setBuildings((prev) => prev.map((row) => (row.id === editingBuildingId ? updated : row)))
-        if (String(buildingId) === String(editingBuildingId)) {
-          setBuilding(updated)
+        setVehicles((prev) => prev.map((row) => (row.id === editingVehicleId ? updated : row)))
+        if (String(vehicleId) === String(editingVehicleId)) {
+          setVehicle(updated)
           loadLedger()
         }
-        showToast('Building updated')
+        showToast('Vehicle updated')
       } else {
         const { data } = await api.post('/rents', body)
         const created = data.data
-        setBuildings((prev) => [...prev, created])
-        setBuildingId(String(created.id))
-        showToast('Building added')
+        setVehicles((prev) => [...prev, created])
+        setVehicleId(String(created.id))
+        showToast('Vehicle added')
       }
-      closeBuildingForm()
+      closeVehicleForm()
     } catch (err) {
       showToast(getErrorMessage(err), 'error')
     } finally {
-      setSavingBuilding(false)
+      setSavingVehicle(false)
     }
   }
 
-  async function handleDeleteBuilding(row) {
+  async function handleDeleteVehicle(row) {
     const ok = await confirm({
-      title: 'Delete building',
-      message: `Delete building "${row.name}"?`,
+      title: 'Delete vehicle',
+      message: `Delete vehicle "${row.name}"?`,
     })
     if (!ok) return
     try {
       await api.delete(`/rents/${row.id}`)
-      setBuildings((prev) => prev.filter((b) => b.id !== row.id))
-      if (String(buildingId) === String(row.id)) setBuildingId('')
-      if (editingBuildingId === row.id) closeBuildingForm()
-      showToast('Building deleted')
+      setVehicles((prev) => prev.filter((v) => v.id !== row.id))
+      if (String(vehicleId) === String(row.id)) setVehicleId('')
+      if (editingVehicleId === row.id) closeVehicleForm()
+      showToast('Vehicle deleted')
     } catch (err) {
       showToast(getErrorMessage(err), 'error')
     }
@@ -214,8 +214,8 @@ function RentsPage() {
 
   async function handlePaymentSubmit(e) {
     e.preventDefault()
-    if (!buildingId) {
-      showToast('Select a building first', 'error')
+    if (!vehicleId) {
+      showToast('Select a vehicle first', 'error')
       return
     }
     const amount = Number(paymentAmount)
@@ -236,11 +236,11 @@ function RentsPage() {
         note: paymentNote.trim(),
       }
       if (editingPaymentId) {
-        const { data } = await api.put(`/rents/${buildingId}/payments/${editingPaymentId}`, body)
+        const { data } = await api.put(`/rents/${vehicleId}/payments/${editingPaymentId}`, body)
         applyLedger(data.data || {})
         showToast('Payment updated')
       } else {
-        const { data } = await api.post(`/rents/${buildingId}/payments`, body)
+        const { data } = await api.post(`/rents/${vehicleId}/payments`, body)
         applyLedger(data.data || {})
         showToast('Payment recorded')
       }
@@ -259,7 +259,7 @@ function RentsPage() {
     })
     if (!ok) return
     try {
-      const { data } = await api.delete(`/rents/${buildingId}/payments/${payment.id}`, {
+      const { data } = await api.delete(`/rents/${vehicleId}/payments/${payment.id}`, {
         params: { month },
       })
       applyLedger(data.data || {})
@@ -275,66 +275,66 @@ function RentsPage() {
       <header className="page-toolbar">
         <div>
           <h1>Rents</h1>
-          <p>Buildings ke monthly rents aur payments yahan manage karo.</p>
+          <p>Vehicles ke monthly rents aur payments yahan manage karo.</p>
         </div>
         <button
           type="button"
           className="btn-primary"
           onClick={() =>
-            showBuildingForm && !editingBuildingId ? closeBuildingForm() : openCreateBuilding()
+            showVehicleForm && !editingVehicleId ? closeVehicleForm() : openCreateVehicle()
           }
         >
-          {showBuildingForm && !editingBuildingId ? 'Cancel' : 'Add Building'}
+          {showVehicleForm && !editingVehicleId ? 'Cancel' : 'Add Vehicle'}
         </button>
       </header>
 
-      {showBuildingForm && (
-        <form className="card panel-form panel-form--stock" onSubmit={handleBuildingSubmit} noValidate>
+      {showVehicleForm && (
+        <form className="card panel-form panel-form--stock" onSubmit={handleVehicleSubmit} noValidate>
           <div className="form-grid">
             <div>
-              <label htmlFor="rent-building-name">Building name</label>
+              <label htmlFor="rent-vehicle-name">Vehicle name</label>
               <input
-                id="rent-building-name"
+                id="rent-vehicle-name"
                 type="text"
-                value={buildingForm.name}
-                onChange={(e) => setBuildingForm((p) => ({ ...p, name: e.target.value }))}
-                placeholder="e.g. Factory shed A"
+                value={vehicleForm.name}
+                onChange={(e) => setVehicleForm((p) => ({ ...p, name: e.target.value }))}
+                placeholder="e.g. Suzuki Pickup LEA-1234"
                 required
                 maxLength={160}
                 autoFocus
               />
             </div>
             <div>
-              <label htmlFor="rent-building-rent">Monthly rent (Rs)</label>
+              <label htmlFor="rent-vehicle-rent">Monthly rent (Rs)</label>
               <input
-                id="rent-building-rent"
+                id="rent-vehicle-rent"
                 type="number"
                 min="0.01"
                 step="0.01"
-                value={buildingForm.monthlyRent}
-                onChange={(e) => setBuildingForm((p) => ({ ...p, monthlyRent: e.target.value }))}
+                value={vehicleForm.monthlyRent}
+                onChange={(e) => setVehicleForm((p) => ({ ...p, monthlyRent: e.target.value }))}
                 placeholder="e.g. 50000"
                 required
               />
             </div>
             <div>
-              <label htmlFor="rent-building-note">Note (optional)</label>
+              <label htmlFor="rent-vehicle-note">Note (optional)</label>
               <input
-                id="rent-building-note"
+                id="rent-vehicle-note"
                 type="text"
-                value={buildingForm.note}
-                onChange={(e) => setBuildingForm((p) => ({ ...p, note: e.target.value }))}
-                placeholder="Address / landlord"
+                value={vehicleForm.note}
+                onChange={(e) => setVehicleForm((p) => ({ ...p, note: e.target.value }))}
+                placeholder="Driver / plate / owner"
                 maxLength={255}
               />
             </div>
           </div>
           <div className="panel-form__actions">
-            <button type="submit" className="btn-primary" disabled={savingBuilding}>
-              {savingBuilding ? 'Saving…' : editingBuildingId ? 'Update Building' : 'Save Building'}
+            <button type="submit" className="btn-primary" disabled={savingVehicle}>
+              {savingVehicle ? 'Saving…' : editingVehicleId ? 'Update Vehicle' : 'Save Vehicle'}
             </button>
-            {editingBuildingId && (
-              <button type="button" className="btn-secondary" onClick={closeBuildingForm} disabled={savingBuilding}>
+            {editingVehicleId && (
+              <button type="button" className="btn-secondary" onClick={closeVehicleForm} disabled={savingVehicle}>
                 Cancel
               </button>
             )}
@@ -345,21 +345,21 @@ function RentsPage() {
       <section className="card panel-form panel-form--stock">
         <div className="form-grid form-grid--order">
           <div>
-            <label htmlFor="rent-building-select">Building</label>
+            <label htmlFor="rent-vehicle-select">Vehicle</label>
             <select
-              id="rent-building-select"
-              value={buildingId}
-              onChange={(e) => setBuildingId(e.target.value)}
-              disabled={buildingsLoading}
+              id="rent-vehicle-select"
+              value={vehicleId}
+              onChange={(e) => setVehicleId(e.target.value)}
+              disabled={vehiclesLoading}
             >
               <option value="">
-                {buildingsLoading
+                {vehiclesLoading
                   ? 'Loading…'
-                  : buildings.length
-                    ? 'Select building'
-                    : 'No buildings yet'}
+                  : vehicles.length
+                    ? 'Select vehicle'
+                    : 'No vehicles yet'}
               </option>
-              {buildings.map((row) => (
+              {vehicles.map((row) => (
                 <option key={row.id} value={row.id}>
                   {row.name}
                 </option>
@@ -389,14 +389,14 @@ function RentsPage() {
             </tr>
           </thead>
           <tbody>
-            {buildings.length === 0 ? (
+            {vehicles.length === 0 ? (
               <tr>
                 <td colSpan={4} className="stock-table__empty">
-                  No buildings yet. Click Add Building.
+                  No vehicles yet. Click Add Vehicle.
                 </td>
               </tr>
             ) : (
-              buildings.map((row) => (
+              vehicles.map((row) => (
                 <tr key={row.id}>
                   <td>{row.name}</td>
                   <td>{formatMoney(row.monthlyRent)}</td>
@@ -406,8 +406,8 @@ function RentsPage() {
                       type="button"
                       className="btn-secondary btn-compact"
                       onClick={() => {
-                        setBuildingId(String(row.id))
-                        openEditBuilding(row)
+                        setVehicleId(String(row.id))
+                        openEditVehicle(row)
                       }}
                     >
                       Edit
@@ -415,7 +415,7 @@ function RentsPage() {
                     <button
                       type="button"
                       className="btn-danger btn-compact"
-                      onClick={() => handleDeleteBuilding(row)}
+                      onClick={() => handleDeleteVehicle(row)}
                     >
                       Delete
                     </button>
@@ -427,22 +427,22 @@ function RentsPage() {
         </table>
       </div>
 
-      {!buildingId ? (
-        <p className="help-muted">Select a building to open monthly rent hisab.</p>
+      {!vehicleId ? (
+        <p className="help-muted">Select a vehicle to open monthly rent hisab.</p>
       ) : ledgerLoading ? (
         <p className="help-muted">Loading ledger…</p>
-      ) : !building ? (
-        <p className="help-muted">Building not found.</p>
+      ) : !vehicle ? (
+        <p className="help-muted">Vehicle not found.</p>
       ) : (
         <>
           <section className="card stock-totals stock-totals--split bills-shop-card">
             <div>
-              <span className="stock-totals__label">Building</span>
-              <strong className="stock-totals__value">{building.name}</strong>
+              <span className="stock-totals__label">Vehicle</span>
+              <strong className="stock-totals__value">{vehicle.name}</strong>
               <p className="help-muted" style={{ marginTop: '0.35rem' }}>
-                Month {month} · Fixed {formatMoney(building.monthlyRent)}
+                Month {month} · Fixed {formatMoney(vehicle.monthlyRent)}
               </p>
-              {building.note ? <p className="help-muted">{building.note}</p> : null}
+              {vehicle.note ? <p className="help-muted">{vehicle.note}</p> : null}
             </div>
           </section>
 

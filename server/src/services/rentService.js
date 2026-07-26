@@ -1,16 +1,16 @@
 import {
-  countPaymentsByBuildingId,
-  deleteBuildingById,
+  countPaymentsByVehicleId,
+  deleteVehicleById,
   deleteRentPaymentById,
-  findAllBuildings,
-  findBuildingById,
-  findBuildingByName,
-  findPaymentsByBuildingAndMonth,
+  findAllVehicles,
+  findVehicleById,
+  findVehicleByName,
+  findPaymentsByVehicleAndMonth,
   findRentPaymentById,
-  insertBuilding,
+  insertVehicle,
   insertRentPayment,
-  sumPaymentsByBuildingAndMonth,
-  updateBuildingById,
+  sumPaymentsByVehicleAndMonth,
+  updateVehicleById,
   updateRentPaymentById,
 } from '../repositories/rentRepository.js'
 
@@ -50,12 +50,12 @@ function payStatus(due, paid) {
   return 'partial'
 }
 
-function normalizeBuildingInput(body = {}) {
+function normalizeVehicleInput(body = {}) {
   const name = String(body.name || '').trim()
   const note = String(body.note || '').trim().slice(0, 255)
   const monthlyRent = Number(body.monthlyRent ?? body.monthly_rent)
-  if (!name) throw badRequest('Building name is required')
-  if (name.length > 160) throw badRequest('Building name must be 160 characters or less')
+  if (!name) throw badRequest('Vehicle name is required')
+  if (name.length > 160) throw badRequest('Vehicle name must be 160 characters or less')
   if (!Number.isFinite(monthlyRent) || monthlyRent <= 0) {
     throw badRequest('Monthly rent must be a positive number')
   }
@@ -81,70 +81,70 @@ function normalizePaymentInput(body = {}) {
   }
 }
 
-export async function listBuildings() {
-  return findAllBuildings()
+export async function listVehicles() {
+  return findAllVehicles()
 }
 
-export async function createBuilding(body = {}) {
-  const payload = normalizeBuildingInput(body)
-  const existing = await findBuildingByName(payload.name)
+export async function createVehicle(body = {}) {
+  const payload = normalizeVehicleInput(body)
+  const existing = await findVehicleByName(payload.name)
   if (existing) {
-    const error = new Error('A building with this name already exists')
+    const error = new Error('A vehicle with this name already exists')
     error.status = 409
     throw error
   }
-  return insertBuilding(payload)
+  return insertVehicle(payload)
 }
 
-export async function updateBuilding(idInput, body = {}) {
+export async function updateVehicle(idInput, body = {}) {
   const id = Number(idInput)
-  if (!Number.isInteger(id) || id <= 0) throw badRequest('Invalid building id')
-  const existing = await findBuildingById(id)
-  if (!existing) throw notFound('Building not found')
-  const payload = normalizeBuildingInput(body)
-  const byName = await findBuildingByName(payload.name)
+  if (!Number.isInteger(id) || id <= 0) throw badRequest('Invalid vehicle id')
+  const existing = await findVehicleById(id)
+  if (!existing) throw notFound('Vehicle not found')
+  const payload = normalizeVehicleInput(body)
+  const byName = await findVehicleByName(payload.name)
   if (byName && byName.id !== id) {
-    const error = new Error('A building with this name already exists')
+    const error = new Error('A vehicle with this name already exists')
     error.status = 409
     throw error
   }
-  const updated = await updateBuildingById(id, payload)
-  if (!updated) throw notFound('Building not found')
+  const updated = await updateVehicleById(id, payload)
+  if (!updated) throw notFound('Vehicle not found')
   return updated
 }
 
-export async function removeBuilding(idInput) {
+export async function removeVehicle(idInput) {
   const id = Number(idInput)
-  if (!Number.isInteger(id) || id <= 0) throw badRequest('Invalid building id')
-  const existing = await findBuildingById(id)
-  if (!existing) throw notFound('Building not found')
-  const paymentCount = await countPaymentsByBuildingId(id)
+  if (!Number.isInteger(id) || id <= 0) throw badRequest('Invalid vehicle id')
+  const existing = await findVehicleById(id)
+  if (!existing) throw notFound('Vehicle not found')
+  const paymentCount = await countPaymentsByVehicleId(id)
   if (paymentCount > 0) {
-    const error = new Error('Cannot delete building with payment history')
+    const error = new Error('Cannot delete vehicle with payment history')
     error.status = 409
     throw error
   }
-  const deleted = await deleteBuildingById(id)
-  if (!deleted) throw notFound('Building not found')
+  const deleted = await deleteVehicleById(id)
+  if (!deleted) throw notFound('Vehicle not found')
   return { deleted: true }
 }
 
-export async function getBuildingLedger(buildingIdInput, query = {}) {
-  const id = Number(buildingIdInput)
-  if (!Number.isInteger(id) || id <= 0) throw badRequest('Invalid building id')
-  const building = await findBuildingById(id)
-  if (!building) throw notFound('Building not found')
+export async function getVehicleLedger(vehicleIdInput, query = {}) {
+  const id = Number(vehicleIdInput)
+  if (!Number.isInteger(id) || id <= 0) throw badRequest('Invalid vehicle id')
+  const vehicle = await findVehicleById(id)
+  if (!vehicle) throw notFound('Vehicle not found')
 
   const month = normalizeMonth(query.month)
   const forMonthDate = monthToDate(month)
-  const payments = await findPaymentsByBuildingAndMonth(id, forMonthDate)
-  const paid = await sumPaymentsByBuildingAndMonth(id, forMonthDate)
-  const due = building.monthlyRent
+  const payments = await findPaymentsByVehicleAndMonth(id, forMonthDate)
+  const paid = await sumPaymentsByVehicleAndMonth(id, forMonthDate)
+  const due = vehicle.monthlyRent
   const remaining = Number(Math.max(due - paid, 0).toFixed(2))
   const advance = Number(Math.max(paid - due, 0).toFixed(2))
 
   return {
-    building,
+    vehicle,
     month,
     summary: {
       due,
@@ -157,41 +157,41 @@ export async function getBuildingLedger(buildingIdInput, query = {}) {
   }
 }
 
-export async function createRentPayment(buildingIdInput, body = {}) {
-  const id = Number(buildingIdInput)
-  if (!Number.isInteger(id) || id <= 0) throw badRequest('Invalid building id')
-  const building = await findBuildingById(id)
-  if (!building) throw notFound('Building not found')
+export async function createRentPayment(vehicleIdInput, body = {}) {
+  const id = Number(vehicleIdInput)
+  if (!Number.isInteger(id) || id <= 0) throw badRequest('Invalid vehicle id')
+  const vehicle = await findVehicleById(id)
+  if (!vehicle) throw notFound('Vehicle not found')
   const payload = normalizePaymentInput(body)
-  const payment = await insertRentPayment({ buildingId: id, ...payload })
-  const ledger = await getBuildingLedger(id, { month: payload.forMonth })
+  const payment = await insertRentPayment({ vehicleId: id, ...payload })
+  const ledger = await getVehicleLedger(id, { month: payload.forMonth })
   return { payment, ...ledger }
 }
 
-export async function updateRentPayment(buildingIdInput, paymentIdInput, body = {}) {
-  const buildingId = Number(buildingIdInput)
+export async function updateRentPayment(vehicleIdInput, paymentIdInput, body = {}) {
+  const vehicleId = Number(vehicleIdInput)
   const paymentId = Number(paymentIdInput)
-  if (!Number.isInteger(buildingId) || buildingId <= 0) throw badRequest('Invalid building id')
+  if (!Number.isInteger(vehicleId) || vehicleId <= 0) throw badRequest('Invalid vehicle id')
   if (!Number.isInteger(paymentId) || paymentId <= 0) throw badRequest('Invalid payment id')
   const existing = await findRentPaymentById(paymentId)
-  if (!existing || existing.buildingId !== buildingId) throw notFound('Payment not found')
+  if (!existing || existing.vehicleId !== vehicleId) throw notFound('Payment not found')
   const payload = normalizePaymentInput(body)
   const payment = await updateRentPaymentById(paymentId, payload)
   if (!payment) throw notFound('Payment not found')
-  const ledger = await getBuildingLedger(buildingId, { month: payload.forMonth })
+  const ledger = await getVehicleLedger(vehicleId, { month: payload.forMonth })
   return { payment, ...ledger }
 }
 
-export async function removeRentPayment(buildingIdInput, paymentIdInput, query = {}) {
-  const buildingId = Number(buildingIdInput)
+export async function removeRentPayment(vehicleIdInput, paymentIdInput, query = {}) {
+  const vehicleId = Number(vehicleIdInput)
   const paymentId = Number(paymentIdInput)
-  if (!Number.isInteger(buildingId) || buildingId <= 0) throw badRequest('Invalid building id')
+  if (!Number.isInteger(vehicleId) || vehicleId <= 0) throw badRequest('Invalid vehicle id')
   if (!Number.isInteger(paymentId) || paymentId <= 0) throw badRequest('Invalid payment id')
   const existing = await findRentPaymentById(paymentId)
-  if (!existing || existing.buildingId !== buildingId) throw notFound('Payment not found')
+  if (!existing || existing.vehicleId !== vehicleId) throw notFound('Payment not found')
   const deleted = await deleteRentPaymentById(paymentId)
   if (!deleted) throw notFound('Payment not found')
   const month = normalizeMonth(query.month || existing.forMonth)
-  const ledger = await getBuildingLedger(buildingId, { month })
+  const ledger = await getVehicleLedger(vehicleId, { month })
   return { deleted: true, ...ledger }
 }

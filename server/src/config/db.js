@@ -469,34 +469,92 @@ export async function ensureSchema() {
   `)
 
   await getPool().query(`
-    CREATE TABLE IF NOT EXISTS rent_buildings (
+    CREATE TABLE IF NOT EXISTS rent_vehicles (
       id INT UNSIGNED NOT NULL AUTO_INCREMENT,
       name VARCHAR(160) NOT NULL,
       monthly_rent DECIMAL(14, 2) NOT NULL,
       note VARCHAR(255) NULL,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       PRIMARY KEY (id),
-      UNIQUE KEY uq_rent_buildings_name (name)
+      UNIQUE KEY uq_rent_vehicles_name (name)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `)
+
+  // Migrate legacy rent_buildings → rent_vehicles (one-time)
+  const [legacyBuildings] = await getPool().query(
+    `SELECT TABLE_NAME
+     FROM INFORMATION_SCHEMA.TABLES
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'rent_buildings'`,
+  )
+  if (legacyBuildings.length) {
+    await getPool().query(
+      `INSERT IGNORE INTO rent_vehicles (id, name, monthly_rent, note, created_at)
+       SELECT id, name, monthly_rent, note, created_at FROM rent_buildings`,
+    )
+  }
 
   await getPool().query(`
     CREATE TABLE IF NOT EXISTS rent_payments (
       id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-      building_id INT UNSIGNED NOT NULL,
+      vehicle_id INT UNSIGNED NOT NULL,
       payment_date DATE NOT NULL,
       for_month DATE NOT NULL,
       amount DECIMAL(14, 2) NOT NULL,
       note VARCHAR(255) NULL,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       PRIMARY KEY (id),
-      KEY idx_rent_payments_building (building_id),
+      KEY idx_rent_payments_vehicle (vehicle_id),
       KEY idx_rent_payments_month (for_month),
-      CONSTRAINT fk_rent_payments_building
-        FOREIGN KEY (building_id) REFERENCES rent_buildings (id)
+      CONSTRAINT fk_rent_payments_vehicle
+        FOREIGN KEY (vehicle_id) REFERENCES rent_vehicles (id)
         ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `)
+
+  // Migrate legacy rent_payments.building_id → vehicle_id
+  const [buildingIdCols] = await getPool().query(
+    `SELECT COLUMN_NAME
+     FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'rent_payments'
+       AND COLUMN_NAME = 'building_id'`,
+  )
+  const [vehicleIdCols] = await getPool().query(
+    `SELECT COLUMN_NAME
+     FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'rent_payments'
+       AND COLUMN_NAME = 'vehicle_id'`,
+  )
+  if (buildingIdCols.length && !vehicleIdCols.length) {
+    const [fkRows] = await getPool().query(
+      `SELECT CONSTRAINT_NAME
+       FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS
+       WHERE TABLE_SCHEMA = DATABASE()
+         AND TABLE_NAME = 'rent_payments'
+         AND CONSTRAINT_TYPE = 'FOREIGN KEY'
+         AND CONSTRAINT_NAME = 'fk_rent_payments_building'`,
+    )
+    if (fkRows.length) {
+      await getPool().query(
+        `ALTER TABLE rent_payments DROP FOREIGN KEY fk_rent_payments_building`,
+      )
+    }
+    await getPool().query(
+      `ALTER TABLE rent_payments
+       CHANGE COLUMN building_id vehicle_id INT UNSIGNED NOT NULL`,
+    )
+    await getPool().query(
+      `ALTER TABLE rent_payments
+       ADD CONSTRAINT fk_rent_payments_vehicle
+         FOREIGN KEY (vehicle_id) REFERENCES rent_vehicles (id)
+         ON DELETE CASCADE`,
+    )
+  }
+
+  if (legacyBuildings.length) {
+    await getPool().query(`DROP TABLE IF EXISTS rent_buildings`)
+  }
 
   await getPool().query(`
     CREATE TABLE IF NOT EXISTS workers (

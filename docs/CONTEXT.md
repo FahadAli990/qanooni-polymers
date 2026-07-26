@@ -1,6 +1,6 @@
 # CONTEXT — Qanooni Polymers System Truth
 
-Last updated: 2026-07-27 (Maintenance, Rents, Workers & Salary)
+Last updated: 2026-07-27 (Rents = vehicles)
 
 ## Purpose
 
@@ -56,11 +56,12 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
 
 ## Rents
 
-- Tables: `rent_buildings` (`name`, `monthly_rent`, `note`), `rent_payments` (`building_id`, `payment_date`, `for_month`, `amount`, `note`)
-- Per building + month: due = monthly rent; paid = sum payments; Unpaid/Partial/Paid + advance
-- UI: buildings CRUD → select building + month → payments CRUD
-- Delete building blocked if payments exist
+- Tables: `rent_vehicles` (`name`, `monthly_rent`, `note`), `rent_payments` (`vehicle_id`, `payment_date`, `for_month`, `amount`, `note`)
+- Per vehicle + month: due = monthly rent; paid = sum payments; Unpaid/Partial/Paid + advance
+- UI: vehicles CRUD → select vehicle + month → payments CRUD
+- Delete vehicle blocked if payments exist
 - APIs: `GET|POST /api/rents`, `PUT|DELETE /api/rents/:id`, `GET /api/rents/:id/ledger?month=YYYY-MM`, payments nested
+- Legacy `rent_buildings` / `building_id` auto-migrated to vehicles on server start
 
 ## Workers & Salary
 

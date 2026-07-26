@@ -1,8 +1,8 @@
 import { GiBrickWall, GiPipes } from 'react-icons/gi'
 import {
   MdAccountBalanceWallet,
-  MdApartment,
   MdBuild,
+  MdDirectionsCar,
   MdDonutLarge,
   MdFactory,
   MdGrain,
@@ -101,7 +101,7 @@ export function buildNavItems(materials = []) {
     {
       id: 'rents',
       label: 'Rents',
-      Icon: MdApartment,
+      Icon: MdDirectionsCar,
       path: '/rents',
     },
     {

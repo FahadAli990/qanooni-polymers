@@ -1,50 +1,50 @@
 import {
-  createBuilding,
+  createVehicle,
   createRentPayment,
-  getBuildingLedger,
-  listBuildings,
-  removeBuilding,
+  getVehicleLedger,
+  listVehicles,
+  removeVehicle,
   removeRentPayment,
-  updateBuilding,
+  updateVehicle,
   updateRentPayment,
 } from '../services/rentService.js'
 import { ok } from '../utils/apiResponse.js'
 
-export async function listBuildingsController(_req, res, next) {
+export async function listVehiclesController(_req, res, next) {
   try {
-    return ok(res, await listBuildings())
+    return ok(res, await listVehicles())
   } catch (err) {
     return next(err)
   }
 }
 
-export async function createBuildingController(req, res, next) {
+export async function createVehicleController(req, res, next) {
   try {
-    return ok(res, await createBuilding(req.body), 201)
+    return ok(res, await createVehicle(req.body), 201)
   } catch (err) {
     return next(err)
   }
 }
 
-export async function updateBuildingController(req, res, next) {
+export async function updateVehicleController(req, res, next) {
   try {
-    return ok(res, await updateBuilding(req.params.id, req.body))
+    return ok(res, await updateVehicle(req.params.id, req.body))
   } catch (err) {
     return next(err)
   }
 }
 
-export async function deleteBuildingController(req, res, next) {
+export async function deleteVehicleController(req, res, next) {
   try {
-    return ok(res, await removeBuilding(req.params.id))
+    return ok(res, await removeVehicle(req.params.id))
   } catch (err) {
     return next(err)
   }
 }
 
-export async function getBuildingLedgerController(req, res, next) {
+export async function getVehicleLedgerController(req, res, next) {
   try {
-    return ok(res, await getBuildingLedger(req.params.id, req.query))
+    return ok(res, await getVehicleLedger(req.params.id, req.query))
   } catch (err) {
     return next(err)
   }
