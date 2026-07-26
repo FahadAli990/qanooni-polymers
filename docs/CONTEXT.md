@@ -162,7 +162,7 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
 `MYSQL_DATABASE=Qanooni_db`  
 Also supports `MYSQL_URL` / `DATABASE_URL` and Railway `MYSQLHOST` / `MYSQLUSER` / etc.  
 `CLIENT_ORIGIN` — comma-separated allowed browser origins (`*` allowed)  
-Client: `VITE_API_URL` (prod API base, e.g. `https://api…/api`)
+Client: `VITE_API_URL` (prod API base, e.g. `https://api…/api`) — set in `client/.env.production` for Vercel builds
 
 ## Deploy (live)
 
