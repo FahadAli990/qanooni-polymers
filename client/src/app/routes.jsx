@@ -15,6 +15,7 @@ import SuppliersPage from '../features/SuppliersPage'
 import DailyExpensePage from '../features/DailyExpensePage'
 import MaintenancePage from '../features/MaintenancePage'
 import RentsPage from '../features/RentsPage'
+import UtilityBillsPage from '../features/UtilityBillsPage'
 import WorkersPage from '../features/WorkersPage'
 
 function RedirectLegacyRouteDetail() {
@@ -46,6 +47,7 @@ function AppRoutes() {
         <Route path="daily-expense" element={<DailyExpensePage />} />
         <Route path="maintenance" element={<MaintenancePage />} />
         <Route path="rents" element={<RentsPage />} />
+        <Route path="utility-bills" element={<UtilityBillsPage />} />
         <Route path="workers" element={<WorkersPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

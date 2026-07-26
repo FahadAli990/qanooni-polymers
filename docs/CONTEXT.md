@@ -1,6 +1,6 @@
 # CONTEXT — Qanooni Polymers System Truth
 
-Last updated: 2026-07-27 (Vehicle Fare daily)
+Last updated: 2026-07-27 (Utility Bills / Gas)
 
 ## Purpose
 
@@ -45,6 +45,7 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
 - Top-level **Daily Expense** (below Suppliers) — `/daily-expense`
 - Top-level **Maintenance** — `/maintenance`
 - Top-level **Vehicle Fare** — `/rents`
+- Top-level **Utility Bills** — `/utility-bills` (above Workers)
 - Top-level **Workers & Salary** — `/workers`
 
 ## Maintenance
@@ -64,6 +65,25 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
 - Delete vehicle blocked if payments exist
 - APIs: `GET|POST /api/rents`, `PUT|DELETE /api/rents/:id`, `GET /api/rents/:id/ledger?date=YYYY-MM-DD`, payments nested
 - Legacy: `monthly_rent`→`daily_fare`, `for_month`→`for_date`, `rent_buildings`/`building_id` auto-migrated on server start
+
+## Utility Bills
+
+- Sidebar: **Utility Bills** (`/utility-bills`) — above Workers
+- Tabs:
+  1. **Gas cylinders** — gas suppliers + daily cylinder purchases + partial payments
+  2. **Other utility bills** — electricity / water / internet / other (day list + totals)
+- Tables:
+  - `gas_suppliers` (`name`, `contact` 11 digits, `note`)
+  - `gas_purchases` (`supplier_id`, `purchase_date`, `cylinder_kg`, `cylinders_count`, `price_per_cylinder`, `total_amount`, `note`)
+  - `gas_payments` (`supplier_id`, `payment_date`, `amount`, `note`)
+  - `utility_bills` (`bill_date`, `category`, `title`, `amount`, `note`)
+- Gas ledger: purchases FIFO → Unpaid/Partial/Paid; summary purchased/paid/remaining/advance + total cylinders/kg
+- Purchase total = `cylinders_count * price_per_cylinder`
+- APIs (`/api/utility`, auth required):
+  - `GET|POST /api/utility/suppliers`, `PUT|DELETE /api/utility/suppliers/:id`
+  - `GET /api/utility/suppliers/:id/ledger`
+  - `POST|PUT|DELETE .../purchases` and `.../payments`
+  - `GET|POST /api/utility/bills`, `PUT|DELETE /api/utility/bills/:id`
 
 ## Workers & Salary
 

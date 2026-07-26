@@ -11,6 +11,7 @@ import expenseRoutes from './expenseRoutes.js'
 import maintenanceRoutes from './maintenanceRoutes.js'
 import rentRoutes from './rentRoutes.js'
 import workerRoutes from './workerRoutes.js'
+import gasRoutes from './gasRoutes.js'
 
 const router = Router()
 
@@ -25,6 +26,7 @@ router.use('/suppliers', supplierRoutes)
 router.use('/expenses', expenseRoutes)
 router.use('/maintenance', maintenanceRoutes)
 router.use('/rents', rentRoutes)
+router.use('/utility', gasRoutes)
 router.use('/workers', workerRoutes)
 
 export default router

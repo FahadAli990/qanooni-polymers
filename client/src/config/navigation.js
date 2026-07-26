@@ -13,6 +13,7 @@ import {
   MdRoofing,
   MdRoute,
   MdSpaceDashboard,
+  MdWaterDrop,
 } from 'react-icons/md'
 
 export function buildNavItems(materials = []) {
@@ -105,6 +106,12 @@ export function buildNavItems(materials = []) {
       path: '/rents',
     },
     {
+      id: 'utility-bills',
+      label: 'Utility Bills',
+      Icon: MdWaterDrop,
+      path: '/utility-bills',
+    },
+    {
       id: 'workers',
       label: 'Workers & Salary',
       Icon: MdGroups,
@@ -182,6 +189,13 @@ function parseRentsPath(pathname) {
   return null
 }
 
+function parseUtilityBillsPath(pathname) {
+  if (pathname === '/utility-bills' || pathname.startsWith('/utility-bills/')) {
+    return { section: 'utility-bills', ancestors: [] }
+  }
+  return null
+}
+
 function parseWorkersPath(pathname) {
   if (pathname === '/workers' || pathname.startsWith('/workers/')) {
     return { section: 'workers', ancestors: [] }
@@ -202,6 +216,7 @@ function findNavItemById(items, id) {
 
 const TOP_LEVEL_PARSERS = [
   parseWorkersPath,
+  parseUtilityBillsPath,
   parseRentsPath,
   parseMaintenancePath,
   parseDailyExpensePath,

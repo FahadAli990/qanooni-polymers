@@ -692,6 +692,70 @@ export async function ensureSchema() {
         ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `)
+
+  await getPool().query(`
+    CREATE TABLE IF NOT EXISTS gas_suppliers (
+      id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+      name VARCHAR(160) NOT NULL,
+      contact VARCHAR(20) NOT NULL,
+      note VARCHAR(255) NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      UNIQUE KEY uq_gas_suppliers_name (name)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `)
+
+  await getPool().query(`
+    CREATE TABLE IF NOT EXISTS gas_purchases (
+      id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+      supplier_id INT UNSIGNED NOT NULL,
+      purchase_date DATE NOT NULL,
+      cylinder_kg DECIMAL(10, 2) NOT NULL,
+      cylinders_count INT UNSIGNED NOT NULL,
+      price_per_cylinder DECIMAL(14, 2) NOT NULL,
+      total_amount DECIMAL(14, 2) NOT NULL,
+      note VARCHAR(255) NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_gas_purchases_supplier (supplier_id),
+      KEY idx_gas_purchases_date (purchase_date),
+      CONSTRAINT fk_gas_purchases_supplier
+        FOREIGN KEY (supplier_id) REFERENCES gas_suppliers (id)
+        ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `)
+
+  await getPool().query(`
+    CREATE TABLE IF NOT EXISTS gas_payments (
+      id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+      supplier_id INT UNSIGNED NOT NULL,
+      payment_date DATE NOT NULL,
+      amount DECIMAL(14, 2) NOT NULL,
+      note VARCHAR(255) NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_gas_payments_supplier (supplier_id),
+      KEY idx_gas_payments_date (payment_date),
+      CONSTRAINT fk_gas_payments_supplier
+        FOREIGN KEY (supplier_id) REFERENCES gas_suppliers (id)
+        ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `)
+
+  await getPool().query(`
+    CREATE TABLE IF NOT EXISTS utility_bills (
+      id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+      bill_date DATE NOT NULL,
+      category VARCHAR(80) NOT NULL,
+      title VARCHAR(160) NOT NULL,
+      amount DECIMAL(14, 2) NOT NULL,
+      note VARCHAR(255) NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_utility_bills_date (bill_date),
+      KEY idx_utility_bills_category (category)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `)
 }
 
 export async function pingDatabase() {
