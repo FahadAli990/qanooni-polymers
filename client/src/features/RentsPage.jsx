@@ -252,7 +252,7 @@ function RentsPage() {
       return
     }
     if (!tripForm.destination.trim()) {
-      showToast('Destination / place is required', 'error')
+      showToast('Destination is required', 'error')
       return
     }
     if (!Number.isFinite(fareAmount) || fareAmount <= 0) {
