@@ -1,5 +1,6 @@
 import { GiBrickWall, GiPipes } from 'react-icons/gi'
 import {
+  MdAccountBalanceWallet,
   MdDonutLarge,
   MdFactory,
   MdGrain,
@@ -82,6 +83,12 @@ export function buildNavItems(materials = []) {
       Icon: MdLocalShipping,
       path: '/suppliers',
     },
+    {
+      id: 'daily-expense',
+      label: 'Daily Expense',
+      Icon: MdAccountBalanceWallet,
+      path: '/daily-expense',
+    },
   ]
 }
 
@@ -133,6 +140,13 @@ function parseSuppliersPath(pathname) {
   return null
 }
 
+function parseDailyExpensePath(pathname) {
+  if (pathname === '/daily-expense' || pathname.startsWith('/daily-expense/')) {
+    return { section: 'daily-expense', ancestors: [] }
+  }
+  return null
+}
+
 function findNavItemById(items, id) {
   for (const item of items) {
     if (item.id === id) return item
@@ -145,6 +159,9 @@ function findNavItemById(items, id) {
 }
 
 export function getActiveNavId(pathname, materials = []) {
+  const expenseNav = parseDailyExpensePath(pathname)
+  if (expenseNav) return expenseNav.section
+
   const suppliersNav = parseSuppliersPath(pathname)
   if (suppliersNav) return suppliersNav.section
 
@@ -167,6 +184,11 @@ export function getActiveNavId(pathname, materials = []) {
 }
 
 export function getNavItemByPath(pathname, materials = []) {
+  const expenseNav = parseDailyExpensePath(pathname)
+  if (expenseNav) {
+    return buildNavItems(materials).find((item) => item.id === 'daily-expense')
+  }
+
   const suppliersNav = parseSuppliersPath(pathname)
   if (suppliersNav) {
     return buildNavItems(materials).find((item) => item.id === 'suppliers')
@@ -205,6 +227,9 @@ export function getNavItemByPath(pathname, materials = []) {
 }
 
 export function getAncestorIdsForPath(pathname, materials = []) {
+  const expenseNav = parseDailyExpensePath(pathname)
+  if (expenseNav) return []
+
   const suppliersNav = parseSuppliersPath(pathname)
   if (suppliersNav) return []
 

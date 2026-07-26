@@ -1,6 +1,6 @@
 # CONTEXT — Qanooni Polymers System Truth
 
-Last updated: 2026-07-27 (Suppliers + ledger PDF)
+Last updated: 2026-07-27 (Daily Expense)
 
 ## Purpose
 
@@ -42,6 +42,19 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
 - Top-level **Orders** (below Routes) — `/orders`
 - Top-level **Bills & Payments** (below Orders) — `/bills-payments` (customer / shop ledger + Print PDF)
 - Top-level **Suppliers** (below Bills & Payments) — `/suppliers`
+- Top-level **Daily Expense** (below Suppliers) — `/daily-expense`
+
+## Daily Expense
+
+- Table: `daily_expenses` (`id`, `expense_date`, `title`, `amount`, `note`, `created_at`)
+- Use: tea, biscuits, food, and other daily factory expenses
+- UI: date picker → day list + **Selected day total** + **All-time total** + Add/Edit/Delete
+- Fields: Date, Expense title, Amount (Rs), Note (optional)
+- APIs (auth required):
+  - `GET /api/expenses?date=YYYY-MM-DD` → `{ date, items, totals: { dayTotal, total } }`
+  - `POST /api/expenses` `{ date, title, amount, note? }`
+  - `PUT /api/expenses/:id`
+  - `DELETE /api/expenses/:id?date=`
 
 ## Suppliers
 

@@ -439,6 +439,20 @@ export async function ensureSchema() {
          ON DELETE SET NULL`,
     )
   }
+
+  await getPool().query(`
+    CREATE TABLE IF NOT EXISTS daily_expenses (
+      id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+      expense_date DATE NOT NULL,
+      title VARCHAR(160) NOT NULL,
+      amount DECIMAL(14, 2) NOT NULL,
+      note VARCHAR(255) NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_daily_expenses_date (expense_date),
+      KEY idx_daily_expenses_created (created_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `)
 }
 
 export async function pingDatabase() {
