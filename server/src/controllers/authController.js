@@ -1,7 +1,7 @@
 import { login } from '../services/authService.js'
 import { ok } from '../utils/apiResponse.js'
 
-export function loginController(req, res, next) {
+export async function loginController(req, res, next) {
   try {
     const username = String(req.body?.username || '').trim()
     const password = String(req.body?.password || '')
@@ -12,7 +12,7 @@ export function loginController(req, res, next) {
       throw error
     }
 
-    return ok(res, login({ username, password }))
+    return ok(res, await login({ username, password }))
   } catch (err) {
     return next(err)
   }

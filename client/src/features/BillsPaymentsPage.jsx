@@ -3,6 +3,7 @@ import api, { getErrorMessage } from '../api/client'
 import { useConfirm } from '../context/ConfirmContext'
 import { useRoutes } from '../context/RouteContext'
 import { useToast } from '../context/ToastContext'
+import { usePermissions } from '../hooks/usePermissions'
 import { formatDateDisplay, formatNum, todayIso } from '../utils/format'
 import { downloadCustomerLedgerPdf } from '../utils/ledgerPdf'
 
@@ -20,6 +21,7 @@ function BillsPaymentsPage() {
   const { items: routes, refresh: refreshRoutes, loading: routesLoading } = useRoutes()
   const { confirm } = useConfirm()
   const { showToast } = useToast()
+  const { canEdit, canDelete } = usePermissions()
 
   const [routeSlug, setRouteSlug] = useState('')
   const [customerId, setCustomerId] = useState('')
@@ -150,6 +152,10 @@ function BillsPaymentsPage() {
     }
     if (!Number.isFinite(amount) || amount <= 0) {
       showToast('Amount must be a positive number', 'error')
+      return
+    }
+    if (editingPaymentId && !canEdit) {
+      showToast('Managers cannot edit records', 'error')
       return
     }
 
@@ -454,20 +460,24 @@ function BillsPaymentsPage() {
                         <td>{formatMoney(payment.amount)}</td>
                         <td className="stock-table__wrap">{payment.note || '—'}</td>
                         <td className="stock-table__actions">
-                          <button
-                            type="button"
-                            className="btn-secondary btn-compact"
-                            onClick={() => openEditPayment(payment)}
-                          >
-                            Edit
-                          </button>
-                          <button
-                            type="button"
-                            className="btn-danger btn-compact"
-                            onClick={() => handleDeletePayment(payment)}
-                          >
-                            Delete
-                          </button>
+                          {canEdit && (
+                            <button
+                              type="button"
+                              className="btn-secondary btn-compact"
+                              onClick={() => openEditPayment(payment)}
+                            >
+                              Edit
+                            </button>
+                          )}
+                          {canDelete && (
+                            <button
+                              type="button"
+                              className="btn-danger btn-compact"
+                              onClick={() => handleDeletePayment(payment)}
+                            >
+                              Delete
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))

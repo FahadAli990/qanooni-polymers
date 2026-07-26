@@ -6,6 +6,7 @@ import { logger } from './utils/logger.js'
 import apiRoutes from './routes/index.js'
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js'
 import { syncRawMaterialSwatches } from './services/rawMaterialService.js'
+import { ensureAdminUser } from './services/authService.js'
 
 const app = express()
 
@@ -29,6 +30,7 @@ async function start() {
   try {
     await ensureDatabase()
     await ensureSchema()
+    await ensureAdminUser()
   } catch (err) {
     logger.error('MySQL is required but not reachable', {
       host: env.mysql.host,

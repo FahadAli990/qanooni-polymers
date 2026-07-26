@@ -1,4 +1,4 @@
-import { Router } from 'express'
+﻿import { Router } from 'express'
 import {
   createMillRouteController,
   deleteMillRouteController,
@@ -12,11 +12,12 @@ import {
   listRouteCustomersController,
   updateRouteCustomerController,
 } from '../controllers/routeCustomerController.js'
-import { requireAuth } from '../middleware/auth.js'
+import { requireAuth, enforceRolePermissions } from '../middleware/auth.js'
 
 const router = Router()
 
 router.use(requireAuth)
+router.use(enforceRolePermissions)
 router.get('/', listMillRoutesController)
 router.post('/', createMillRouteController)
 

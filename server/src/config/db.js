@@ -756,6 +756,20 @@ export async function ensureSchema() {
       KEY idx_utility_bills_category (category)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `)
+
+  await getPool().query(`
+    CREATE TABLE IF NOT EXISTS app_users (
+      id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+      username VARCHAR(80) NOT NULL,
+      password_hash VARCHAR(255) NOT NULL,
+      role ENUM('admin', 'manager') NOT NULL,
+      active TINYINT(1) NOT NULL DEFAULT 1,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      UNIQUE KEY uq_app_users_username (username),
+      KEY idx_app_users_role (role)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `)
 }
 
 export async function pingDatabase() {

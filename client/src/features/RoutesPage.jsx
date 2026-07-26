@@ -4,6 +4,7 @@ import { useConfirm } from '../context/ConfirmContext'
 import { useRoutes } from '../context/RouteContext'
 import { useToast } from '../context/ToastContext'
 import { getErrorMessage } from '../api/client'
+import { usePermissions } from '../hooks/usePermissions'
 import { getRouteVisual } from '../utils/routeVisual'
 
 function RoutesPage() {
@@ -11,6 +12,7 @@ function RoutesPage() {
   const { items, loading, refresh, create, update, remove } = useRoutes()
   const { confirm } = useConfirm()
   const { showToast } = useToast()
+  const { canEdit, canDelete } = usePermissions()
   const [mode, setMode] = useState(null)
   const [editingSlug, setEditingSlug] = useState(null)
   const [name, setName] = useState('')
@@ -40,6 +42,10 @@ function RoutesPage() {
 
   async function handleSubmit(e) {
     e.preventDefault()
+    if (mode === 'edit' && !canEdit) {
+      showToast('Managers cannot edit records', 'error')
+      return
+    }
     setSaving(true)
     try {
       if (mode === 'edit' && editingSlug) {
@@ -147,12 +153,16 @@ function RoutesPage() {
                   <strong>{item.name}</strong>
                 </Link>
                 <div className="material-card__actions">
-                  <button type="button" className="btn-secondary btn-compact" onClick={() => openEdit(item)}>
-                    Edit
-                  </button>
-                  <button type="button" className="btn-danger btn-compact" onClick={() => handleDelete(item)}>
-                    Delete
-                  </button>
+                  {canEdit && (
+                    <button type="button" className="btn-secondary btn-compact" onClick={() => openEdit(item)}>
+                      Edit
+                    </button>
+                  )}
+                  {canDelete && (
+                    <button type="button" className="btn-danger btn-compact" onClick={() => handleDelete(item)}>
+                      Delete
+                    </button>
+                  )}
                 </div>
               </div>
             )

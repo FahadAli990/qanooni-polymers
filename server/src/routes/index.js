@@ -12,11 +12,13 @@ import maintenanceRoutes from './maintenanceRoutes.js'
 import rentRoutes from './rentRoutes.js'
 import workerRoutes from './workerRoutes.js'
 import gasRoutes from './gasRoutes.js'
+import managerRoutes from './managerRoutes.js'
 
 const router = Router()
 
 router.get('/health', healthController)
 router.use('/auth', authRoutes)
+router.use('/managers', managerRoutes)
 router.use('/raw-materials', rawMaterialRoutes)
 router.use('/productions', productionRoutes)
 router.use('/routes', millRouteRoutes)

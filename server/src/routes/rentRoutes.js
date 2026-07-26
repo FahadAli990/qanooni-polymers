@@ -1,4 +1,4 @@
-import { Router } from 'express'
+﻿import { Router } from 'express'
 import {
   createVehicleController,
   createRentPaymentController,
@@ -9,11 +9,12 @@ import {
   updateVehicleController,
   updateRentPaymentController,
 } from '../controllers/rentController.js'
-import { requireAuth } from '../middleware/auth.js'
+import { requireAuth, enforceRolePermissions } from '../middleware/auth.js'
 
 const router = Router()
 
 router.use(requireAuth)
+router.use(enforceRolePermissions)
 router.get('/', listVehiclesController)
 router.post('/', createVehicleController)
 router.get('/:id/ledger', getVehicleLedgerController)

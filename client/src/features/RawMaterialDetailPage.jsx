@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import api, { getErrorMessage } from '../api/client'
 import { useConfirm } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
+import { usePermissions } from '../hooks/usePermissions'
 import { formatDateDisplay, formatNum, todayIso } from '../utils/format'
 
 const KG_PER_BAG = 40
@@ -15,6 +16,7 @@ function RawMaterialDetailPage() {
   const { slug } = useParams()
   const { confirm } = useConfirm()
   const { showToast } = useToast()
+  const { canEdit, canDelete } = usePermissions()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [showForm, setShowForm] = useState(false)
@@ -140,6 +142,10 @@ function RawMaterialDetailPage() {
     const price = Number(pricePerKg)
     if (!Number.isFinite(price) || price <= 0) {
       showToast('Purchase price per kg is required', 'error')
+      return
+    }
+    if (editingId && !canEdit) {
+      showToast('Managers cannot edit records', 'error')
       return
     }
 
@@ -374,20 +380,24 @@ function RawMaterialDetailPage() {
                   <td>{formatMoney(item.pricePerKg || 0)}</td>
                   <td>{formatMoney(item.totalAmount || 0)}</td>
                   <td className="stock-table__actions">
-                    <button
-                      type="button"
-                      className="btn-secondary btn-compact"
-                      onClick={() => openEdit(item)}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      className="btn-danger btn-compact"
-                      onClick={() => handleDelete(item)}
-                    >
-                      Delete
-                    </button>
+                    {canEdit && (
+                      <button
+                        type="button"
+                        className="btn-secondary btn-compact"
+                        onClick={() => openEdit(item)}
+                      >
+                        Edit
+                      </button>
+                    )}
+                    {canDelete && (
+                      <button
+                        type="button"
+                        className="btn-danger btn-compact"
+                        onClick={() => handleDelete(item)}
+                      >
+                        Delete
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))

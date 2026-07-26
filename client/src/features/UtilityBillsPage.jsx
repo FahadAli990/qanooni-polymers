@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import api, { getErrorMessage } from '../api/client'
 import { useConfirm } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
+import { usePermissions } from '../hooks/usePermissions'
 import { formatDateDisplay, formatNum, todayIso } from '../utils/format'
 
 const CONTACT_RE = /^\d{11}$/
@@ -45,6 +46,7 @@ function emptyBillForm() {
 function UtilityBillsPage() {
   const { confirm } = useConfirm()
   const { showToast } = useToast()
+  const { canEdit, canDelete } = usePermissions()
 
   const [tab, setTab] = useState('gas')
 
@@ -223,6 +225,10 @@ function UtilityBillsPage() {
       showToast('Contact must be exactly 11 digits', 'error')
       return
     }
+    if (editingSupplierId && !canEdit) {
+      showToast('Managers cannot edit records', 'error')
+      return
+    }
     setSavingSupplier(true)
     try {
       const body = { name, contact, note: supplierForm.note.trim() }
@@ -316,6 +322,10 @@ function UtilityBillsPage() {
       showToast('Price per cylinder must be a positive number', 'error')
       return
     }
+    if (editingPurchaseId && !canEdit) {
+      showToast('Managers cannot edit records', 'error')
+      return
+    }
     setSavingPurchase(true)
     try {
       const body = {
@@ -399,6 +409,10 @@ function UtilityBillsPage() {
     }
     if (!Number.isFinite(amount) || amount <= 0) {
       showToast('Amount must be a positive number', 'error')
+      return
+    }
+    if (editingPaymentId && !canEdit) {
+      showToast('Managers cannot edit records', 'error')
       return
     }
     setSavingPayment(true)
@@ -485,6 +499,10 @@ function UtilityBillsPage() {
     }
     if (!Number.isFinite(amount) || amount <= 0) {
       showToast('Amount must be a positive number', 'error')
+      return
+    }
+    if (editingBillId && !canEdit) {
+      showToast('Managers cannot edit records', 'error')
       return
     }
     setSavingBill(true)
@@ -691,23 +709,27 @@ function UtilityBillsPage() {
                       <td>{row.contact}</td>
                       <td className="stock-table__wrap">{row.note || '—'}</td>
                       <td className="stock-table__actions">
-                        <button
-                          type="button"
-                          className="btn-secondary btn-compact"
-                          onClick={() => {
-                            setSupplierId(String(row.id))
-                            openEditSupplier(row)
-                          }}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          className="btn-danger btn-compact"
-                          onClick={() => handleDeleteSupplier(row)}
-                        >
-                          Delete
-                        </button>
+                        {canEdit && (
+                          <button
+                            type="button"
+                            className="btn-secondary btn-compact"
+                            onClick={() => {
+                              setSupplierId(String(row.id))
+                              openEditSupplier(row)
+                            }}
+                          >
+                            Edit
+                          </button>
+                        )}
+                        {canDelete && (
+                          <button
+                            type="button"
+                            className="btn-danger btn-compact"
+                            onClick={() => handleDeleteSupplier(row)}
+                          >
+                            Delete
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))
@@ -903,20 +925,24 @@ function UtilityBillsPage() {
                             </td>
                             <td className="stock-table__wrap">{row.note || '—'}</td>
                             <td className="stock-table__actions">
-                              <button
-                                type="button"
-                                className="btn-secondary btn-compact"
-                                onClick={() => openEditPurchase(row)}
-                              >
-                                Edit
-                              </button>
-                              <button
-                                type="button"
-                                className="btn-danger btn-compact"
-                                onClick={() => handleDeletePurchase(row)}
-                              >
-                                Delete
-                              </button>
+                              {canEdit && (
+                                <button
+                                  type="button"
+                                  className="btn-secondary btn-compact"
+                                  onClick={() => openEditPurchase(row)}
+                                >
+                                  Edit
+                                </button>
+                              )}
+                              {canDelete && (
+                                <button
+                                  type="button"
+                                  className="btn-danger btn-compact"
+                                  onClick={() => handleDeletePurchase(row)}
+                                >
+                                  Delete
+                                </button>
+                              )}
                             </td>
                           </tr>
                         ))
@@ -1020,20 +1046,24 @@ function UtilityBillsPage() {
                             <td>{formatMoney(row.amount)}</td>
                             <td className="stock-table__wrap">{row.note || '—'}</td>
                             <td className="stock-table__actions">
-                              <button
-                                type="button"
-                                className="btn-secondary btn-compact"
-                                onClick={() => openEditPayment(row)}
-                              >
-                                Edit
-                              </button>
-                              <button
-                                type="button"
-                                className="btn-danger btn-compact"
-                                onClick={() => handleDeletePayment(row)}
-                              >
-                                Delete
-                              </button>
+                              {canEdit && (
+                                <button
+                                  type="button"
+                                  className="btn-secondary btn-compact"
+                                  onClick={() => openEditPayment(row)}
+                                >
+                                  Edit
+                                </button>
+                              )}
+                              {canDelete && (
+                                <button
+                                  type="button"
+                                  className="btn-danger btn-compact"
+                                  onClick={() => handleDeletePayment(row)}
+                                >
+                                  Delete
+                                </button>
+                              )}
                             </td>
                           </tr>
                         ))
@@ -1197,20 +1227,24 @@ function UtilityBillsPage() {
                       <td>{formatMoney(row.amount)}</td>
                       <td className="stock-table__wrap">{row.note || '—'}</td>
                       <td className="stock-table__actions">
-                        <button
-                          type="button"
-                          className="btn-secondary btn-compact"
-                          onClick={() => openEditBill(row)}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          className="btn-danger btn-compact"
-                          onClick={() => handleDeleteBill(row)}
-                        >
-                          Delete
-                        </button>
+                        {canEdit && (
+                          <button
+                            type="button"
+                            className="btn-secondary btn-compact"
+                            onClick={() => openEditBill(row)}
+                          >
+                            Edit
+                          </button>
+                        )}
+                        {canDelete && (
+                          <button
+                            type="button"
+                            className="btn-danger btn-compact"
+                            onClick={() => handleDeleteBill(row)}
+                          >
+                            Delete
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))

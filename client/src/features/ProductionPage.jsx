@@ -3,6 +3,7 @@ import api, { getErrorMessage } from '../api/client'
 import { useConfirm } from '../context/ConfirmContext'
 import { useRawMaterials } from '../context/RawMaterialContext'
 import { useToast } from '../context/ToastContext'
+import { usePermissions } from '../hooks/usePermissions'
 import ColorSelect from '../ui/ColorSelect'
 import { formatDateDisplay, formatNum, todayIso } from '../utils/format'
 
@@ -37,6 +38,7 @@ function ProductionPage({ kind }) {
   const { items: materials, refresh: refreshMaterials } = useRawMaterials()
   const { confirm } = useConfirm()
   const { showToast } = useToast()
+  const { canEdit, canDelete } = usePermissions()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [showForm, setShowForm] = useState(false)
@@ -119,6 +121,10 @@ function ProductionPage({ kind }) {
 
   async function handleSubmit(e) {
     e.preventDefault()
+    if (editingId && !canEdit) {
+      showToast('Managers cannot edit records', 'error')
+      return
+    }
     setSaving(true)
     try {
       const body = {
@@ -314,20 +320,24 @@ function ProductionPage({ kind }) {
                         ) : null}
                       </td>
                       <td className="stock-table__actions">
-                        <button
-                          type="button"
-                          className="btn-secondary btn-compact"
-                          onClick={() => openEdit(item)}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          className="btn-danger btn-compact"
-                          onClick={() => handleDelete(item)}
-                        >
-                          Delete
-                        </button>
+                        {canEdit && (
+                          <button
+                            type="button"
+                            className="btn-secondary btn-compact"
+                            onClick={() => openEdit(item)}
+                          >
+                            Edit
+                          </button>
+                        )}
+                        {canDelete && (
+                          <button
+                            type="button"
+                            className="btn-danger btn-compact"
+                            onClick={() => handleDelete(item)}
+                          >
+                            Delete
+                          </button>
+                        )}
                       </td>
                     </tr>
                   )

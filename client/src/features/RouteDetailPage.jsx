@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import api, { getErrorMessage } from '../api/client'
 import { useConfirm } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
+import { usePermissions } from '../hooks/usePermissions'
 
 const CONTACT_RE = /^\d{11}$/
 
@@ -19,6 +20,7 @@ function RouteDetailPage() {
   const { slug } = useParams()
   const { confirm } = useConfirm()
   const { showToast } = useToast()
+  const { canEdit, canDelete } = usePermissions()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [showForm, setShowForm] = useState(false)
@@ -102,6 +104,10 @@ function RouteDetailPage() {
     const clientError = validateClient()
     if (clientError) {
       showToast(clientError, 'error')
+      return
+    }
+    if (editingId && !canEdit) {
+      showToast('Managers cannot edit records', 'error')
       return
     }
 
@@ -274,20 +280,24 @@ function RouteDetailPage() {
                   <td>{item.ownerName}</td>
                   <td>{item.contactNumber}</td>
                   <td className="stock-table__actions">
-                    <button
-                      type="button"
-                      className="btn-secondary btn-compact"
-                      onClick={() => openEdit(item)}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      className="btn-danger btn-compact"
-                      onClick={() => handleDelete(item)}
-                    >
-                      Delete
-                    </button>
+                    {canEdit && (
+                      <button
+                        type="button"
+                        className="btn-secondary btn-compact"
+                        onClick={() => openEdit(item)}
+                      >
+                        Edit
+                      </button>
+                    )}
+                    {canDelete && (
+                      <button
+                        type="button"
+                        className="btn-danger btn-compact"
+                        onClick={() => handleDelete(item)}
+                      >
+                        Delete
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))

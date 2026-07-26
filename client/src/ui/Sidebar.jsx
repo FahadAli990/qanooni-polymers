@@ -15,12 +15,15 @@ import './Sidebar.css'
 function Sidebar() {
   const navigate = useNavigate()
   const { pathname } = useLocation()
-  const { logout } = useAuth()
+  const { logout, user, isAdmin } = useAuth()
   const { items: materials } = useRawMaterials()
   const [isOpen, setIsOpen] = useState(true)
   const [expandedIds, setExpandedIds] = useState(() => new Set())
 
-  const navItems = useMemo(() => buildNavItems(materials), [materials])
+  const navItems = useMemo(() => {
+    const items = buildNavItems(materials)
+    return items.filter((item) => !item.adminOnly || isAdmin)
+  }, [materials, isAdmin])
   const activeId = getActiveNavId(pathname, materials)
   const activeItem = getNavItemByPath(pathname, materials)
   const routeExpanded = getAncestorIdsForPath(pathname, materials)
@@ -179,6 +182,11 @@ function Sidebar() {
           </nav>
           {isOpen && (
             <footer className="sidebar__foot">
+              {user ? (
+                <p className="help-muted" style={{ margin: '0 0 0.5rem', fontSize: '0.8rem' }}>
+                  {user.username} · {user.role === 'manager' ? 'Manager' : 'Admin'}
+                </p>
+              ) : null}
               <button type="button" className="sidebar__logout" onClick={logout}>
                 Sign out
               </button>

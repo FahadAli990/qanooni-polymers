@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import api, { getErrorMessage } from '../api/client'
 import { useConfirm } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
+import { usePermissions } from '../hooks/usePermissions'
 import { formatDateDisplay, formatNum, todayIso } from '../utils/format'
 import { fileToCompressedDataUrl } from '../utils/imageUpload'
 
@@ -36,6 +37,7 @@ function emptyWorkerForm() {
 function WorkersPage() {
   const { confirm } = useConfirm()
   const { showToast } = useToast()
+  const { canEdit, canDelete } = usePermissions()
 
   const [workers, setWorkers] = useState([])
   const [workersLoading, setWorkersLoading] = useState(true)
@@ -252,6 +254,10 @@ function WorkersPage() {
       showToast('ID card back image is required', 'error')
       return
     }
+    if (editingWorkerId && !canEdit) {
+      showToast('Managers cannot edit records', 'error')
+      return
+    }
     setSavingWorker(true)
     try {
       const body = {
@@ -365,6 +371,10 @@ function WorkersPage() {
       showToast('Leave days must be greater than 0', 'error')
       return
     }
+    if (editingLeaveId && !canEdit) {
+      showToast('Managers cannot edit records', 'error')
+      return
+    }
     setSavingLeave(true)
     try {
       const body = { date: leaveDate, days, note: leaveNote.trim() }
@@ -441,6 +451,10 @@ function WorkersPage() {
     }
     if (!Number.isFinite(amount) || amount <= 0) {
       showToast('Amount must be a positive number', 'error')
+      return
+    }
+    if (editingPaymentId && !canEdit) {
+      showToast('Managers cannot edit records', 'error')
       return
     }
     setSavingPayment(true)
@@ -707,23 +721,27 @@ function WorkersPage() {
                   </td>
                   <td className="stock-table__wrap">{row.note || '—'}</td>
                   <td className="stock-table__actions">
-                    <button
-                      type="button"
-                      className="btn-secondary btn-compact"
-                      onClick={() => {
-                        setWorkerId(String(row.id))
-                        openEditWorker(row)
-                      }}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      className="btn-danger btn-compact"
-                      onClick={() => handleDeleteWorker(row)}
-                    >
-                      Delete
-                    </button>
+                    {canEdit && (
+                      <button
+                        type="button"
+                        className="btn-secondary btn-compact"
+                        onClick={() => {
+                          setWorkerId(String(row.id))
+                          openEditWorker(row)
+                        }}
+                      >
+                        Edit
+                      </button>
+                    )}
+                    {canDelete && (
+                      <button
+                        type="button"
+                        className="btn-danger btn-compact"
+                        onClick={() => handleDeleteWorker(row)}
+                      >
+                        Delete
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))
@@ -922,20 +940,24 @@ function WorkersPage() {
                         <td>{formatNum(leave.days)}</td>
                         <td className="stock-table__wrap">{leave.note || '—'}</td>
                         <td className="stock-table__actions">
-                          <button
-                            type="button"
-                            className="btn-secondary btn-compact"
-                            onClick={() => openEditLeave(leave)}
-                          >
-                            Edit
-                          </button>
-                          <button
-                            type="button"
-                            className="btn-danger btn-compact"
-                            onClick={() => handleDeleteLeave(leave)}
-                          >
-                            Delete
-                          </button>
+                          {canEdit && (
+                            <button
+                              type="button"
+                              className="btn-secondary btn-compact"
+                              onClick={() => openEditLeave(leave)}
+                            >
+                              Edit
+                            </button>
+                          )}
+                          {canDelete && (
+                            <button
+                              type="button"
+                              className="btn-danger btn-compact"
+                              onClick={() => handleDeleteLeave(leave)}
+                            >
+                              Delete
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))
@@ -1045,20 +1067,24 @@ function WorkersPage() {
                         <td>{formatMoney(payment.amount)}</td>
                         <td className="stock-table__wrap">{payment.note || '—'}</td>
                         <td className="stock-table__actions">
-                          <button
-                            type="button"
-                            className="btn-secondary btn-compact"
-                            onClick={() => openEditPayment(payment)}
-                          >
-                            Edit
-                          </button>
-                          <button
-                            type="button"
-                            className="btn-danger btn-compact"
-                            onClick={() => handleDeletePayment(payment)}
-                          >
-                            Delete
-                          </button>
+                          {canEdit && (
+                            <button
+                              type="button"
+                              className="btn-secondary btn-compact"
+                              onClick={() => openEditPayment(payment)}
+                            >
+                              Edit
+                            </button>
+                          )}
+                          {canDelete && (
+                            <button
+                              type="button"
+                              className="btn-danger btn-compact"
+                              onClick={() => handleDeletePayment(payment)}
+                            >
+                              Delete
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))

@@ -1,6 +1,6 @@
 # CONTEXT — Qanooni Polymers System Truth
 
-Last updated: 2026-07-27 (Utility Bills / Gas)
+Last updated: 2026-07-27 (Admin / Manager RBAC)
 
 ## Purpose
 
@@ -13,7 +13,7 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
 | Frontend | React 19 + Vite + React Router + Axios + jsPDF |
 | Backend | Node + Express |
 | Database | Oracle MySQL 8.4 (`mysql2`) + MySQL Workbench (local) / Railway MySQL (prod) |
-| Auth | Env credentials + JWT |
+| Auth | JWT + `app_users` (admin seeded from env; managers CRUD by admin) |
 
 ## Architecture
 
@@ -47,6 +47,7 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
 - Top-level **Vehicle Fare** — `/rents`
 - Top-level **Utility Bills** — `/utility-bills` (above Workers)
 - Top-level **Workers & Salary** — `/workers`
+- Top-level **Managers** (admin only) — `/managers`
 
 ## Maintenance
 
@@ -216,10 +217,17 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
   - `/mills-production/bundle/dewaar`
 - Color picker shows swatch + name; table shows Remaining KG only for still-available batches
 
-## Auth
+## Auth / RBAC
 
-- Login: `asdf123` / `asdf123` (dev + current prod demo)
-- Token: `qp_token`
+- Table: `app_users` (`username`, `password_hash` bcrypt, `role` admin|manager, `active`)
+- Admin seeded/synced on server boot from `AUTH_USERNAME` / `AUTH_PASSWORD` (env remains admin source of truth)
+- Login: `POST /api/auth/login` → JWT `{ sub, username, role }` (`admin` | `manager`); legacy JWT `role: user` treated as admin
+- `GET /api/auth/me` — current user
+- Managers API (admin only): `GET|POST /api/managers`, `PUT /:id/password`, `PUT /:id/active`, `DELETE /:id`
+- **Manager permissions:** may **POST create** only; **PUT/PATCH/DELETE** blocked (403); Orders `deliver` / `pending` blocked
+- Middleware: `requireAuth` + `enforceRolePermissions` on all domain routers; `requireAdmin` on `/api/managers`
+- UI: `usePermissions()` — `canEdit`/`canDelete` admin only; Edit/Delete/Deliver hidden for managers; Add remains; sidebar **Managers** admin-only; footer shows username · role
+- Demo admin login: `asdf123` / `asdf123` (prod env); token key `qp_token`
 
 ## Env
 

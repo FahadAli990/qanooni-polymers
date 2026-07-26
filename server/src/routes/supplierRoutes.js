@@ -1,4 +1,4 @@
-import { Router } from 'express'
+﻿import { Router } from 'express'
 import {
   createSupplierController,
   createSupplierPaymentController,
@@ -9,11 +9,12 @@ import {
   updateSupplierController,
   updateSupplierPaymentController,
 } from '../controllers/supplierController.js'
-import { requireAuth } from '../middleware/auth.js'
+import { requireAuth, enforceRolePermissions } from '../middleware/auth.js'
 
 const router = Router()
 
 router.use(requireAuth)
+router.use(enforceRolePermissions)
 router.get('/', listSuppliersController)
 router.post('/', createSupplierController)
 router.get('/:id/ledger', getSupplierLedgerController)

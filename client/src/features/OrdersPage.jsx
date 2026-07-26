@@ -4,6 +4,7 @@ import { useConfirm } from '../context/ConfirmContext'
 import { useRawMaterials } from '../context/RawMaterialContext'
 import { useRoutes } from '../context/RouteContext'
 import { useToast } from '../context/ToastContext'
+import { usePermissions } from '../hooks/usePermissions'
 import { formatDateDisplay, formatNum, todayIso } from '../utils/format'
 
 const DEFAULT_SIZES = ['1/2"', '3/4"', '1"']
@@ -44,6 +45,7 @@ function OrdersPage() {
   const { refresh: refreshMaterials } = useRawMaterials()
   const { confirm } = useConfirm()
   const { showToast } = useToast()
+  const { canEdit, canDelete } = usePermissions()
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -221,6 +223,10 @@ function OrdersPage() {
     const clientError = validateClient()
     if (clientError) {
       showToast(clientError, 'error')
+      return
+    }
+    if (editingId && !canEdit) {
+      showToast('Managers cannot edit records', 'error')
       return
     }
 
@@ -564,37 +570,42 @@ function OrdersPage() {
                       </span>
                     </td>
                     <td className="stock-table__actions">
-                      {order.status === 'pending' ? (
+                      {canEdit &&
+                        (order.status === 'pending' ? (
+                          <button
+                            type="button"
+                            className="btn-primary btn-compact"
+                            onClick={() => handleDeliver(order)}
+                          >
+                            Deliver
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="btn-primary btn-compact"
+                            onClick={() => handlePending(order)}
+                          >
+                            Pending
+                          </button>
+                        ))}
+                      {canEdit && (
                         <button
                           type="button"
-                          className="btn-primary btn-compact"
-                          onClick={() => handleDeliver(order)}
+                          className="btn-secondary btn-compact"
+                          onClick={() => openEdit(order)}
                         >
-                          Deliver
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          className="btn-primary btn-compact"
-                          onClick={() => handlePending(order)}
-                        >
-                          Pending
+                          Edit
                         </button>
                       )}
-                      <button
-                        type="button"
-                        className="btn-secondary btn-compact"
-                        onClick={() => openEdit(order)}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        className="btn-danger btn-compact"
-                        onClick={() => handleDelete(order)}
-                      >
-                        Delete
-                      </button>
+                      {canDelete && (
+                        <button
+                          type="button"
+                          className="btn-danger btn-compact"
+                          onClick={() => handleDelete(order)}
+                        >
+                          Delete
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))

@@ -8,6 +8,7 @@ import {
   MdGrain,
   MdGroups,
   MdLocalShipping,
+  MdManageAccounts,
   MdPayments,
   MdReceiptLong,
   MdRoofing,
@@ -117,6 +118,13 @@ export function buildNavItems(materials = []) {
       Icon: MdGroups,
       path: '/workers',
     },
+    {
+      id: 'managers',
+      label: 'Managers',
+      Icon: MdManageAccounts,
+      path: '/managers',
+      adminOnly: true,
+    },
   ]
 }
 
@@ -196,6 +204,13 @@ function parseUtilityBillsPath(pathname) {
   return null
 }
 
+function parseManagersPath(pathname) {
+  if (pathname === '/managers' || pathname.startsWith('/managers/')) {
+    return { section: 'managers', ancestors: [] }
+  }
+  return null
+}
+
 function parseWorkersPath(pathname) {
   if (pathname === '/workers' || pathname.startsWith('/workers/')) {
     return { section: 'workers', ancestors: [] }
@@ -215,6 +230,7 @@ function findNavItemById(items, id) {
 }
 
 const TOP_LEVEL_PARSERS = [
+  parseManagersPath,
   parseWorkersPath,
   parseUtilityBillsPath,
   parseRentsPath,

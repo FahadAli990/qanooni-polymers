@@ -1,15 +1,16 @@
-import { Router } from 'express'
+﻿import { Router } from 'express'
 import {
   createRollController,
   deleteRollController,
   listRollsController,
   updateRollController,
 } from '../controllers/rollController.js'
-import { requireAuth } from '../middleware/auth.js'
+import { requireAuth, enforceRolePermissions } from '../middleware/auth.js'
 
 const router = Router()
 
 router.use(requireAuth)
+router.use(enforceRolePermissions)
 
 // Shared production API: /api/productions/:kind  (roll | chaat | dewaar)
 router.get('/:kind', listRollsController)

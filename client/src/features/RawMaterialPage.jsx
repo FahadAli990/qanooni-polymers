@@ -4,6 +4,7 @@ import { useRawMaterials } from '../context/RawMaterialContext'
 import { useConfirm } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { getErrorMessage } from '../api/client'
+import { usePermissions } from '../hooks/usePermissions'
 import { formatNum } from '../utils/format'
 
 function RawMaterialPage() {
@@ -11,6 +12,7 @@ function RawMaterialPage() {
   const { items, totals, loading, refresh, create, update, remove } = useRawMaterials()
   const { confirm } = useConfirm()
   const { showToast } = useToast()
+  const { canEdit, canDelete } = usePermissions()
   const [mode, setMode] = useState(null)
   const [editingSlug, setEditingSlug] = useState(null)
   const [name, setName] = useState('')
@@ -40,6 +42,10 @@ function RawMaterialPage() {
 
   async function handleSubmit(e) {
     e.preventDefault()
+    if (mode === 'edit' && !canEdit) {
+      showToast('Managers cannot edit records', 'error')
+      return
+    }
     setSaving(true)
     try {
       if (mode === 'edit' && editingSlug) {
@@ -159,12 +165,16 @@ function RawMaterialPage() {
                     {formatNum(item.totalKg)} kg
                   </td>
                   <td className="stock-table__actions">
-                    <button type="button" className="btn-secondary btn-compact" onClick={() => openEdit(item)}>
-                      Edit
-                    </button>
-                    <button type="button" className="btn-danger btn-compact" onClick={() => handleDelete(item)}>
-                      Delete
-                    </button>
+                    {canEdit && (
+                      <button type="button" className="btn-secondary btn-compact" onClick={() => openEdit(item)}>
+                        Edit
+                      </button>
+                    )}
+                    {canDelete && (
+                      <button type="button" className="btn-danger btn-compact" onClick={() => handleDelete(item)}>
+                        Delete
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

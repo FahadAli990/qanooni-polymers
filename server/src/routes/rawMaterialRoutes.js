@@ -1,4 +1,4 @@
-import { Router } from 'express'
+﻿import { Router } from 'express'
 import {
   createRawMaterialController,
   deleteRawMaterialController,
@@ -12,11 +12,12 @@ import {
   listStocksController,
   updateStockController,
 } from '../controllers/stockController.js'
-import { requireAuth } from '../middleware/auth.js'
+import { requireAuth, enforceRolePermissions } from '../middleware/auth.js'
 
 const router = Router()
 
 router.use(requireAuth)
+router.use(enforceRolePermissions)
 router.get('/', listRawMaterialsController)
 router.post('/', createRawMaterialController)
 router.get('/:slug/stocks', listStocksController)

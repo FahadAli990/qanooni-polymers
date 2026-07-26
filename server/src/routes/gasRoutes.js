@@ -1,4 +1,4 @@
-import { Router } from 'express'
+﻿import { Router } from 'express'
 import {
   createGasPaymentController,
   createGasPurchaseController,
@@ -16,11 +16,12 @@ import {
   updateGasSupplierController,
   updateUtilityBillController,
 } from '../controllers/gasController.js'
-import { requireAuth } from '../middleware/auth.js'
+import { requireAuth, enforceRolePermissions } from '../middleware/auth.js'
 
 const router = Router()
 
 router.use(requireAuth)
+router.use(enforceRolePermissions)
 
 router.get('/bills', listUtilityBillsController)
 router.post('/bills', createUtilityBillController)

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import api, { getErrorMessage } from '../api/client'
 import { useConfirm } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
+import { usePermissions } from '../hooks/usePermissions'
 import { formatDateDisplay, formatNum, todayIso } from '../utils/format'
 import { downloadSupplierLedgerPdf } from '../utils/ledgerPdf'
 
@@ -24,6 +25,7 @@ function emptySupplierForm() {
 function SuppliersPage() {
   const { confirm } = useConfirm()
   const { showToast } = useToast()
+  const { canEdit, canDelete } = usePermissions()
 
   const [suppliers, setSuppliers] = useState([])
   const [suppliersLoading, setSuppliersLoading] = useState(true)
@@ -149,6 +151,10 @@ function SuppliersPage() {
       showToast('Contact must be exactly 11 digits', 'error')
       return
     }
+    if (editingSupplierId && !canEdit) {
+      showToast('Managers cannot edit records', 'error')
+      return
+    }
 
     setSavingSupplier(true)
     try {
@@ -231,6 +237,10 @@ function SuppliersPage() {
     }
     if (!Number.isFinite(amount) || amount <= 0) {
       showToast('Amount must be a positive number', 'error')
+      return
+    }
+    if (editingPaymentId && !canEdit) {
+      showToast('Managers cannot edit records', 'error')
       return
     }
 
@@ -411,23 +421,27 @@ function SuppliersPage() {
                   <td>{row.name}</td>
                   <td>{row.contact}</td>
                   <td className="stock-table__actions">
-                    <button
-                      type="button"
-                      className="btn-secondary btn-compact"
-                      onClick={() => {
-                        setSupplierId(String(row.id))
-                        openEditSupplier(row)
-                      }}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      className="btn-danger btn-compact"
-                      onClick={() => handleDeleteSupplier(row)}
-                    >
-                      Delete
-                    </button>
+                    {canEdit && (
+                      <button
+                        type="button"
+                        className="btn-secondary btn-compact"
+                        onClick={() => {
+                          setSupplierId(String(row.id))
+                          openEditSupplier(row)
+                        }}
+                      >
+                        Edit
+                      </button>
+                    )}
+                    {canDelete && (
+                      <button
+                        type="button"
+                        className="btn-danger btn-compact"
+                        onClick={() => handleDeleteSupplier(row)}
+                      >
+                        Delete
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))
@@ -629,20 +643,24 @@ function SuppliersPage() {
                         <td>{formatMoney(payment.amount)}</td>
                         <td className="stock-table__wrap">{payment.note || '—'}</td>
                         <td className="stock-table__actions">
-                          <button
-                            type="button"
-                            className="btn-secondary btn-compact"
-                            onClick={() => openEditPayment(payment)}
-                          >
-                            Edit
-                          </button>
-                          <button
-                            type="button"
-                            className="btn-danger btn-compact"
-                            onClick={() => handleDeletePayment(payment)}
-                          >
-                            Delete
-                          </button>
+                          {canEdit && (
+                            <button
+                              type="button"
+                              className="btn-secondary btn-compact"
+                              onClick={() => openEditPayment(payment)}
+                            >
+                              Edit
+                            </button>
+                          )}
+                          {canDelete && (
+                            <button
+                              type="button"
+                              className="btn-danger btn-compact"
+                              onClick={() => handleDeletePayment(payment)}
+                            >
+                              Delete
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))

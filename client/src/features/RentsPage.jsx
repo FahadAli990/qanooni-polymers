@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import api, { getErrorMessage } from '../api/client'
 import { useConfirm } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
+import { usePermissions } from '../hooks/usePermissions'
 import { formatDateDisplay, formatNum, todayIso } from '../utils/format'
 
 function formatMoney(value) {
@@ -21,6 +22,7 @@ function emptyVehicleForm() {
 function RentsPage() {
   const { confirm } = useConfirm()
   const { showToast } = useToast()
+  const { canEdit, canDelete } = usePermissions()
 
   const [vehicles, setVehicles] = useState([])
   const [vehiclesLoading, setVehiclesLoading] = useState(true)
@@ -139,6 +141,10 @@ function RentsPage() {
       showToast('Daily fare must be a positive number', 'error')
       return
     }
+    if (editingVehicleId && !canEdit) {
+      showToast('Managers cannot edit records', 'error')
+      return
+    }
     setSavingVehicle(true)
     try {
       const body = { name, dailyFare, note: vehicleForm.note.trim() }
@@ -221,6 +227,10 @@ function RentsPage() {
     }
     if (!Number.isFinite(amount) || amount <= 0) {
       showToast('Amount must be a positive number', 'error')
+      return
+    }
+    if (editingPaymentId && !canEdit) {
+      showToast('Managers cannot edit records', 'error')
       return
     }
     setSavingPayment(true)
@@ -398,23 +408,27 @@ function RentsPage() {
                   <td>{formatMoney(row.dailyFare)}</td>
                   <td className="stock-table__wrap">{row.note || '—'}</td>
                   <td className="stock-table__actions">
-                    <button
-                      type="button"
-                      className="btn-secondary btn-compact"
-                      onClick={() => {
-                        setVehicleId(String(row.id))
-                        openEditVehicle(row)
-                      }}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      className="btn-danger btn-compact"
-                      onClick={() => handleDeleteVehicle(row)}
-                    >
-                      Delete
-                    </button>
+                    {canEdit && (
+                      <button
+                        type="button"
+                        className="btn-secondary btn-compact"
+                        onClick={() => {
+                          setVehicleId(String(row.id))
+                          openEditVehicle(row)
+                        }}
+                      >
+                        Edit
+                      </button>
+                    )}
+                    {canDelete && (
+                      <button
+                        type="button"
+                        className="btn-danger btn-compact"
+                        onClick={() => handleDeleteVehicle(row)}
+                      >
+                        Delete
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))
@@ -561,20 +575,24 @@ function RentsPage() {
                         <td>{formatMoney(payment.amount)}</td>
                         <td className="stock-table__wrap">{payment.note || '—'}</td>
                         <td className="stock-table__actions">
-                          <button
-                            type="button"
-                            className="btn-secondary btn-compact"
-                            onClick={() => openEditPayment(payment)}
-                          >
-                            Edit
-                          </button>
-                          <button
-                            type="button"
-                            className="btn-danger btn-compact"
-                            onClick={() => handleDeletePayment(payment)}
-                          >
-                            Delete
-                          </button>
+                          {canEdit && (
+                            <button
+                              type="button"
+                              className="btn-secondary btn-compact"
+                              onClick={() => openEditPayment(payment)}
+                            >
+                              Edit
+                            </button>
+                          )}
+                          {canDelete && (
+                            <button
+                              type="button"
+                              className="btn-danger btn-compact"
+                              onClick={() => handleDeletePayment(payment)}
+                            >
+                              Delete
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))
