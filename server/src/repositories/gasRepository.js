@@ -19,7 +19,7 @@ function mapPurchase(row) {
       : String(row.purchase_date).slice(0, 10),
     cylinderKg: Number(row.cylinder_kg),
     cylindersCount: Number(row.cylinders_count),
-    pricePerCylinder: Number(row.price_per_cylinder),
+    pricePerKg: Number(row.price_per_kg),
     totalAmount: Number(row.total_amount),
     note: row.note || '',
     createdAt: row.created_at,
@@ -108,7 +108,7 @@ export async function deleteGasSupplierById(id) {
 export async function findPurchasesByGasSupplierId(supplierId) {
   const [rows] = await getPool().query(
     `SELECT id, supplier_id, purchase_date, cylinder_kg, cylinders_count,
-            price_per_cylinder, total_amount, note, created_at
+            price_per_kg, total_amount, note, created_at
      FROM gas_purchases
      WHERE supplier_id = :supplierId
      ORDER BY purchase_date ASC, id ASC`,
@@ -129,7 +129,7 @@ export async function sumPurchasesByGasSupplierId(supplierId) {
 export async function findGasPurchaseById(id) {
   const [rows] = await getPool().query(
     `SELECT id, supplier_id, purchase_date, cylinder_kg, cylinders_count,
-            price_per_cylinder, total_amount, note, created_at
+            price_per_kg, total_amount, note, created_at
      FROM gas_purchases WHERE id = :id LIMIT 1`,
     { id },
   )
@@ -139,15 +139,15 @@ export async function findGasPurchaseById(id) {
 export async function insertGasPurchase(payload) {
   const [result] = await getPool().query(
     `INSERT INTO gas_purchases
-       (supplier_id, purchase_date, cylinder_kg, cylinders_count, price_per_cylinder, total_amount, note)
+       (supplier_id, purchase_date, cylinder_kg, cylinders_count, price_per_kg, total_amount, note)
      VALUES
-       (:supplierId, :date, :cylinderKg, :cylindersCount, :pricePerCylinder, :totalAmount, :note)`,
+       (:supplierId, :date, :cylinderKg, :cylindersCount, :pricePerKg, :totalAmount, :note)`,
     {
       supplierId: payload.supplierId,
       date: payload.date,
       cylinderKg: payload.cylinderKg,
       cylindersCount: payload.cylindersCount,
-      pricePerCylinder: payload.pricePerCylinder,
+      pricePerKg: payload.pricePerKg,
       totalAmount: payload.totalAmount,
       note: payload.note || null,
     },
@@ -161,7 +161,7 @@ export async function updateGasPurchaseById(id, payload) {
      SET purchase_date = :date,
          cylinder_kg = :cylinderKg,
          cylinders_count = :cylindersCount,
-         price_per_cylinder = :pricePerCylinder,
+         price_per_kg = :pricePerKg,
          total_amount = :totalAmount,
          note = :note
      WHERE id = :id`,
@@ -170,7 +170,7 @@ export async function updateGasPurchaseById(id, payload) {
       date: payload.date,
       cylinderKg: payload.cylinderKg,
       cylindersCount: payload.cylindersCount,
-      pricePerCylinder: payload.pricePerCylinder,
+      pricePerKg: payload.pricePerKg,
       totalAmount: payload.totalAmount,
       note: payload.note || null,
     },

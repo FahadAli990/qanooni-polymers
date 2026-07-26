@@ -1,12 +1,15 @@
 import {
   createVehicle,
   createRentPayment,
+  createTrip,
   getVehicleLedger,
   listVehicles,
   removeVehicle,
   removeRentPayment,
+  removeTrip,
   updateVehicle,
   updateRentPayment,
+  updateTrip,
 } from '../services/rentService.js'
 import { ok } from '../utils/apiResponse.js'
 
@@ -44,7 +47,31 @@ export async function deleteVehicleController(req, res, next) {
 
 export async function getVehicleLedgerController(req, res, next) {
   try {
-    return ok(res, await getVehicleLedger(req.params.id, req.query))
+    return ok(res, await getVehicleLedger(req.params.id))
+  } catch (err) {
+    return next(err)
+  }
+}
+
+export async function createTripController(req, res, next) {
+  try {
+    return ok(res, await createTrip(req.params.id, req.body), 201)
+  } catch (err) {
+    return next(err)
+  }
+}
+
+export async function updateTripController(req, res, next) {
+  try {
+    return ok(res, await updateTrip(req.params.id, req.params.tripId, req.body))
+  } catch (err) {
+    return next(err)
+  }
+}
+
+export async function deleteTripController(req, res, next) {
+  try {
+    return ok(res, await removeTrip(req.params.id, req.params.tripId))
   } catch (err) {
     return next(err)
   }
@@ -68,7 +95,7 @@ export async function updateRentPaymentController(req, res, next) {
 
 export async function deleteRentPaymentController(req, res, next) {
   try {
-    return ok(res, await removeRentPayment(req.params.id, req.params.paymentId, req.query))
+    return ok(res, await removeRentPayment(req.params.id, req.params.paymentId))
   } catch (err) {
     return next(err)
   }

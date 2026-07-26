@@ -28,7 +28,7 @@ function emptyPurchaseForm() {
     date: todayIso(),
     cylinderKg: '',
     cylindersCount: '1',
-    pricePerCylinder: '',
+    pricePerKg: '',
     note: '',
   }
 }
@@ -94,11 +94,27 @@ function UtilityBillsPage() {
   const [savingBill, setSavingBill] = useState(false)
 
   const purchasePreviewTotal = useMemo(() => {
+    const kg = Number(purchaseForm.cylinderKg)
     const count = Number(purchaseForm.cylindersCount)
-    const price = Number(purchaseForm.pricePerCylinder)
-    if (!Number.isFinite(count) || !Number.isFinite(price) || count <= 0 || price <= 0) return 0
-    return Number((count * price).toFixed(2))
-  }, [purchaseForm.cylindersCount, purchaseForm.pricePerCylinder])
+    const price = Number(purchaseForm.pricePerKg)
+    if (
+      !Number.isFinite(kg) ||
+      !Number.isFinite(count) ||
+      !Number.isFinite(price) ||
+      kg <= 0 ||
+      count <= 0 ||
+      price <= 0
+    ) {
+      return 0
+    }
+    return Number((kg * count * price).toFixed(2))
+  }, [purchaseForm.cylinderKg, purchaseForm.cylindersCount, purchaseForm.pricePerKg])
+
+  const visibleSuppliers = useMemo(
+    () =>
+      supplierId ? suppliers.filter((s) => String(s.id) === String(supplierId)) : suppliers,
+    [suppliers, supplierId],
+  )
 
   const loadSuppliers = useCallback(async () => {
     setSuppliersLoading(true)
@@ -291,7 +307,7 @@ function UtilityBillsPage() {
       date: row.date,
       cylinderKg: String(row.cylinderKg),
       cylindersCount: String(row.cylindersCount),
-      pricePerCylinder: String(row.pricePerCylinder),
+      pricePerKg: String(row.pricePerKg),
       note: row.note || '',
     })
     setShowPurchaseForm(true)
@@ -305,7 +321,7 @@ function UtilityBillsPage() {
     }
     const cylinderKg = Number(purchaseForm.cylinderKg)
     const cylindersCount = Number(purchaseForm.cylindersCount)
-    const pricePerCylinder = Number(purchaseForm.pricePerCylinder)
+    const pricePerKg = Number(purchaseForm.pricePerKg)
     if (!purchaseForm.date) {
       showToast('Date is required', 'error')
       return
@@ -318,8 +334,8 @@ function UtilityBillsPage() {
       showToast('Cylinders count must be a positive whole number', 'error')
       return
     }
-    if (!Number.isFinite(pricePerCylinder) || pricePerCylinder <= 0) {
-      showToast('Price per cylinder must be a positive number', 'error')
+    if (!Number.isFinite(pricePerKg) || pricePerKg <= 0) {
+      showToast('Price per kg must be a positive number', 'error')
       return
     }
     if (editingPurchaseId && !canEdit) {
@@ -332,7 +348,7 @@ function UtilityBillsPage() {
         date: purchaseForm.date,
         cylinderKg,
         cylindersCount,
-        pricePerCylinder,
+        pricePerKg,
         note: purchaseForm.note.trim(),
       }
       if (editingPurchaseId) {
@@ -672,7 +688,7 @@ function UtilityBillsPage() {
                     {suppliersLoading
                       ? 'Loading…'
                       : suppliers.length
-                        ? 'Select gas supplier'
+                        ? 'Select gas supplier (or click a row)'
                         : 'No gas suppliers yet'}
                   </option>
                   {suppliers.map((row) => (
@@ -682,6 +698,13 @@ function UtilityBillsPage() {
                   ))}
                 </select>
               </div>
+              {supplierId ? (
+                <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+                  <button type="button" className="btn-secondary" onClick={() => setSupplierId('')}>
+                    Show all suppliers
+                  </button>
+                </div>
+              ) : null}
             </div>
           </section>
 
@@ -703,12 +726,19 @@ function UtilityBillsPage() {
                     </td>
                   </tr>
                 ) : (
-                  suppliers.map((row) => (
-                    <tr key={row.id}>
+                  visibleSuppliers.map((row) => (
+                    <tr
+                      key={row.id}
+                      onClick={() => setSupplierId(String(row.id))}
+                      style={{ cursor: 'pointer' }}
+                    >
                       <td>{row.name}</td>
                       <td>{row.contact}</td>
                       <td className="stock-table__wrap">{row.note || '—'}</td>
-                      <td className="stock-table__actions">
+                      <td
+                        className="stock-table__actions"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         {canEdit && (
                           <button
                             type="button"
@@ -840,15 +870,15 @@ function UtilityBillsPage() {
                         />
                       </div>
                       <div>
-                        <label htmlFor="gas-purchase-price">Price / cylinder (Rs)</label>
+                        <label htmlFor="gas-purchase-price">Price / kg (Rs)</label>
                         <input
                           id="gas-purchase-price"
                           type="number"
                           min="0.01"
                           step="0.01"
-                          value={purchaseForm.pricePerCylinder}
+                          value={purchaseForm.pricePerKg}
                           onChange={(e) =>
-                            setPurchaseForm((p) => ({ ...p, pricePerCylinder: e.target.value }))
+                            setPurchaseForm((p) => ({ ...p, pricePerKg: e.target.value }))
                           }
                           required
                         />
@@ -896,7 +926,7 @@ function UtilityBillsPage() {
                         <th>Date</th>
                         <th>Kg</th>
                         <th>Cylinders</th>
-                        <th>Price / cyl</th>
+                        <th>Price / kg</th>
                         <th>Total</th>
                         <th>Status</th>
                         <th>Note</th>
@@ -916,7 +946,7 @@ function UtilityBillsPage() {
                             <td>{formatDateDisplay(row.date)}</td>
                             <td>{formatNum(row.cylinderKg)}</td>
                             <td>{row.cylindersCount}</td>
-                            <td>{formatMoney(row.pricePerCylinder)}</td>
+                            <td>{formatMoney(row.pricePerKg)}</td>
                             <td>{formatMoney(row.totalAmount)}</td>
                             <td>
                               <span className={`status-pill status-pill--${row.payStatus || 'unpaid'}`}>

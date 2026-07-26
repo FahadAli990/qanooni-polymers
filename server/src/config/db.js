@@ -472,7 +472,6 @@ export async function ensureSchema() {
     CREATE TABLE IF NOT EXISTS rent_vehicles (
       id INT UNSIGNED NOT NULL AUTO_INCREMENT,
       name VARCHAR(160) NOT NULL,
-      daily_fare DECIMAL(14, 2) NOT NULL,
       note VARCHAR(255) NULL,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       PRIMARY KEY (id),
@@ -480,7 +479,7 @@ export async function ensureSchema() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `)
 
-  // Migrate legacy monthly_rent → daily_fare
+  // Migrate legacy monthly_rent → daily_fare (then drop daily_fare — per-delivery model)
   const [monthlyRentCols] = await getPool().query(
     `SELECT COLUMN_NAME
      FROM INFORMATION_SCHEMA.COLUMNS
@@ -498,7 +497,7 @@ export async function ensureSchema() {
   if (monthlyRentCols.length && !dailyFareCols.length) {
     await getPool().query(
       `ALTER TABLE rent_vehicles
-       CHANGE COLUMN monthly_rent daily_fare DECIMAL(14, 2) NOT NULL`,
+       CHANGE COLUMN monthly_rent daily_fare DECIMAL(14, 2) NOT NULL DEFAULT 0`,
     )
   }
 
@@ -509,38 +508,71 @@ export async function ensureSchema() {
      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'rent_buildings'`,
   )
   if (legacyBuildings.length) {
-    await getPool().query(
-      `INSERT IGNORE INTO rent_vehicles (id, name, daily_fare, note, created_at)
-       SELECT id, name, monthly_rent, note, created_at FROM rent_buildings`,
+    const [dfAfter] = await getPool().query(
+      `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'rent_vehicles' AND COLUMN_NAME = 'daily_fare'`,
     )
+    if (dfAfter.length) {
+      await getPool().query(
+        `INSERT IGNORE INTO rent_vehicles (id, name, daily_fare, note, created_at)
+         SELECT id, name, monthly_rent, note, created_at FROM rent_buildings`,
+      )
+    } else {
+      await getPool().query(
+        `INSERT IGNORE INTO rent_vehicles (id, name, note, created_at)
+         SELECT id, name, note, created_at FROM rent_buildings`,
+      )
+    }
   }
+
+  // Drop unused daily_fare (vehicles are per-delivery now)
+  const [dailyFareStill] = await getPool().query(
+    `SELECT COLUMN_NAME
+     FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'rent_vehicles'
+       AND COLUMN_NAME = 'daily_fare'`,
+  )
+  if (dailyFareStill.length) {
+    await getPool().query(`ALTER TABLE rent_vehicles DROP COLUMN daily_fare`)
+  }
+
+  await getPool().query(`
+    CREATE TABLE IF NOT EXISTS rent_trips (
+      id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+      vehicle_id INT UNSIGNED NOT NULL,
+      trip_date DATE NOT NULL,
+      destination VARCHAR(255) NOT NULL,
+      fare_amount DECIMAL(14, 2) NOT NULL,
+      note VARCHAR(255) NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_rent_trips_vehicle (vehicle_id),
+      KEY idx_rent_trips_date (trip_date),
+      CONSTRAINT fk_rent_trips_vehicle
+        FOREIGN KEY (vehicle_id) REFERENCES rent_vehicles (id)
+        ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `)
 
   await getPool().query(`
     CREATE TABLE IF NOT EXISTS rent_payments (
       id INT UNSIGNED NOT NULL AUTO_INCREMENT,
       vehicle_id INT UNSIGNED NOT NULL,
       payment_date DATE NOT NULL,
-      for_date DATE NOT NULL,
       amount DECIMAL(14, 2) NOT NULL,
       note VARCHAR(255) NULL,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       PRIMARY KEY (id),
       KEY idx_rent_payments_vehicle (vehicle_id),
-      KEY idx_rent_payments_for_date (for_date),
+      KEY idx_rent_payments_date (payment_date),
       CONSTRAINT fk_rent_payments_vehicle
         FOREIGN KEY (vehicle_id) REFERENCES rent_vehicles (id)
         ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `)
 
-  // Migrate legacy for_month → for_date
-  const [forMonthCols] = await getPool().query(
-    `SELECT COLUMN_NAME
-     FROM INFORMATION_SCHEMA.COLUMNS
-     WHERE TABLE_SCHEMA = DATABASE()
-       AND TABLE_NAME = 'rent_payments'
-       AND COLUMN_NAME = 'for_month'`,
-  )
+  // Drop legacy for_date from rent_payments if present
   const [forDateCols] = await getPool().query(
     `SELECT COLUMN_NAME
      FROM INFORMATION_SCHEMA.COLUMNS
@@ -548,33 +580,18 @@ export async function ensureSchema() {
        AND TABLE_NAME = 'rent_payments'
        AND COLUMN_NAME = 'for_date'`,
   )
-  if (forMonthCols.length && !forDateCols.length) {
-    await getPool().query(
-      `ALTER TABLE rent_payments
-       CHANGE COLUMN for_month for_date DATE NOT NULL`,
-    )
-    const [oldMonthIdx] = await getPool().query(
-      `SELECT INDEX_NAME
-       FROM INFORMATION_SCHEMA.STATISTICS
-       WHERE TABLE_SCHEMA = DATABASE()
-         AND TABLE_NAME = 'rent_payments'
-         AND INDEX_NAME = 'idx_rent_payments_month'`,
-    )
-    if (oldMonthIdx.length) {
-      await getPool().query(`ALTER TABLE rent_payments DROP INDEX idx_rent_payments_month`)
-    }
-    const [newDateIdx] = await getPool().query(
-      `SELECT INDEX_NAME
-       FROM INFORMATION_SCHEMA.STATISTICS
-       WHERE TABLE_SCHEMA = DATABASE()
-         AND TABLE_NAME = 'rent_payments'
-         AND INDEX_NAME = 'idx_rent_payments_for_date'`,
-    )
-    if (!newDateIdx.length) {
-      await getPool().query(
-        `ALTER TABLE rent_payments ADD KEY idx_rent_payments_for_date (for_date)`,
-      )
-    }
+  if (forDateCols.length) {
+    await getPool().query(`ALTER TABLE rent_payments DROP COLUMN for_date`)
+  }
+  const [forMonthCols] = await getPool().query(
+    `SELECT COLUMN_NAME
+     FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'rent_payments'
+       AND COLUMN_NAME = 'for_month'`,
+  )
+  if (forMonthCols.length) {
+    await getPool().query(`ALTER TABLE rent_payments DROP COLUMN for_month`)
   }
 
   // Migrate legacy rent_payments.building_id → vehicle_id
@@ -712,7 +729,7 @@ export async function ensureSchema() {
       purchase_date DATE NOT NULL,
       cylinder_kg DECIMAL(10, 2) NOT NULL,
       cylinders_count INT UNSIGNED NOT NULL,
-      price_per_cylinder DECIMAL(14, 2) NOT NULL,
+      price_per_kg DECIMAL(14, 2) NOT NULL,
       total_amount DECIMAL(14, 2) NOT NULL,
       note VARCHAR(255) NULL,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -724,6 +741,28 @@ export async function ensureSchema() {
         ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `)
+
+  // Migrate gas price_per_cylinder → price_per_kg
+  const [pricePerCylCols] = await getPool().query(
+    `SELECT COLUMN_NAME
+     FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'gas_purchases'
+       AND COLUMN_NAME = 'price_per_cylinder'`,
+  )
+  const [pricePerKgCols] = await getPool().query(
+    `SELECT COLUMN_NAME
+     FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'gas_purchases'
+       AND COLUMN_NAME = 'price_per_kg'`,
+  )
+  if (pricePerCylCols.length && !pricePerKgCols.length) {
+    await getPool().query(
+      `ALTER TABLE gas_purchases
+       CHANGE COLUMN price_per_cylinder price_per_kg DECIMAL(14, 2) NOT NULL`,
+    )
+  }
 
   await getPool().query(`
     CREATE TABLE IF NOT EXISTS gas_payments (

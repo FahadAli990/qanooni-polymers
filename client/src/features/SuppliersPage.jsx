@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import api, { getErrorMessage } from '../api/client'
 import { useConfirm } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
@@ -53,6 +53,12 @@ function SuppliersPage() {
   const [paymentAmount, setPaymentAmount] = useState('')
   const [paymentNote, setPaymentNote] = useState('')
   const [savingPayment, setSavingPayment] = useState(false)
+
+  const visibleSuppliers = useMemo(
+    () =>
+      supplierId ? suppliers.filter((s) => String(s.id) === String(supplierId)) : suppliers,
+    [suppliers, supplierId],
+  )
 
   const loadSuppliers = useCallback(async () => {
     setSuppliersLoading(true)
@@ -386,7 +392,7 @@ function SuppliersPage() {
                 {suppliersLoading
                   ? 'Loading suppliers…'
                   : suppliers.length
-                    ? 'Select supplier'
+                    ? 'Select supplier (or click a row)'
                     : 'No suppliers yet — add one'}
               </option>
               {suppliers.map((row) => (
@@ -396,6 +402,13 @@ function SuppliersPage() {
               ))}
             </select>
           </div>
+          {supplierId ? (
+            <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+              <button type="button" className="btn-secondary" onClick={() => setSupplierId('')}>
+                Show all suppliers
+              </button>
+            </div>
+          ) : null}
         </div>
       </section>
 
@@ -416,11 +429,18 @@ function SuppliersPage() {
                 </td>
               </tr>
             ) : (
-              suppliers.map((row) => (
-                <tr key={row.id}>
+              visibleSuppliers.map((row) => (
+                <tr
+                  key={row.id}
+                  onClick={() => setSupplierId(String(row.id))}
+                  style={{ cursor: 'pointer' }}
+                >
                   <td>{row.name}</td>
                   <td>{row.contact}</td>
-                  <td className="stock-table__actions">
+                  <td
+                    className="stock-table__actions"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     {canEdit && (
                       <button
                         type="button"

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import api, { getErrorMessage } from '../api/client'
 import { useConfirm } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
@@ -77,6 +77,11 @@ function WorkersPage() {
   const [paymentAmount, setPaymentAmount] = useState('')
   const [paymentNote, setPaymentNote] = useState('')
   const [savingPayment, setSavingPayment] = useState(false)
+
+  const visibleWorkers = useMemo(
+    () => (workerId ? workers.filter((w) => String(w.id) === String(workerId)) : workers),
+    [workers, workerId],
+  )
 
   const loadWorkers = useCallback(async () => {
     setWorkersLoading(true)
@@ -665,7 +670,7 @@ function WorkersPage() {
                 {workersLoading
                   ? 'Loading…'
                   : workers.length
-                    ? 'Select worker'
+                    ? 'Select worker (or click a row)'
                     : 'No workers yet'}
               </option>
               {workers.map((row) => (
@@ -684,6 +689,13 @@ function WorkersPage() {
               onChange={(e) => setMonth(e.target.value)}
             />
           </div>
+          {workerId ? (
+            <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+              <button type="button" className="btn-secondary" onClick={() => setWorkerId('')}>
+                Show all workers
+              </button>
+            </div>
+          ) : null}
         </div>
       </section>
 
@@ -708,8 +720,12 @@ function WorkersPage() {
                 </td>
               </tr>
             ) : (
-              workers.map((row) => (
-                <tr key={row.id}>
+              visibleWorkers.map((row) => (
+                <tr
+                  key={row.id}
+                  onClick={() => setWorkerId(String(row.id))}
+                  style={{ cursor: 'pointer' }}
+                >
                   <td>{row.name}</td>
                   <td>{row.contact}</td>
                   <td className="stock-table__wrap">{row.address || '—'}</td>
@@ -720,7 +736,10 @@ function WorkersPage() {
                       : '—'}
                   </td>
                   <td className="stock-table__wrap">{row.note || '—'}</td>
-                  <td className="stock-table__actions">
+                  <td
+                    className="stock-table__actions"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     {canEdit && (
                       <button
                         type="button"

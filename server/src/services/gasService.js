@@ -92,7 +92,9 @@ function normalizePurchaseInput(body = {}) {
   const note = String(body.note || '').trim().slice(0, 255)
   const cylinderKg = Number(body.cylinderKg ?? body.cylinder_kg)
   const cylindersCount = Number(body.cylindersCount ?? body.cylinders_count)
-  const pricePerCylinder = Number(body.pricePerCylinder ?? body.price_per_cylinder)
+  const pricePerKg = Number(
+    body.pricePerKg ?? body.price_per_kg ?? body.pricePerCylinder ?? body.price_per_cylinder,
+  )
   if (!DATE_RE.test(date)) throw badRequest('Date is required (YYYY-MM-DD)')
   if (!Number.isFinite(cylinderKg) || cylinderKg <= 0) {
     throw badRequest('Cylinder kg must be a positive number')
@@ -100,15 +102,16 @@ function normalizePurchaseInput(body = {}) {
   if (!Number.isInteger(cylindersCount) || cylindersCount <= 0) {
     throw badRequest('Cylinders count must be a positive whole number')
   }
-  if (!Number.isFinite(pricePerCylinder) || pricePerCylinder <= 0) {
-    throw badRequest('Price per cylinder must be a positive number')
+  if (!Number.isFinite(pricePerKg) || pricePerKg <= 0) {
+    throw badRequest('Price per kg must be a positive number')
   }
-  const totalAmount = Number((cylindersCount * pricePerCylinder).toFixed(2))
+  const totalKg = Number((cylinderKg * cylindersCount).toFixed(2))
+  const totalAmount = Number((totalKg * pricePerKg).toFixed(2))
   return {
     date,
     cylinderKg: Number(cylinderKg.toFixed(2)),
     cylindersCount,
-    pricePerCylinder: Number(pricePerCylinder.toFixed(2)),
+    pricePerKg: Number(pricePerKg.toFixed(2)),
     totalAmount,
     note,
   }

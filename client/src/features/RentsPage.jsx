@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import api, { getErrorMessage } from '../api/client'
 import { useConfirm } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
@@ -16,7 +16,11 @@ function payStatusLabel(status) {
 }
 
 function emptyVehicleForm() {
-  return { name: '', dailyFare: '', note: '' }
+  return { name: '', note: '' }
+}
+
+function emptyTripForm() {
+  return { date: todayIso(), destination: '', fareAmount: '', note: '' }
 }
 
 function RentsPage() {
@@ -27,7 +31,6 @@ function RentsPage() {
   const [vehicles, setVehicles] = useState([])
   const [vehiclesLoading, setVehiclesLoading] = useState(true)
   const [vehicleId, setVehicleId] = useState('')
-  const [date, setDate] = useState(todayIso())
 
   const [showVehicleForm, setShowVehicleForm] = useState(false)
   const [editingVehicleId, setEditingVehicleId] = useState(null)
@@ -37,13 +40,19 @@ function RentsPage() {
   const [ledgerLoading, setLedgerLoading] = useState(false)
   const [vehicle, setVehicle] = useState(null)
   const [summary, setSummary] = useState({
-    due: 0,
-    paid: 0,
+    totalFare: 0,
+    totalPaid: 0,
     remaining: 0,
     advance: 0,
-    payStatus: 'unpaid',
+    tripCount: 0,
   })
+  const [trips, setTrips] = useState([])
   const [payments, setPayments] = useState([])
+
+  const [showTripForm, setShowTripForm] = useState(false)
+  const [editingTripId, setEditingTripId] = useState(null)
+  const [tripForm, setTripForm] = useState(emptyTripForm())
+  const [savingTrip, setSavingTrip] = useState(false)
 
   const [showPaymentForm, setShowPaymentForm] = useState(false)
   const [editingPaymentId, setEditingPaymentId] = useState(null)
@@ -51,6 +60,11 @@ function RentsPage() {
   const [paymentAmount, setPaymentAmount] = useState('')
   const [paymentNote, setPaymentNote] = useState('')
   const [savingPayment, setSavingPayment] = useState(false)
+
+  const visibleVehicles = useMemo(
+    () => (vehicleId ? vehicles.filter((v) => String(v.id) === String(vehicleId)) : vehicles),
+    [vehicles, vehicleId],
+  )
 
   const loadVehicles = useCallback(async () => {
     setVehiclesLoading(true)
@@ -74,35 +88,51 @@ function RentsPage() {
   const applyLedger = useCallback((payload) => {
     setVehicle(payload.vehicle || null)
     setSummary(
-      payload.summary || { due: 0, paid: 0, remaining: 0, advance: 0, payStatus: 'unpaid' },
+      payload.summary || {
+        totalFare: 0,
+        totalPaid: 0,
+        remaining: 0,
+        advance: 0,
+        tripCount: 0,
+      },
     )
+    setTrips(payload.trips || [])
     setPayments(payload.payments || [])
-    if (payload.date) setDate(payload.date)
   }, [])
 
   const loadLedger = useCallback(async () => {
     if (!vehicleId) {
       setVehicle(null)
-      setSummary({ due: 0, paid: 0, remaining: 0, advance: 0, payStatus: 'unpaid' })
+      setSummary({ totalFare: 0, totalPaid: 0, remaining: 0, advance: 0, tripCount: 0 })
+      setTrips([])
       setPayments([])
       return
     }
     setLedgerLoading(true)
     try {
-      const { data } = await api.get(`/rents/${vehicleId}/ledger`, { params: { date } })
+      const { data } = await api.get(`/rents/${vehicleId}/ledger`)
       applyLedger(data.data || {})
     } catch (err) {
       setVehicle(null)
+      setTrips([])
       setPayments([])
       showToast(getErrorMessage(err), 'error')
     } finally {
       setLedgerLoading(false)
     }
-  }, [vehicleId, date, applyLedger, showToast])
+  }, [vehicleId, applyLedger, showToast])
 
   useEffect(() => {
     loadLedger()
   }, [loadLedger])
+
+  function selectVehicle(id) {
+    setVehicleId(String(id || ''))
+  }
+
+  function clearSelection() {
+    setVehicleId('')
+  }
 
   function resetVehicleForm() {
     setEditingVehicleId(null)
@@ -119,26 +149,19 @@ function RentsPage() {
     setShowVehicleForm(true)
   }
 
-  function openEditVehicle(row) {
+  function openEditVehicle(row, e) {
+    e?.stopPropagation()
     setEditingVehicleId(row.id)
-    setVehicleForm({
-      name: row.name,
-      dailyFare: String(row.dailyFare),
-      note: row.note || '',
-    })
+    setVehicleForm({ name: row.name, note: row.note || '' })
     setShowVehicleForm(true)
+    selectVehicle(row.id)
   }
 
   async function handleVehicleSubmit(e) {
     e.preventDefault()
     const name = vehicleForm.name.trim()
-    const dailyFare = Number(vehicleForm.dailyFare)
     if (!name) {
       showToast('Vehicle name is required', 'error')
-      return
-    }
-    if (!Number.isFinite(dailyFare) || dailyFare <= 0) {
-      showToast('Daily fare must be a positive number', 'error')
       return
     }
     if (editingVehicleId && !canEdit) {
@@ -147,21 +170,18 @@ function RentsPage() {
     }
     setSavingVehicle(true)
     try {
-      const body = { name, dailyFare, note: vehicleForm.note.trim() }
+      const body = { name, note: vehicleForm.note.trim() }
       if (editingVehicleId) {
         const { data } = await api.put(`/rents/${editingVehicleId}`, body)
         const updated = data.data
         setVehicles((prev) => prev.map((row) => (row.id === editingVehicleId ? updated : row)))
-        if (String(vehicleId) === String(editingVehicleId)) {
-          setVehicle(updated)
-          loadLedger()
-        }
+        if (String(vehicleId) === String(editingVehicleId)) setVehicle(updated)
         showToast('Vehicle updated')
       } else {
         const { data } = await api.post('/rents', body)
         const created = data.data
         setVehicles((prev) => [...prev, created])
-        setVehicleId(String(created.id))
+        selectVehicle(created.id)
         showToast('Vehicle added')
       }
       closeVehicleForm()
@@ -172,7 +192,8 @@ function RentsPage() {
     }
   }
 
-  async function handleDeleteVehicle(row) {
+  async function handleDeleteVehicle(row, e) {
+    e?.stopPropagation()
     const ok = await confirm({
       title: 'Delete vehicle',
       message: `Delete vehicle "${row.name}"?`,
@@ -181,7 +202,7 @@ function RentsPage() {
     try {
       await api.delete(`/rents/${row.id}`)
       setVehicles((prev) => prev.filter((v) => v.id !== row.id))
-      if (String(vehicleId) === String(row.id)) setVehicleId('')
+      if (String(vehicleId) === String(row.id)) clearSelection()
       if (editingVehicleId === row.id) closeVehicleForm()
       showToast('Vehicle deleted')
     } catch (err) {
@@ -189,9 +210,99 @@ function RentsPage() {
     }
   }
 
+  function resetTripForm() {
+    setEditingTripId(null)
+    setTripForm(emptyTripForm())
+  }
+
+  function closeTripForm() {
+    setShowTripForm(false)
+    resetTripForm()
+  }
+
+  function openCreateTrip() {
+    resetTripForm()
+    setShowTripForm(true)
+  }
+
+  function openEditTrip(row) {
+    setEditingTripId(row.id)
+    setTripForm({
+      date: row.date,
+      destination: row.destination || '',
+      fareAmount: String(row.fareAmount),
+      note: row.note || '',
+    })
+    setShowTripForm(true)
+  }
+
+  async function handleTripSubmit(e) {
+    e.preventDefault()
+    if (!vehicleId) {
+      showToast('Select a vehicle first', 'error')
+      return
+    }
+    if (editingTripId && !canEdit) {
+      showToast('Managers cannot edit records', 'error')
+      return
+    }
+    const fareAmount = Number(tripForm.fareAmount)
+    if (!tripForm.date) {
+      showToast('Date is required', 'error')
+      return
+    }
+    if (!tripForm.destination.trim()) {
+      showToast('Destination / place is required', 'error')
+      return
+    }
+    if (!Number.isFinite(fareAmount) || fareAmount <= 0) {
+      showToast('Fare amount must be a positive number', 'error')
+      return
+    }
+    setSavingTrip(true)
+    try {
+      const body = {
+        date: tripForm.date,
+        destination: tripForm.destination.trim(),
+        fareAmount,
+        note: tripForm.note.trim(),
+      }
+      if (editingTripId) {
+        const { data } = await api.put(`/rents/${vehicleId}/trips/${editingTripId}`, body)
+        applyLedger(data.data || {})
+        showToast('Trip updated')
+      } else {
+        const { data } = await api.post(`/rents/${vehicleId}/trips`, body)
+        applyLedger(data.data || {})
+        showToast('Trip added')
+      }
+      closeTripForm()
+    } catch (err) {
+      showToast(getErrorMessage(err), 'error')
+    } finally {
+      setSavingTrip(false)
+    }
+  }
+
+  async function handleDeleteTrip(row) {
+    const ok = await confirm({
+      title: 'Delete trip',
+      message: `Delete trip to "${row.destination}" (${formatMoney(row.fareAmount)})?`,
+    })
+    if (!ok) return
+    try {
+      const { data } = await api.delete(`/rents/${vehicleId}/trips/${row.id}`)
+      applyLedger(data.data || {})
+      if (editingTripId === row.id) closeTripForm()
+      showToast('Trip deleted')
+    } catch (err) {
+      showToast(getErrorMessage(err), 'error')
+    }
+  }
+
   function resetPaymentForm() {
     setEditingPaymentId(null)
-    setPaymentDate(date || todayIso())
+    setPaymentDate(todayIso())
     setPaymentAmount('')
     setPaymentNote('')
   }
@@ -206,11 +317,11 @@ function RentsPage() {
     setShowPaymentForm(true)
   }
 
-  function openEditPayment(payment) {
-    setEditingPaymentId(payment.id)
-    setPaymentDate(payment.date)
-    setPaymentAmount(String(payment.amount))
-    setPaymentNote(payment.note || '')
+  function openEditPayment(row) {
+    setEditingPaymentId(row.id)
+    setPaymentDate(row.date)
+    setPaymentAmount(String(row.amount))
+    setPaymentNote(row.note || '')
     setShowPaymentForm(true)
   }
 
@@ -218,6 +329,10 @@ function RentsPage() {
     e.preventDefault()
     if (!vehicleId) {
       showToast('Select a vehicle first', 'error')
+      return
+    }
+    if (editingPaymentId && !canEdit) {
+      showToast('Managers cannot edit records', 'error')
       return
     }
     const amount = Number(paymentAmount)
@@ -229,18 +344,9 @@ function RentsPage() {
       showToast('Amount must be a positive number', 'error')
       return
     }
-    if (editingPaymentId && !canEdit) {
-      showToast('Managers cannot edit records', 'error')
-      return
-    }
     setSavingPayment(true)
     try {
-      const body = {
-        date: paymentDate,
-        forDate: date,
-        amount,
-        note: paymentNote.trim(),
-      }
+      const body = { date: paymentDate, amount, note: paymentNote.trim() }
       if (editingPaymentId) {
         const { data } = await api.put(`/rents/${vehicleId}/payments/${editingPaymentId}`, body)
         applyLedger(data.data || {})
@@ -258,18 +364,16 @@ function RentsPage() {
     }
   }
 
-  async function handleDeletePayment(payment) {
+  async function handleDeletePayment(row) {
     const ok = await confirm({
       title: 'Delete payment',
-      message: `Delete payment of ${formatMoney(payment.amount)} on ${formatDateDisplay(payment.date)}?`,
+      message: `Delete payment of ${formatMoney(row.amount)} on ${formatDateDisplay(row.date)}?`,
     })
     if (!ok) return
     try {
-      const { data } = await api.delete(`/rents/${vehicleId}/payments/${payment.id}`, {
-        params: { date },
-      })
+      const { data } = await api.delete(`/rents/${vehicleId}/payments/${row.id}`)
       applyLedger(data.data || {})
-      if (editingPaymentId === payment.id) closePaymentForm()
+      if (editingPaymentId === row.id) closePaymentForm()
       showToast('Payment deleted')
     } catch (err) {
       showToast(getErrorMessage(err), 'error')
@@ -281,7 +385,10 @@ function RentsPage() {
       <header className="page-toolbar">
         <div>
           <h1>Vehicle Fare</h1>
-          <p>Samaan le jane wali vehicles ka daily fare aur payments yahan manage karo.</p>
+          <p>
+            Har delivery: kahan maal gaya, kis din, kitne paise mange — payment Unpaid/Partial/Paid.
+            Lambay chakkar pe fare alag set kar sakte ho.
+          </p>
         </div>
         <button
           type="button"
@@ -308,19 +415,6 @@ function RentsPage() {
                 required
                 maxLength={160}
                 autoFocus
-              />
-            </div>
-            <div>
-              <label htmlFor="rent-vehicle-fare">Daily fare (Rs)</label>
-              <input
-                id="rent-vehicle-fare"
-                type="number"
-                min="0.01"
-                step="0.01"
-                value={vehicleForm.dailyFare}
-                onChange={(e) => setVehicleForm((p) => ({ ...p, dailyFare: e.target.value }))}
-                placeholder="e.g. 3500"
-                required
               />
             </div>
             <div>
@@ -355,14 +449,14 @@ function RentsPage() {
             <select
               id="rent-vehicle-select"
               value={vehicleId}
-              onChange={(e) => setVehicleId(e.target.value)}
+              onChange={(e) => selectVehicle(e.target.value)}
               disabled={vehiclesLoading}
             >
               <option value="">
                 {vehiclesLoading
                   ? 'Loading…'
                   : vehicles.length
-                    ? 'Select vehicle'
+                    ? 'Select vehicle (or click a row)'
                     : 'No vehicles yet'}
               </option>
               {vehicles.map((row) => (
@@ -372,15 +466,13 @@ function RentsPage() {
               ))}
             </select>
           </div>
-          <div>
-            <label htmlFor="rent-date">Date</label>
-            <input
-              id="rent-date"
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-            />
-          </div>
+          {vehicleId ? (
+            <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+              <button type="button" className="btn-secondary" onClick={clearSelection}>
+                Show all vehicles
+              </button>
+            </div>
+          ) : null}
         </div>
       </section>
 
@@ -389,33 +481,34 @@ function RentsPage() {
           <thead>
             <tr>
               <th>Name</th>
-              <th>Daily fare</th>
               <th>Note</th>
               <th aria-label="Actions" />
             </tr>
           </thead>
           <tbody>
-            {vehicles.length === 0 ? (
+            {visibleVehicles.length === 0 ? (
               <tr>
-                <td colSpan={4} className="stock-table__empty">
-                  No vehicles yet. Click Add Vehicle.
+                <td colSpan={3} className="stock-table__empty">
+                  {vehicles.length === 0
+                    ? 'No vehicles yet. Click Add Vehicle.'
+                    : 'No vehicle selected.'}
                 </td>
               </tr>
             ) : (
-              vehicles.map((row) => (
-                <tr key={row.id}>
+              visibleVehicles.map((row) => (
+                <tr
+                  key={row.id}
+                  onClick={() => selectVehicle(row.id)}
+                  style={{ cursor: 'pointer' }}
+                >
                   <td>{row.name}</td>
-                  <td>{formatMoney(row.dailyFare)}</td>
                   <td className="stock-table__wrap">{row.note || '—'}</td>
-                  <td className="stock-table__actions">
+                  <td className="stock-table__actions" onClick={(e) => e.stopPropagation()}>
                     {canEdit && (
                       <button
                         type="button"
                         className="btn-secondary btn-compact"
-                        onClick={() => {
-                          setVehicleId(String(row.id))
-                          openEditVehicle(row)
-                        }}
+                        onClick={(e) => openEditVehicle(row, e)}
                       >
                         Edit
                       </button>
@@ -424,7 +517,7 @@ function RentsPage() {
                       <button
                         type="button"
                         className="btn-danger btn-compact"
-                        onClick={() => handleDeleteVehicle(row)}
+                        onClick={(e) => handleDeleteVehicle(row, e)}
                       >
                         Delete
                       </button>
@@ -438,7 +531,7 @@ function RentsPage() {
       </div>
 
       {!vehicleId ? (
-        <p className="help-muted">Select a vehicle to open daily fare hisab.</p>
+        <p className="help-muted">Select a vehicle (dropdown or row) to open delivery fare hisab.</p>
       ) : ledgerLoading ? (
         <p className="help-muted">Loading ledger…</p>
       ) : !vehicle ? (
@@ -449,38 +542,166 @@ function RentsPage() {
             <div>
               <span className="stock-totals__label">Vehicle</span>
               <strong className="stock-totals__value">{vehicle.name}</strong>
-              <p className="help-muted" style={{ marginTop: '0.35rem' }}>
-                {formatDateDisplay(date)} · Daily fare {formatMoney(vehicle.dailyFare)}
-              </p>
               {vehicle.note ? <p className="help-muted">{vehicle.note}</p> : null}
             </div>
           </section>
 
           <section className="stock-totals card stock-totals--split">
             <div>
-              <span className="stock-totals__label">Due</span>
-              <strong className="stock-totals__value">{formatMoney(summary.due)}</strong>
+              <span className="stock-totals__label">Trips fare</span>
+              <strong className="stock-totals__value">{formatMoney(summary.totalFare)}</strong>
+              <p className="help-muted" style={{ marginTop: '0.35rem' }}>
+                {summary.tripCount} deliveries
+              </p>
             </div>
             <div>
               <span className="stock-totals__label">Paid</span>
-              <strong className="stock-totals__value">{formatMoney(summary.paid)}</strong>
+              <strong className="stock-totals__value">{formatMoney(summary.totalPaid)}</strong>
             </div>
             <div>
               <span className="stock-totals__label">Remaining</span>
               <strong className="stock-totals__value">{formatMoney(summary.remaining)}</strong>
             </div>
             <div>
-              <span className="stock-totals__label">Status</span>
-              <strong className="stock-totals__value">
-                <span className={`status-pill status-pill--${summary.payStatus || 'unpaid'}`}>
-                  {payStatusLabel(summary.payStatus)}
-                </span>
-              </strong>
-              {summary.advance > 0 ? (
-                <p className="help-muted" style={{ marginTop: '0.35rem' }}>
-                  Advance {formatMoney(summary.advance)}
-                </p>
-              ) : null}
+              <span className="stock-totals__label">Advance</span>
+              <strong className="stock-totals__value">{formatMoney(summary.advance)}</strong>
+            </div>
+          </section>
+
+          <section className="bills-section" style={{ marginTop: '1.5rem' }}>
+            <div className="page-toolbar" style={{ marginBottom: '0.75rem' }}>
+              <div>
+                <h2 style={{ margin: 0, fontSize: '1.15rem' }}>Deliveries / trips</h2>
+              </div>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() =>
+                  showTripForm && !editingTripId ? closeTripForm() : openCreateTrip()
+                }
+              >
+                {showTripForm && !editingTripId ? 'Cancel' : 'Add Trip'}
+              </button>
+            </div>
+
+            {showTripForm && (
+              <form className="card panel-form panel-form--stock" onSubmit={handleTripSubmit}>
+                <div className="form-grid form-grid--order">
+                  <div>
+                    <label htmlFor="rent-trip-date">Date</label>
+                    <input
+                      id="rent-trip-date"
+                      type="date"
+                      value={tripForm.date}
+                      onChange={(e) => setTripForm((p) => ({ ...p, date: e.target.value }))}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="rent-trip-dest">Where maal gaya</label>
+                    <input
+                      id="rent-trip-dest"
+                      type="text"
+                      value={tripForm.destination}
+                      onChange={(e) => setTripForm((p) => ({ ...p, destination: e.target.value }))}
+                      placeholder="e.g. Lahore / Shop name / area"
+                      required
+                      maxLength={255}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="rent-trip-fare">Fare asked (Rs)</label>
+                    <input
+                      id="rent-trip-fare"
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      value={tripForm.fareAmount}
+                      onChange={(e) => setTripForm((p) => ({ ...p, fareAmount: e.target.value }))}
+                      placeholder="Is delivery ke paise"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="rent-trip-note">Note (optional)</label>
+                    <input
+                      id="rent-trip-note"
+                      type="text"
+                      value={tripForm.note}
+                      onChange={(e) => setTripForm((p) => ({ ...p, note: e.target.value }))}
+                      maxLength={255}
+                    />
+                  </div>
+                </div>
+                <div className="panel-form__actions">
+                  <button type="submit" className="btn-primary" disabled={savingTrip}>
+                    {savingTrip ? 'Saving…' : editingTripId ? 'Update Trip' : 'Save Trip'}
+                  </button>
+                  {editingTripId && (
+                    <button type="button" className="btn-secondary" onClick={closeTripForm} disabled={savingTrip}>
+                      Cancel
+                    </button>
+                  )}
+                </div>
+              </form>
+            )}
+
+            <div className="stock-table-wrap card">
+              <table className="stock-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Destination</th>
+                    <th>Fare</th>
+                    <th>Status</th>
+                    <th>Note</th>
+                    <th aria-label="Actions" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {trips.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="stock-table__empty">
+                        No deliveries yet. Click Add Trip.
+                      </td>
+                    </tr>
+                  ) : (
+                    trips.map((row) => (
+                      <tr key={row.id}>
+                        <td>{formatDateDisplay(row.date)}</td>
+                        <td className="stock-table__wrap">{row.destination}</td>
+                        <td>{formatMoney(row.fareAmount)}</td>
+                        <td>
+                          <span className={`status-pill status-pill--${row.payStatus || 'unpaid'}`}>
+                            {payStatusLabel(row.payStatus)}
+                          </span>
+                        </td>
+                        <td className="stock-table__wrap">{row.note || '—'}</td>
+                        <td className="stock-table__actions">
+                          {canEdit && (
+                            <button
+                              type="button"
+                              className="btn-secondary btn-compact"
+                              onClick={() => openEditTrip(row)}
+                            >
+                              Edit
+                            </button>
+                          )}
+                          {canDelete && (
+                            <button
+                              type="button"
+                              className="btn-danger btn-compact"
+                              onClick={() => handleDeleteTrip(row)}
+                            >
+                              Delete
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
           </section>
 
@@ -504,7 +725,7 @@ function RentsPage() {
               <form className="card panel-form panel-form--stock" onSubmit={handlePaymentSubmit}>
                 <div className="form-grid form-grid--order">
                   <div>
-                    <label htmlFor="rent-pay-date">Payment date</label>
+                    <label htmlFor="rent-pay-date">Date</label>
                     <input
                       id="rent-pay-date"
                       type="date"
@@ -553,8 +774,7 @@ function RentsPage() {
               <table className="stock-table">
                 <thead>
                   <tr>
-                    <th>Payment date</th>
-                    <th>For day</th>
+                    <th>Date</th>
                     <th>Amount</th>
                     <th>Note</th>
                     <th aria-label="Actions" />
@@ -563,23 +783,22 @@ function RentsPage() {
                 <tbody>
                   {payments.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="stock-table__empty">
-                        No payments for this day yet.
+                      <td colSpan={4} className="stock-table__empty">
+                        No payments yet.
                       </td>
                     </tr>
                   ) : (
-                    payments.map((payment) => (
-                      <tr key={payment.id}>
-                        <td>{formatDateDisplay(payment.date)}</td>
-                        <td>{formatDateDisplay(payment.forDate)}</td>
-                        <td>{formatMoney(payment.amount)}</td>
-                        <td className="stock-table__wrap">{payment.note || '—'}</td>
+                    payments.map((row) => (
+                      <tr key={row.id}>
+                        <td>{formatDateDisplay(row.date)}</td>
+                        <td>{formatMoney(row.amount)}</td>
+                        <td className="stock-table__wrap">{row.note || '—'}</td>
                         <td className="stock-table__actions">
                           {canEdit && (
                             <button
                               type="button"
                               className="btn-secondary btn-compact"
-                              onClick={() => openEditPayment(payment)}
+                              onClick={() => openEditPayment(row)}
                             >
                               Edit
                             </button>
@@ -588,7 +807,7 @@ function RentsPage() {
                             <button
                               type="button"
                               className="btn-danger btn-compact"
-                              onClick={() => handleDeletePayment(payment)}
+                              onClick={() => handleDeletePayment(row)}
                             >
                               Delete
                             </button>

@@ -1,6 +1,6 @@
 # CONTEXT — Qanooni Polymers System Truth
 
-Last updated: 2026-07-27 (Admin / Manager RBAC)
+Last updated: 2026-07-27 (Vehicle trips + gas per kg + select UX)
 
 ## Purpose
 
@@ -58,14 +58,16 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
 
 ## Vehicle Fare
 
-- Use: vehicles that carry goods (samaan) — **daily** fare hisab (not monthly)
-- Sidebar label: **Vehicle Fare** (route still `/rents`)
-- Tables: `rent_vehicles` (`name`, `daily_fare`, `note`), `rent_payments` (`vehicle_id`, `payment_date`, `for_date`, `amount`, `note`)
-- Per vehicle + day: due = daily fare; paid = sum payments for that `for_date`; Unpaid/Partial/Paid + advance
-- UI: vehicles CRUD → select vehicle + date → payments CRUD
-- Delete vehicle blocked if payments exist
-- APIs: `GET|POST /api/rents`, `PUT|DELETE /api/rents/:id`, `GET /api/rents/:id/ledger?date=YYYY-MM-DD`, payments nested
-- Legacy: `monthly_rent`→`daily_fare`, `for_month`→`for_date`, `rent_buildings`/`building_id` auto-migrated on server start
+- Use: vehicles that carry goods — **per delivery** fare (not fixed daily)
+- Sidebar label: **Vehicle Fare** (`/rents`)
+- Tables:
+  - `rent_vehicles` (`name`, `note`) — no fixed fare
+  - `rent_trips` (`vehicle_id`, `trip_date`, `destination`, `fare_amount`, `note`) — where maal gaya + kitne paise
+  - `rent_payments` (`vehicle_id`, `payment_date`, `amount`, `note`) — FIFO → Unpaid/Partial/Paid per trip
+- Ledger: totalFare / totalPaid / remaining / advance + trip list with pay status
+- UI: vehicle select (dropdown or row click; selected-only table) → Add Trip (date, destination, fare) + payments
+- APIs: `GET|POST /api/rents`, `PUT|DELETE /api/rents/:id`, `GET /api/rents/:id/ledger`, trips + payments nested
+- Legacy: `daily_fare` dropped; `for_date`/`for_month` dropped from payments; buildings migrated earlier
 
 ## Utility Bills
 
@@ -75,11 +77,12 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
   2. **Other utility bills** — electricity / water / internet / other (day list + totals)
 - Tables:
   - `gas_suppliers` (`name`, `contact` 11 digits, `note`)
-  - `gas_purchases` (`supplier_id`, `purchase_date`, `cylinder_kg`, `cylinders_count`, `price_per_cylinder`, `total_amount`, `note`)
+  - `gas_purchases` (`supplier_id`, `purchase_date`, `cylinder_kg`, `cylinders_count`, `price_per_kg`, `total_amount`, `note`)
   - `gas_payments` (`supplier_id`, `payment_date`, `amount`, `note`)
   - `utility_bills` (`bill_date`, `category`, `title`, `amount`, `note`)
 - Gas ledger: purchases FIFO → Unpaid/Partial/Paid; summary purchased/paid/remaining/advance + total cylinders/kg
-- Purchase total = `cylinders_count * price_per_cylinder`
+- Purchase total = `cylinder_kg * cylinders_count * price_per_kg` (API body: `pricePerKg`)
+- UI: gas suppliers list filters to selected row when `supplierId` set; row click selects; “Show all suppliers” clears; Edit also sets selection
 - APIs (`/api/utility`, auth required):
   - `GET|POST /api/utility/suppliers`, `PUT|DELETE /api/utility/suppliers/:id`
   - `GET /api/utility/suppliers/:id/ledger`
@@ -91,7 +94,7 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
 - Tables: `workers` (`name`, `contact` 11 digits, `fixed_salary`, `address`, `id_card_front`, `id_card_back`, `note`), `worker_leaves` (`leave_date`, `days`), `worker_salary_payments` (`for_month`, `amount`)
 - ID card front/back stored as compressed JPEG data-URLs (`MEDIUMTEXT`); list API omits blobs (flags only)
 - Month ledger: `leaveCut = fixedSalary/30 * leaveDays`; `payable = max(fixed - cut, 0)`; payments → Unpaid/Partial/Paid + advance
-- UI: workers CRUD (name, contact, address, salary, ID front/back) → select worker + month → leaves + salary payments
+- UI: workers CRUD (name, contact, address, salary, ID front/back) → select worker + month → leaves + salary payments; list filters to selected worker; row click selects; “Show all workers” clears
 - Delete worker blocked if leave/salary history
 - APIs: `GET|POST /api/workers`, `GET /api/workers/:id` (full + images), `PUT|DELETE /api/workers/:id`, `GET /api/workers/:id/ledger?month=`, leaves + payments nested
 - JSON body limit raised to `5mb` for ID image uploads
@@ -116,7 +119,7 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
 - Stock links via `raw_material_stocks.supplier_id` (+ denormalized `supplier` name)
 - Hisab: purchases = stock totals for supplier; payments allocate FIFO → Unpaid / Partial / Paid
 - Summary: `totalPurchased`, `totalPaid`, `remaining` (due), `advance` (if overpaid)
-- UI: Name + Contact CRUD → select supplier → purchases table + payments CRUD + **Print PDF**
+- UI: Name + Contact CRUD → select supplier (dropdown or row click) → purchases table + payments CRUD + **Print PDF**; list filters to selected supplier; “Show all suppliers” clears
 - APIs (auth required):
   - `GET|POST /api/suppliers`
   - `PUT|DELETE /api/suppliers/:id` (delete blocked if purchase/payment history)
