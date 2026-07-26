@@ -369,6 +369,23 @@ export async function ensureSchema() {
         ON DELETE RESTRICT
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `)
+
+  await getPool().query(`
+    CREATE TABLE IF NOT EXISTS customer_payments (
+      id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+      route_customer_id INT UNSIGNED NOT NULL,
+      payment_date DATE NOT NULL,
+      amount DECIMAL(14, 2) NOT NULL,
+      note VARCHAR(255) NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_customer_payments_customer (route_customer_id),
+      KEY idx_customer_payments_date (payment_date),
+      CONSTRAINT fk_customer_payments_customer
+        FOREIGN KEY (route_customer_id) REFERENCES route_customers (id)
+        ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `)
 }
 
 export async function pingDatabase() {

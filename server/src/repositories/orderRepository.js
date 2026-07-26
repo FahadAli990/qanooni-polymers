@@ -111,6 +111,20 @@ export async function findOrderById(id) {
   return rows[0] ? mapOrderRow(rows[0]) : null
 }
 
+export async function findDeliveredOrdersByCustomerId(routeCustomerId) {
+  const [rows] = await getPool().query(
+    `SELECT ${ORDER_SELECT}
+     FROM sales_orders o
+     INNER JOIN mill_routes r ON r.id = o.mill_route_id
+     INNER JOIN route_customers c ON c.id = o.route_customer_id
+     WHERE o.route_customer_id = :routeCustomerId
+       AND o.status = 'delivered'
+     ORDER BY o.order_date ASC, o.id ASC`,
+    { routeCustomerId },
+  )
+  return rows.map(mapOrderRow)
+}
+
 export async function insertOrderWithItems({
   date,
   millRouteId,

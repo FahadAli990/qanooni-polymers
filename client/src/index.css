@@ -564,6 +564,24 @@ select:focus {
   border-color: #d1d5db;
 }
 
+.status-pill--unpaid {
+  color: #9a3412;
+  background: #fff7ed;
+  border-color: #fdba74;
+}
+
+.status-pill--partial {
+  color: #854d0e;
+  background: #fefce8;
+  border-color: #fde047;
+}
+
+.status-pill--paid {
+  color: #166534;
+  background: #f0fdf4;
+  border-color: #86efac;
+}
+
 .stock-table__row--used td {
   color: var(--text-soft);
 }

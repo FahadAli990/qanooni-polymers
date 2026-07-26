@@ -1,6 +1,6 @@
 # CONTEXT — Qanooni Polymers System Truth
 
-Last updated: 2026-07-26 (FIFO production consume on deliver)
+Last updated: 2026-07-27 (Customer Bills & Payments)
 
 ## Purpose
 
@@ -40,7 +40,20 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
 - Top-level **Routes** (same level as Raw Material / Mills & Production) — `/routes`
   - **No sidebar children** — open routes only from page boxes
 - Top-level **Orders** (below Routes) — `/orders`
-- Top-level **Bills & Payments** (below Orders) — `/bills-payments` (placeholder page for now)
+- Top-level **Bills & Payments** (below Orders) — `/bills-payments` (customer / shop ledger only; suppliers later)
+
+## Bills & Payments (customers)
+
+- Table: `customer_payments` (`id`, `route_customer_id`, `payment_date`, `amount`, `note`, `created_at`)
+- Bills = **delivered** `sales_orders` for that shop (`total_bill`); pending orders excluded
+- Balance: `totalBilled − totalPaid = remaining`
+- Bill pay status (display): Unpaid / Partial / Paid — payments allocate FIFO to oldest bills
+- UI: Route dropdown → Shop dropdown → shop details + summary + bills table + payments CRUD
+- APIs (auth required):
+  - `GET /api/bills/shop?routeSlug=&customerId=` → shop, summary, bills[], payments[]
+  - `POST /api/bills/payments` `{ routeSlug, customerId, date, amount, note? }`
+  - `PUT /api/bills/payments/:id`
+  - `DELETE /api/bills/payments/:id?routeSlug=&customerId=`
 
 ## Orders (sales)
 
