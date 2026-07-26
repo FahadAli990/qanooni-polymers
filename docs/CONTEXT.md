@@ -1,6 +1,6 @@
 # CONTEXT — Qanooni Polymers System Truth
 
-Last updated: 2026-07-27 (Daily Expense)
+Last updated: 2026-07-27 (Maintenance, Rents, Workers & Salary)
 
 ## Purpose
 
@@ -43,6 +43,32 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
 - Top-level **Bills & Payments** (below Orders) — `/bills-payments` (customer / shop ledger + Print PDF)
 - Top-level **Suppliers** (below Bills & Payments) — `/suppliers`
 - Top-level **Daily Expense** (below Suppliers) — `/daily-expense`
+- Top-level **Maintenance** — `/maintenance`
+- Top-level **Rents** — `/rents`
+- Top-level **Workers & Salary** — `/workers`
+
+## Maintenance
+
+- Table: `maintenance_expenses` (`id`, `expense_date`, `title`, `amount`, `note`, `created_at`)
+- Use: machine wear & tear / repair costs
+- UI: date picker → list + selected-day total + all-time total + Add/Edit/Delete
+- APIs: `GET|POST /api/maintenance`, `PUT|DELETE /api/maintenance/:id` (same shape as Daily Expense)
+
+## Rents
+
+- Tables: `rent_buildings` (`name`, `monthly_rent`, `note`), `rent_payments` (`building_id`, `payment_date`, `for_month`, `amount`, `note`)
+- Per building + month: due = monthly rent; paid = sum payments; Unpaid/Partial/Paid + advance
+- UI: buildings CRUD → select building + month → payments CRUD
+- Delete building blocked if payments exist
+- APIs: `GET|POST /api/rents`, `PUT|DELETE /api/rents/:id`, `GET /api/rents/:id/ledger?month=YYYY-MM`, payments nested
+
+## Workers & Salary
+
+- Tables: `workers` (`name`, `contact` 11 digits, `fixed_salary`, `note`), `worker_leaves` (`leave_date`, `days`), `worker_salary_payments` (`for_month`, `amount`)
+- Month ledger: `leaveCut = fixedSalary/30 * leaveDays`; `payable = max(fixed - cut, 0)`; payments → Unpaid/Partial/Paid + advance
+- UI: workers CRUD → select worker + month → leaves + salary payments
+- Delete worker blocked if leave/salary history
+- APIs: `GET|POST /api/workers`, `PUT|DELETE /api/workers/:id`, `GET /api/workers/:id/ledger?month=`, leaves + payments nested
 
 ## Daily Expense
 

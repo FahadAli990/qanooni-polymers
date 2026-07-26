@@ -1,9 +1,12 @@
 import { GiBrickWall, GiPipes } from 'react-icons/gi'
 import {
   MdAccountBalanceWallet,
+  MdApartment,
+  MdBuild,
   MdDonutLarge,
   MdFactory,
   MdGrain,
+  MdGroups,
   MdLocalShipping,
   MdPayments,
   MdReceiptLong,
@@ -89,6 +92,24 @@ export function buildNavItems(materials = []) {
       Icon: MdAccountBalanceWallet,
       path: '/daily-expense',
     },
+    {
+      id: 'maintenance',
+      label: 'Maintenance',
+      Icon: MdBuild,
+      path: '/maintenance',
+    },
+    {
+      id: 'rents',
+      label: 'Rents',
+      Icon: MdApartment,
+      path: '/rents',
+    },
+    {
+      id: 'workers',
+      label: 'Workers & Salary',
+      Icon: MdGroups,
+      path: '/workers',
+    },
   ]
 }
 
@@ -147,6 +168,27 @@ function parseDailyExpensePath(pathname) {
   return null
 }
 
+function parseMaintenancePath(pathname) {
+  if (pathname === '/maintenance' || pathname.startsWith('/maintenance/')) {
+    return { section: 'maintenance', ancestors: [] }
+  }
+  return null
+}
+
+function parseRentsPath(pathname) {
+  if (pathname === '/rents' || pathname.startsWith('/rents/')) {
+    return { section: 'rents', ancestors: [] }
+  }
+  return null
+}
+
+function parseWorkersPath(pathname) {
+  if (pathname === '/workers' || pathname.startsWith('/workers/')) {
+    return { section: 'workers', ancestors: [] }
+  }
+  return null
+}
+
 function findNavItemById(items, id) {
   for (const item of items) {
     if (item.id === id) return item
@@ -158,21 +200,22 @@ function findNavItemById(items, id) {
   return null
 }
 
+const TOP_LEVEL_PARSERS = [
+  parseWorkersPath,
+  parseRentsPath,
+  parseMaintenancePath,
+  parseDailyExpensePath,
+  parseSuppliersPath,
+  parseBillsPaymentsPath,
+  parseOrdersPath,
+  parseRoutesPath,
+]
+
 export function getActiveNavId(pathname, materials = []) {
-  const expenseNav = parseDailyExpensePath(pathname)
-  if (expenseNav) return expenseNav.section
-
-  const suppliersNav = parseSuppliersPath(pathname)
-  if (suppliersNav) return suppliersNav.section
-
-  const billsNav = parseBillsPaymentsPath(pathname)
-  if (billsNav) return billsNav.section
-
-  const ordersNav = parseOrdersPath(pathname)
-  if (ordersNav) return ordersNav.section
-
-  const routeNav = parseRoutesPath(pathname)
-  if (routeNav) return routeNav.section
+  for (const parse of TOP_LEVEL_PARSERS) {
+    const nav = parse(pathname)
+    if (nav) return nav.section
+  }
 
   const mills = parseMillsPath(pathname)
   if (mills) return mills.section
@@ -184,29 +227,11 @@ export function getActiveNavId(pathname, materials = []) {
 }
 
 export function getNavItemByPath(pathname, materials = []) {
-  const expenseNav = parseDailyExpensePath(pathname)
-  if (expenseNav) {
-    return buildNavItems(materials).find((item) => item.id === 'daily-expense')
-  }
-
-  const suppliersNav = parseSuppliersPath(pathname)
-  if (suppliersNav) {
-    return buildNavItems(materials).find((item) => item.id === 'suppliers')
-  }
-
-  const billsNav = parseBillsPaymentsPath(pathname)
-  if (billsNav) {
-    return buildNavItems(materials).find((item) => item.id === 'bills-payments')
-  }
-
-  const ordersNav = parseOrdersPath(pathname)
-  if (ordersNav) {
-    return buildNavItems(materials).find((item) => item.id === 'orders')
-  }
-
-  const routeNav = parseRoutesPath(pathname)
-  if (routeNav) {
-    return buildNavItems(materials).find((item) => item.id === 'routes')
+  for (const parse of TOP_LEVEL_PARSERS) {
+    const nav = parse(pathname)
+    if (nav) {
+      return buildNavItems(materials).find((item) => item.id === nav.section)
+    }
   }
 
   const mills = parseMillsPath(pathname)
@@ -227,20 +252,10 @@ export function getNavItemByPath(pathname, materials = []) {
 }
 
 export function getAncestorIdsForPath(pathname, materials = []) {
-  const expenseNav = parseDailyExpensePath(pathname)
-  if (expenseNav) return []
-
-  const suppliersNav = parseSuppliersPath(pathname)
-  if (suppliersNav) return []
-
-  const billsNav = parseBillsPaymentsPath(pathname)
-  if (billsNav) return []
-
-  const ordersNav = parseOrdersPath(pathname)
-  if (ordersNav) return []
-
-  const routeNav = parseRoutesPath(pathname)
-  if (routeNav) return []
+  for (const parse of TOP_LEVEL_PARSERS) {
+    const nav = parse(pathname)
+    if (nav) return []
+  }
 
   const mills = parseMillsPath(pathname)
   if (mills?.ancestors?.length) return mills.ancestors

@@ -453,6 +453,99 @@ export async function ensureSchema() {
       KEY idx_daily_expenses_created (created_at)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `)
+
+  await getPool().query(`
+    CREATE TABLE IF NOT EXISTS maintenance_expenses (
+      id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+      expense_date DATE NOT NULL,
+      title VARCHAR(160) NOT NULL,
+      amount DECIMAL(14, 2) NOT NULL,
+      note VARCHAR(255) NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_maintenance_expenses_date (expense_date),
+      KEY idx_maintenance_expenses_created (created_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `)
+
+  await getPool().query(`
+    CREATE TABLE IF NOT EXISTS rent_buildings (
+      id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+      name VARCHAR(160) NOT NULL,
+      monthly_rent DECIMAL(14, 2) NOT NULL,
+      note VARCHAR(255) NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      UNIQUE KEY uq_rent_buildings_name (name)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `)
+
+  await getPool().query(`
+    CREATE TABLE IF NOT EXISTS rent_payments (
+      id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+      building_id INT UNSIGNED NOT NULL,
+      payment_date DATE NOT NULL,
+      for_month DATE NOT NULL,
+      amount DECIMAL(14, 2) NOT NULL,
+      note VARCHAR(255) NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_rent_payments_building (building_id),
+      KEY idx_rent_payments_month (for_month),
+      CONSTRAINT fk_rent_payments_building
+        FOREIGN KEY (building_id) REFERENCES rent_buildings (id)
+        ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `)
+
+  await getPool().query(`
+    CREATE TABLE IF NOT EXISTS workers (
+      id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+      name VARCHAR(160) NOT NULL,
+      contact VARCHAR(20) NOT NULL,
+      fixed_salary DECIMAL(14, 2) NOT NULL,
+      note VARCHAR(255) NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      UNIQUE KEY uq_workers_name (name),
+      KEY idx_workers_contact (contact)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `)
+
+  await getPool().query(`
+    CREATE TABLE IF NOT EXISTS worker_leaves (
+      id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+      worker_id INT UNSIGNED NOT NULL,
+      leave_date DATE NOT NULL,
+      days DECIMAL(6, 2) NOT NULL,
+      note VARCHAR(255) NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_worker_leaves_worker (worker_id),
+      KEY idx_worker_leaves_date (leave_date),
+      CONSTRAINT fk_worker_leaves_worker
+        FOREIGN KEY (worker_id) REFERENCES workers (id)
+        ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `)
+
+  await getPool().query(`
+    CREATE TABLE IF NOT EXISTS worker_salary_payments (
+      id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+      worker_id INT UNSIGNED NOT NULL,
+      payment_date DATE NOT NULL,
+      for_month DATE NOT NULL,
+      amount DECIMAL(14, 2) NOT NULL,
+      note VARCHAR(255) NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_worker_salary_worker (worker_id),
+      KEY idx_worker_salary_month (for_month),
+      CONSTRAINT fk_worker_salary_worker
+        FOREIGN KEY (worker_id) REFERENCES workers (id)
+        ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `)
 }
 
 export async function pingDatabase() {

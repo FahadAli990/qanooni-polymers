@@ -8,6 +8,9 @@ import orderRoutes from './orderRoutes.js'
 import billRoutes from './billRoutes.js'
 import supplierRoutes from './supplierRoutes.js'
 import expenseRoutes from './expenseRoutes.js'
+import maintenanceRoutes from './maintenanceRoutes.js'
+import rentRoutes from './rentRoutes.js'
+import workerRoutes from './workerRoutes.js'
 
 const router = Router()
 
@@ -20,5 +23,8 @@ router.use('/orders', orderRoutes)
 router.use('/bills', billRoutes)
 router.use('/suppliers', supplierRoutes)
 router.use('/expenses', expenseRoutes)
+router.use('/maintenance', maintenanceRoutes)
+router.use('/rents', rentRoutes)
+router.use('/workers', workerRoutes)
 
 export default router
