@@ -8,10 +8,6 @@ function formatMoney(value) {
   return `Rs ${formatNum(value)}`
 }
 
-function currentMonth() {
-  return todayIso().slice(0, 7)
-}
-
 function payStatusLabel(status) {
   if (status === 'paid') return 'Paid'
   if (status === 'partial') return 'Partial'
@@ -19,7 +15,7 @@ function payStatusLabel(status) {
 }
 
 function emptyVehicleForm() {
-  return { name: '', monthlyRent: '', note: '' }
+  return { name: '', dailyFare: '', note: '' }
 }
 
 function RentsPage() {
@@ -29,7 +25,7 @@ function RentsPage() {
   const [vehicles, setVehicles] = useState([])
   const [vehiclesLoading, setVehiclesLoading] = useState(true)
   const [vehicleId, setVehicleId] = useState('')
-  const [month, setMonth] = useState(currentMonth())
+  const [date, setDate] = useState(todayIso())
 
   const [showVehicleForm, setShowVehicleForm] = useState(false)
   const [editingVehicleId, setEditingVehicleId] = useState(null)
@@ -79,7 +75,7 @@ function RentsPage() {
       payload.summary || { due: 0, paid: 0, remaining: 0, advance: 0, payStatus: 'unpaid' },
     )
     setPayments(payload.payments || [])
-    if (payload.month) setMonth(payload.month)
+    if (payload.date) setDate(payload.date)
   }, [])
 
   const loadLedger = useCallback(async () => {
@@ -91,7 +87,7 @@ function RentsPage() {
     }
     setLedgerLoading(true)
     try {
-      const { data } = await api.get(`/rents/${vehicleId}/ledger`, { params: { month } })
+      const { data } = await api.get(`/rents/${vehicleId}/ledger`, { params: { date } })
       applyLedger(data.data || {})
     } catch (err) {
       setVehicle(null)
@@ -100,7 +96,7 @@ function RentsPage() {
     } finally {
       setLedgerLoading(false)
     }
-  }, [vehicleId, month, applyLedger, showToast])
+  }, [vehicleId, date, applyLedger, showToast])
 
   useEffect(() => {
     loadLedger()
@@ -125,7 +121,7 @@ function RentsPage() {
     setEditingVehicleId(row.id)
     setVehicleForm({
       name: row.name,
-      monthlyRent: String(row.monthlyRent),
+      dailyFare: String(row.dailyFare),
       note: row.note || '',
     })
     setShowVehicleForm(true)
@@ -134,18 +130,18 @@ function RentsPage() {
   async function handleVehicleSubmit(e) {
     e.preventDefault()
     const name = vehicleForm.name.trim()
-    const monthlyRent = Number(vehicleForm.monthlyRent)
+    const dailyFare = Number(vehicleForm.dailyFare)
     if (!name) {
       showToast('Vehicle name is required', 'error')
       return
     }
-    if (!Number.isFinite(monthlyRent) || monthlyRent <= 0) {
-      showToast('Monthly rent must be a positive number', 'error')
+    if (!Number.isFinite(dailyFare) || dailyFare <= 0) {
+      showToast('Daily fare must be a positive number', 'error')
       return
     }
     setSavingVehicle(true)
     try {
-      const body = { name, monthlyRent, note: vehicleForm.note.trim() }
+      const body = { name, dailyFare, note: vehicleForm.note.trim() }
       if (editingVehicleId) {
         const { data } = await api.put(`/rents/${editingVehicleId}`, body)
         const updated = data.data
@@ -189,7 +185,7 @@ function RentsPage() {
 
   function resetPaymentForm() {
     setEditingPaymentId(null)
-    setPaymentDate(todayIso())
+    setPaymentDate(date || todayIso())
     setPaymentAmount('')
     setPaymentNote('')
   }
@@ -231,7 +227,7 @@ function RentsPage() {
     try {
       const body = {
         date: paymentDate,
-        forMonth: month,
+        forDate: date,
         amount,
         note: paymentNote.trim(),
       }
@@ -260,7 +256,7 @@ function RentsPage() {
     if (!ok) return
     try {
       const { data } = await api.delete(`/rents/${vehicleId}/payments/${payment.id}`, {
-        params: { month },
+        params: { date },
       })
       applyLedger(data.data || {})
       if (editingPaymentId === payment.id) closePaymentForm()
@@ -274,8 +270,8 @@ function RentsPage() {
     <div className="page-shell page-shell--wide">
       <header className="page-toolbar">
         <div>
-          <h1>Rents</h1>
-          <p>Vehicles ke monthly rents aur payments yahan manage karo.</p>
+          <h1>Vehicle Fare</h1>
+          <p>Samaan le jane wali vehicles ka daily fare aur payments yahan manage karo.</p>
         </div>
         <button
           type="button"
@@ -305,15 +301,15 @@ function RentsPage() {
               />
             </div>
             <div>
-              <label htmlFor="rent-vehicle-rent">Monthly rent (Rs)</label>
+              <label htmlFor="rent-vehicle-fare">Daily fare (Rs)</label>
               <input
-                id="rent-vehicle-rent"
+                id="rent-vehicle-fare"
                 type="number"
                 min="0.01"
                 step="0.01"
-                value={vehicleForm.monthlyRent}
-                onChange={(e) => setVehicleForm((p) => ({ ...p, monthlyRent: e.target.value }))}
-                placeholder="e.g. 50000"
+                value={vehicleForm.dailyFare}
+                onChange={(e) => setVehicleForm((p) => ({ ...p, dailyFare: e.target.value }))}
+                placeholder="e.g. 3500"
                 required
               />
             </div>
@@ -367,12 +363,12 @@ function RentsPage() {
             </select>
           </div>
           <div>
-            <label htmlFor="rent-month">Month</label>
+            <label htmlFor="rent-date">Date</label>
             <input
-              id="rent-month"
-              type="month"
-              value={month}
-              onChange={(e) => setMonth(e.target.value)}
+              id="rent-date"
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
             />
           </div>
         </div>
@@ -383,7 +379,7 @@ function RentsPage() {
           <thead>
             <tr>
               <th>Name</th>
-              <th>Monthly rent</th>
+              <th>Daily fare</th>
               <th>Note</th>
               <th aria-label="Actions" />
             </tr>
@@ -399,7 +395,7 @@ function RentsPage() {
               vehicles.map((row) => (
                 <tr key={row.id}>
                   <td>{row.name}</td>
-                  <td>{formatMoney(row.monthlyRent)}</td>
+                  <td>{formatMoney(row.dailyFare)}</td>
                   <td className="stock-table__wrap">{row.note || '—'}</td>
                   <td className="stock-table__actions">
                     <button
@@ -428,7 +424,7 @@ function RentsPage() {
       </div>
 
       {!vehicleId ? (
-        <p className="help-muted">Select a vehicle to open monthly rent hisab.</p>
+        <p className="help-muted">Select a vehicle to open daily fare hisab.</p>
       ) : ledgerLoading ? (
         <p className="help-muted">Loading ledger…</p>
       ) : !vehicle ? (
@@ -440,7 +436,7 @@ function RentsPage() {
               <span className="stock-totals__label">Vehicle</span>
               <strong className="stock-totals__value">{vehicle.name}</strong>
               <p className="help-muted" style={{ marginTop: '0.35rem' }}>
-                Month {month} · Fixed {formatMoney(vehicle.monthlyRent)}
+                {formatDateDisplay(date)} · Daily fare {formatMoney(vehicle.dailyFare)}
               </p>
               {vehicle.note ? <p className="help-muted">{vehicle.note}</p> : null}
             </div>
@@ -494,7 +490,7 @@ function RentsPage() {
               <form className="card panel-form panel-form--stock" onSubmit={handlePaymentSubmit}>
                 <div className="form-grid form-grid--order">
                   <div>
-                    <label htmlFor="rent-pay-date">Date</label>
+                    <label htmlFor="rent-pay-date">Payment date</label>
                     <input
                       id="rent-pay-date"
                       type="date"
@@ -543,8 +539,8 @@ function RentsPage() {
               <table className="stock-table">
                 <thead>
                   <tr>
-                    <th>Date</th>
-                    <th>For month</th>
+                    <th>Payment date</th>
+                    <th>For day</th>
                     <th>Amount</th>
                     <th>Note</th>
                     <th aria-label="Actions" />
@@ -554,14 +550,14 @@ function RentsPage() {
                   {payments.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="stock-table__empty">
-                        No payments for this month yet.
+                        No payments for this day yet.
                       </td>
                     </tr>
                   ) : (
                     payments.map((payment) => (
                       <tr key={payment.id}>
                         <td>{formatDateDisplay(payment.date)}</td>
-                        <td>{payment.forMonth}</td>
+                        <td>{formatDateDisplay(payment.forDate)}</td>
                         <td>{formatMoney(payment.amount)}</td>
                         <td className="stock-table__wrap">{payment.note || '—'}</td>
                         <td className="stock-table__actions">

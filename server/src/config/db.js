@@ -472,13 +472,35 @@ export async function ensureSchema() {
     CREATE TABLE IF NOT EXISTS rent_vehicles (
       id INT UNSIGNED NOT NULL AUTO_INCREMENT,
       name VARCHAR(160) NOT NULL,
-      monthly_rent DECIMAL(14, 2) NOT NULL,
+      daily_fare DECIMAL(14, 2) NOT NULL,
       note VARCHAR(255) NULL,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       PRIMARY KEY (id),
       UNIQUE KEY uq_rent_vehicles_name (name)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `)
+
+  // Migrate legacy monthly_rent → daily_fare
+  const [monthlyRentCols] = await getPool().query(
+    `SELECT COLUMN_NAME
+     FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'rent_vehicles'
+       AND COLUMN_NAME = 'monthly_rent'`,
+  )
+  const [dailyFareCols] = await getPool().query(
+    `SELECT COLUMN_NAME
+     FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'rent_vehicles'
+       AND COLUMN_NAME = 'daily_fare'`,
+  )
+  if (monthlyRentCols.length && !dailyFareCols.length) {
+    await getPool().query(
+      `ALTER TABLE rent_vehicles
+       CHANGE COLUMN monthly_rent daily_fare DECIMAL(14, 2) NOT NULL`,
+    )
+  }
 
   // Migrate legacy rent_buildings → rent_vehicles (one-time)
   const [legacyBuildings] = await getPool().query(
@@ -488,7 +510,7 @@ export async function ensureSchema() {
   )
   if (legacyBuildings.length) {
     await getPool().query(
-      `INSERT IGNORE INTO rent_vehicles (id, name, monthly_rent, note, created_at)
+      `INSERT IGNORE INTO rent_vehicles (id, name, daily_fare, note, created_at)
        SELECT id, name, monthly_rent, note, created_at FROM rent_buildings`,
     )
   }
@@ -498,18 +520,62 @@ export async function ensureSchema() {
       id INT UNSIGNED NOT NULL AUTO_INCREMENT,
       vehicle_id INT UNSIGNED NOT NULL,
       payment_date DATE NOT NULL,
-      for_month DATE NOT NULL,
+      for_date DATE NOT NULL,
       amount DECIMAL(14, 2) NOT NULL,
       note VARCHAR(255) NULL,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       PRIMARY KEY (id),
       KEY idx_rent_payments_vehicle (vehicle_id),
-      KEY idx_rent_payments_month (for_month),
+      KEY idx_rent_payments_for_date (for_date),
       CONSTRAINT fk_rent_payments_vehicle
         FOREIGN KEY (vehicle_id) REFERENCES rent_vehicles (id)
         ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `)
+
+  // Migrate legacy for_month → for_date
+  const [forMonthCols] = await getPool().query(
+    `SELECT COLUMN_NAME
+     FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'rent_payments'
+       AND COLUMN_NAME = 'for_month'`,
+  )
+  const [forDateCols] = await getPool().query(
+    `SELECT COLUMN_NAME
+     FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'rent_payments'
+       AND COLUMN_NAME = 'for_date'`,
+  )
+  if (forMonthCols.length && !forDateCols.length) {
+    await getPool().query(
+      `ALTER TABLE rent_payments
+       CHANGE COLUMN for_month for_date DATE NOT NULL`,
+    )
+    const [oldMonthIdx] = await getPool().query(
+      `SELECT INDEX_NAME
+       FROM INFORMATION_SCHEMA.STATISTICS
+       WHERE TABLE_SCHEMA = DATABASE()
+         AND TABLE_NAME = 'rent_payments'
+         AND INDEX_NAME = 'idx_rent_payments_month'`,
+    )
+    if (oldMonthIdx.length) {
+      await getPool().query(`ALTER TABLE rent_payments DROP INDEX idx_rent_payments_month`)
+    }
+    const [newDateIdx] = await getPool().query(
+      `SELECT INDEX_NAME
+       FROM INFORMATION_SCHEMA.STATISTICS
+       WHERE TABLE_SCHEMA = DATABASE()
+         AND TABLE_NAME = 'rent_payments'
+         AND INDEX_NAME = 'idx_rent_payments_for_date'`,
+    )
+    if (!newDateIdx.length) {
+      await getPool().query(
+        `ALTER TABLE rent_payments ADD KEY idx_rent_payments_for_date (for_date)`,
+      )
+    }
+  }
 
   // Migrate legacy rent_payments.building_id → vehicle_id
   const [buildingIdCols] = await getPool().query(

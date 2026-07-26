@@ -100,7 +100,7 @@ export function buildNavItems(materials = []) {
     },
     {
       id: 'rents',
-      label: 'Rents',
+      label: 'Vehicle Fare',
       Icon: MdDirectionsCar,
       path: '/rents',
     },

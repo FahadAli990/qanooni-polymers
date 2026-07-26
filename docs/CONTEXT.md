@@ -1,6 +1,6 @@
 # CONTEXT — Qanooni Polymers System Truth
 
-Last updated: 2026-07-27 (Workers ID card + address)
+Last updated: 2026-07-27 (Vehicle Fare daily)
 
 ## Purpose
 
@@ -44,7 +44,7 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
 - Top-level **Suppliers** (below Bills & Payments) — `/suppliers`
 - Top-level **Daily Expense** (below Suppliers) — `/daily-expense`
 - Top-level **Maintenance** — `/maintenance`
-- Top-level **Rents** — `/rents`
+- Top-level **Vehicle Fare** — `/rents`
 - Top-level **Workers & Salary** — `/workers`
 
 ## Maintenance
@@ -54,14 +54,16 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
 - UI: date picker → list + selected-day total + all-time total + Add/Edit/Delete
 - APIs: `GET|POST /api/maintenance`, `PUT|DELETE /api/maintenance/:id` (same shape as Daily Expense)
 
-## Rents
+## Vehicle Fare
 
-- Tables: `rent_vehicles` (`name`, `monthly_rent`, `note`), `rent_payments` (`vehicle_id`, `payment_date`, `for_month`, `amount`, `note`)
-- Per vehicle + month: due = monthly rent; paid = sum payments; Unpaid/Partial/Paid + advance
-- UI: vehicles CRUD → select vehicle + month → payments CRUD
+- Use: vehicles that carry goods (samaan) — **daily** fare hisab (not monthly)
+- Sidebar label: **Vehicle Fare** (route still `/rents`)
+- Tables: `rent_vehicles` (`name`, `daily_fare`, `note`), `rent_payments` (`vehicle_id`, `payment_date`, `for_date`, `amount`, `note`)
+- Per vehicle + day: due = daily fare; paid = sum payments for that `for_date`; Unpaid/Partial/Paid + advance
+- UI: vehicles CRUD → select vehicle + date → payments CRUD
 - Delete vehicle blocked if payments exist
-- APIs: `GET|POST /api/rents`, `PUT|DELETE /api/rents/:id`, `GET /api/rents/:id/ledger?month=YYYY-MM`, payments nested
-- Legacy `rent_buildings` / `building_id` auto-migrated to vehicles on server start
+- APIs: `GET|POST /api/rents`, `PUT|DELETE /api/rents/:id`, `GET /api/rents/:id/ledger?date=YYYY-MM-DD`, payments nested
+- Legacy: `monthly_rent`→`daily_fare`, `for_month`→`for_date`, `rent_buildings`/`building_id` auto-migrated on server start
 
 ## Workers & Salary
 
