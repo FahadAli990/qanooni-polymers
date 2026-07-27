@@ -215,22 +215,23 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
 
 ## Roll / Chaat / Dewaar production
 
-- Table: `roll_productions` (`id`, `kind`, `raw_material_id`, `production_date`, `size`, `kg` original, `remaining_kg`, `status` available|used, `created_at`)
-- `kind`: `roll` | `chaat` | `dewaar` (all deduct original `kg` from same raw material stock)
+- Table: `roll_productions` (`id`, `kind`, `raw_material_id`, `production_date`, `size`, `kg` original, `remaining_kg`, `status` available|used, `is_previous`, `created_at`)
+- `kind`: `roll` | `chaat` | `dewaar` (new production deducts original `kg` from raw material stock)
+- **Previous stock** (`is_previous=1`, API `previous: true`): old finished goods before software — does **not** cut raw stock; still sellable on Orders FIFO
 - Sizes: `1/2"`, `3/4"`, `1"`
 - KG can be fractional (e.g. `18.5`)
 - Delivered orders reduce `remaining_kg` FIFO; fully used batches are hidden from production UI (kept in DB for raw accounting); list shows only remaining stock with Edit + Delete
 - Lists sorted by **created_at ASC** (newest at bottom) across app tables
 - APIs (auth required):
   - `GET /api/productions/:kind`
-  - `POST /api/productions/:kind` `{ date, materialSlug, size, kg }`
+  - `POST /api/productions/:kind` `{ date, materialSlug, size, kg, previous? }`
   - `PUT /api/productions/:kind/:id`
   - `DELETE /api/productions/:kind/:id`
-- UI:
+- UI: **Add Production** + **Add Previous Stock** on:
   - `/mills-production/roll`
   - `/mills-production/bundle/chaat`
   - `/mills-production/bundle/dewaar`
-- Color picker shows swatch + name; table shows Remaining KG only for still-available batches
+- Color picker shows swatch + name; table shows Remaining KG + Previous/New type
 
 ## Auth / RBAC
 

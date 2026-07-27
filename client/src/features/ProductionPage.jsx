@@ -13,21 +13,24 @@ const KIND_META = {
   roll: {
     title: 'Roll',
     addLabel: 'Add Production',
-    empty: 'No roll production yet. Click Add Production.',
+    previousLabel: 'Add Previous Stock',
+    empty: 'No roll production yet. Click Add Production or Add Previous Stock.',
     deleteTitle: 'Delete roll',
     entity: 'roll',
   },
   chaat: {
     title: 'Chaat',
     addLabel: 'Add Production',
-    empty: 'No chaat production yet. Click Add Production.',
+    previousLabel: 'Add Previous Stock',
+    empty: 'No chaat production yet. Click Add Production or Add Previous Stock.',
     deleteTitle: 'Delete chaat',
     entity: 'chaat',
   },
   dewaar: {
     title: 'Dewaar',
     addLabel: 'Add Production',
-    empty: 'No dewaar production yet. Click Add Production.',
+    previousLabel: 'Add Previous Stock',
+    empty: 'No dewaar production yet. Click Add Production or Add Previous Stock.',
     deleteTitle: 'Delete dewaar',
     entity: 'dewaar',
   },
@@ -43,6 +46,7 @@ function ProductionPage({ kind }) {
   const [saving, setSaving] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState(null)
+  const [isPreviousEntry, setIsPreviousEntry] = useState(false)
   const [items, setItems] = useState([])
   const [sizes, setSizes] = useState(DEFAULT_SIZES)
   const [totals, setTotals] = useState({ totalKg: 0 })
@@ -57,12 +61,16 @@ function ProductionPage({ kind }) {
   )
 
   const availableHint = useMemo(() => {
+    if (isPreviousEntry) return null
     if (!selectedMaterial) return null
     const editing = editingId ? items.find((i) => i.id === editingId) : null
+    if (editing?.isPrevious) return null
     const credit =
-      editing && editing.materialSlug === materialSlug ? Number(editing.kg || 0) : 0
+      editing && editing.materialSlug === materialSlug && !editing.isPrevious
+        ? Number(editing.kg || 0)
+        : 0
     return Number(selectedMaterial.totalKg || 0) + credit
-  }, [selectedMaterial, editingId, items, materialSlug])
+  }, [selectedMaterial, editingId, items, materialSlug, isPreviousEntry])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -93,6 +101,7 @@ function ProductionPage({ kind }) {
 
   function resetForm() {
     setEditingId(null)
+    setIsPreviousEntry(false)
     setDate(todayIso())
     setMaterialSlug(materials[0]?.slug || '')
     setSize(DEFAULT_SIZES[0])
@@ -104,14 +113,16 @@ function ProductionPage({ kind }) {
     resetForm()
   }
 
-  function openCreate() {
+  function openCreate(previous = false) {
     resetForm()
+    setIsPreviousEntry(Boolean(previous))
     setMaterialSlug(materials[0]?.slug || '')
     setShowForm(true)
   }
 
   function openEdit(item) {
     setEditingId(item.id)
+    setIsPreviousEntry(Boolean(item.isPrevious))
     setDate(item.date)
     setMaterialSlug(item.materialSlug)
     setSize(item.size)
@@ -132,6 +143,7 @@ function ProductionPage({ kind }) {
         materialSlug,
         size,
         kg: Number(kg),
+        previous: isPreviousEntry,
       }
       if (editingId) {
         const { data } = await api.put(`/productions/${kind}/${editingId}`, body)
@@ -148,7 +160,11 @@ function ProductionPage({ kind }) {
         const payload = data.data
         setItems((prev) => [...prev, payload.item])
         setTotals(payload.totals)
-        showToast(`${meta.title} production added`)
+        showToast(
+          isPreviousEntry
+            ? `${meta.title} previous stock added`
+            : `${meta.title} production added`,
+        )
       }
       await refreshMaterials()
       closeForm()
@@ -163,7 +179,9 @@ function ProductionPage({ kind }) {
     const remaining = Number(item.remainingKg ?? item.kg)
     const ok = await confirm({
       title: meta.deleteTitle,
-      message: `Delete ${item.materialName} ${meta.entity} ${item.size} (${formatNum(remaining)} kg remaining)?`,
+      message: item.isPrevious
+        ? `Delete previous ${item.materialName} ${meta.entity} ${item.size} (${formatNum(remaining)} kg)? This does not change raw material stock.`
+        : `Delete ${item.materialName} ${meta.entity} ${item.size} (${formatNum(remaining)} kg remaining)?`,
     })
     if (!ok) return
     try {
@@ -172,7 +190,11 @@ function ProductionPage({ kind }) {
       setTotals(data.data.totals)
       if (editingId === item.id) closeForm()
       await refreshMaterials()
-      showToast(`${meta.title} deleted — kg returned to raw material`)
+      showToast(
+        item.isPrevious
+          ? `${meta.title} previous stock deleted`
+          : `${meta.title} deleted — kg returned to raw material`,
+      )
     } catch (err) {
       showToast(getErrorMessage(err), 'error')
     }
@@ -185,15 +207,32 @@ function ProductionPage({ kind }) {
           <div className="detail-title-row">
             <h1>{meta.title}</h1>
           </div>
+          <p className="help-muted" style={{ margin: '0.35rem 0 0' }}>
+            Add new production (cuts raw stock) or previous stock already made before the software.
+          </p>
         </div>
-        <button
-          type="button"
-          className="btn-primary"
-          onClick={() => (showForm && !editingId ? closeForm() : openCreate())}
-          disabled={!loading && materials.length === 0}
-        >
-          {showForm && !editingId ? 'Cancel' : meta.addLabel}
-        </button>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() =>
+              showForm && !editingId && isPreviousEntry ? closeForm() : openCreate(true)
+            }
+            disabled={!loading && materials.length === 0}
+          >
+            {showForm && !editingId && isPreviousEntry ? 'Cancel' : meta.previousLabel}
+          </button>
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={() =>
+              showForm && !editingId && !isPreviousEntry ? closeForm() : openCreate(false)
+            }
+            disabled={!loading && materials.length === 0}
+          >
+            {showForm && !editingId && !isPreviousEntry ? 'Cancel' : meta.addLabel}
+          </button>
+        </div>
       </header>
 
       <section className="stock-totals card">
@@ -205,6 +244,11 @@ function ProductionPage({ kind }) {
 
       {showForm && (
         <form className="card panel-form panel-form--stock" onSubmit={handleSubmit}>
+          {isPreviousEntry ? (
+            <p className="help-muted" style={{ marginTop: 0 }}>
+              Previous stock: old finished {meta.entity} already made — does not cut raw material.
+            </p>
+          ) : null}
           <div className="form-grid">
             <div>
               <label htmlFor={`${kind}-date`}>Date</label>
@@ -262,7 +306,13 @@ function ProductionPage({ kind }) {
           </div>
           <div className="panel-form__actions">
             <button type="submit" className="btn-primary" disabled={saving || !materialSlug}>
-              {saving ? 'Saving…' : editingId ? 'Update Production' : 'Save Production'}
+              {saving
+                ? 'Saving…'
+                : editingId
+                  ? 'Update'
+                  : isPreviousEntry
+                    ? 'Save Previous Stock'
+                    : 'Save Production'}
             </button>
             {editingId && (
               <button type="button" className="btn-secondary" onClick={closeForm} disabled={saving}>
@@ -286,13 +336,14 @@ function ProductionPage({ kind }) {
                 <th>Color</th>
                 <th>Size</th>
                 <th>Remaining KG</th>
+                <th>Type</th>
                 <th aria-label="Actions" />
               </tr>
             </thead>
             <tbody>
               {items.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="stock-table__empty">
+                  <td colSpan={6} className="stock-table__empty">
                     {meta.empty}
                   </td>
                 </tr>
@@ -318,6 +369,13 @@ function ProductionPage({ kind }) {
                         {remaining < produced ? (
                           <span className="help-muted"> / {formatNum(produced)}</span>
                         ) : null}
+                      </td>
+                      <td>
+                        {item.isPrevious ? (
+                          <span className="status-pill status-pill--partial">Previous</span>
+                        ) : (
+                          <span className="help-muted">New</span>
+                        )}
                       </td>
                       <td className="stock-table__actions">
                         {canEdit && (

@@ -37,6 +37,7 @@ const MATERIAL_SELECT = `
     SELECT COALESCE(SUM(r.kg), 0)
     FROM roll_productions r
     WHERE r.raw_material_id = m.id
+      AND COALESCE(r.is_previous, 0) = 0
   ) AS used_kg
 `
 

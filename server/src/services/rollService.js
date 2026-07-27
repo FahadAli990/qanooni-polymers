@@ -37,7 +37,11 @@ async function availableKgForMaterial(rawMaterialId, excludeRollId = null) {
   let used = await sumRollKgByMaterialId(rawMaterialId)
   if (excludeRollId) {
     const existing = await findRollById(excludeRollId)
-    if (existing && existing.rawMaterialId === rawMaterialId) {
+    if (
+      existing
+      && existing.rawMaterialId === rawMaterialId
+      && !existing.isPrevious
+    ) {
       used -= Number(existing.kg || 0)
     }
   }
@@ -84,14 +88,17 @@ export async function listRollProductions(kindInput = 'roll') {
 export async function createRollProduction(body, kindInput = 'roll') {
   const kind = normalizeKind(kindInput)
   const payload = normalizeRollInput(body)
+  const isPrevious = Boolean(body?.previous ?? body?.isPrevious ?? body?.is_previous)
   const material = await findRawMaterialBySlug(payload.materialSlug)
   if (!material) throw notFound('Raw material not found')
 
-  const available = await availableKgForMaterial(material.id)
-  if (payload.kg > available) {
-    throw badRequest(
-      `Not enough ${material.name} stock. Available ${available} kg, requested ${payload.kg} kg`,
-    )
+  if (!isPrevious) {
+    const available = await availableKgForMaterial(material.id)
+    if (payload.kg > available) {
+      throw badRequest(
+        `Not enough ${material.name} stock. Available ${available} kg, requested ${payload.kg} kg`,
+      )
+    }
   }
 
   const item = await insertRoll({
@@ -100,6 +107,7 @@ export async function createRollProduction(body, kindInput = 'roll') {
     date: payload.date,
     size: payload.size,
     kg: payload.kg,
+    isPrevious,
   })
   const totalKg = await sumAllRollKg(kind)
   return {
@@ -133,12 +141,15 @@ export async function updateRollProduction(rollId, body, kindInput = 'roll') {
 
   const remainingKg = Number((payload.kg - consumed).toFixed(2))
   const status = remainingKg <= 0 ? 'used' : 'available'
+  const isPrevious = Boolean(existing.isPrevious)
 
-  const available = await availableKgForMaterial(material.id, id)
-  if (payload.kg > available) {
-    throw badRequest(
-      `Not enough ${material.name} stock. Available ${available} kg, requested ${payload.kg} kg`,
-    )
+  if (!isPrevious) {
+    const available = await availableKgForMaterial(material.id, id)
+    if (payload.kg > available) {
+      throw badRequest(
+        `Not enough ${material.name} stock. Available ${available} kg, requested ${payload.kg} kg`,
+      )
+    }
   }
 
   const item = await updateRollById(id, {
@@ -149,6 +160,7 @@ export async function updateRollProduction(rollId, body, kindInput = 'roll') {
     kg: payload.kg,
     remainingKg: Math.max(0, remainingKg),
     status,
+    isPrevious,
   })
   if (!item) throw notFound()
 

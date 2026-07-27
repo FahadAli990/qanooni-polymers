@@ -21,6 +21,7 @@ function mapRow(row) {
     kg,
     remainingKg,
     status,
+    isPrevious: Boolean(row.is_previous),
     createdAt: row.created_at,
   }
 }
@@ -34,6 +35,7 @@ const ROLL_SELECT = `
   r.kg,
   r.remaining_kg,
   r.status,
+  r.is_previous,
   r.created_at,
   m.slug AS material_slug,
   m.name AS material_name,
@@ -66,12 +68,13 @@ export async function findRollById(id, executor = null) {
   return rows[0] ? mapRow(rows[0]) : null
 }
 
-/** Original produced kg counts against raw material stock. */
+/** Original produced kg counts against raw material stock (excludes previous/opening stock). */
 export async function sumRollKgByMaterialId(rawMaterialId) {
   const [rows] = await getPool().query(
     `SELECT COALESCE(SUM(kg), 0) AS used_kg
      FROM roll_productions
-     WHERE raw_material_id = :rawMaterialId`,
+     WHERE raw_material_id = :rawMaterialId
+       AND COALESCE(is_previous, 0) = 0`,
     { rawMaterialId },
   )
   return Number(rows[0]?.used_kg || 0)
@@ -260,9 +263,9 @@ export async function restoreKgOntoMatchingLots(
         : new Date().toISOString().slice(0, 10)
     await executor.query(
       `INSERT INTO roll_productions
-         (kind, raw_material_id, production_date, size, kg, remaining_kg, status)
+         (kind, raw_material_id, production_date, size, kg, remaining_kg, status, is_previous)
        VALUES
-         (:kind, :rawMaterialId, :date, :size, :kg, :kg, 'available')`,
+         (:kind, :rawMaterialId, :date, :size, :kg, :kg, 'available', 0)`,
       {
         kind,
         rawMaterialId,
@@ -277,18 +280,34 @@ export async function restoreKgOntoMatchingLots(
   return { ok: true, shortfall: 0 }
 }
 
-export async function insertRoll({ kind, rawMaterialId, date, size, kg }) {
+export async function insertRoll({ kind, rawMaterialId, date, size, kg, isPrevious = false }) {
   const [result] = await getPool().query(
     `INSERT INTO roll_productions
-       (kind, raw_material_id, production_date, size, kg, remaining_kg, status)
+       (kind, raw_material_id, production_date, size, kg, remaining_kg, status, is_previous)
      VALUES
-       (:kind, :rawMaterialId, :date, :size, :kg, :kg, 'available')`,
-    { kind, rawMaterialId, date, size, kg },
+       (:kind, :rawMaterialId, :date, :size, :kg, :kg, 'available', :isPrevious)`,
+    {
+      kind,
+      rawMaterialId,
+      date,
+      size,
+      kg,
+      isPrevious: isPrevious ? 1 : 0,
+    },
   )
   return findRollById(result.insertId)
 }
 
-export async function updateRollById(id, { kind, rawMaterialId, date, size, kg, remainingKg, status }) {
+export async function updateRollById(id, {
+  kind,
+  rawMaterialId,
+  date,
+  size,
+  kg,
+  remainingKg,
+  status,
+  isPrevious,
+}) {
   const [result] = await getPool().query(
     `UPDATE roll_productions
      SET kind = :kind,
@@ -297,9 +316,20 @@ export async function updateRollById(id, { kind, rawMaterialId, date, size, kg, 
          size = :size,
          kg = :kg,
          remaining_kg = :remainingKg,
-         status = :status
+         status = :status,
+         is_previous = :isPrevious
      WHERE id = :id AND kind = :kind`,
-    { id, kind, rawMaterialId, date, size, kg, remainingKg, status },
+    {
+      id,
+      kind,
+      rawMaterialId,
+      date,
+      size,
+      kg,
+      remainingKg,
+      status,
+      isPrevious: isPrevious ? 1 : 0,
+    },
   )
   if (result.affectedRows === 0) return null
   return findRollById(id)

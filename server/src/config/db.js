@@ -137,12 +137,14 @@ export async function ensureSchema() {
       kg DECIMAL(14, 2) NOT NULL,
       remaining_kg DECIMAL(14, 2) NOT NULL,
       status VARCHAR(16) NOT NULL DEFAULT 'available',
+      is_previous TINYINT(1) NOT NULL DEFAULT 0,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       PRIMARY KEY (id),
       KEY idx_roll_productions_kind (kind),
       KEY idx_roll_productions_material (raw_material_id),
       KEY idx_roll_productions_date (production_date),
       KEY idx_roll_productions_status (status),
+      KEY idx_roll_productions_previous (is_previous),
       CONSTRAINT fk_roll_productions_material
         FOREIGN KEY (raw_material_id) REFERENCES raw_materials (id)
         ON DELETE CASCADE
@@ -219,6 +221,24 @@ export async function ensureSchema() {
         OR (remaining_kg <= 0 AND status <> 'used')
         OR (remaining_kg > 0 AND status <> 'available')`,
   )
+
+  const [prevCols] = await getPool().query(
+    `SELECT COLUMN_NAME
+     FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'roll_productions'
+       AND COLUMN_NAME = 'is_previous'`,
+  )
+  if (!prevCols.length) {
+    await getPool().query(
+      `ALTER TABLE roll_productions
+       ADD COLUMN is_previous TINYINT(1) NOT NULL DEFAULT 0 AFTER status`,
+    )
+    await getPool().query(
+      `ALTER TABLE roll_productions
+       ADD KEY idx_roll_productions_previous (is_previous)`,
+    )
+  }
 
   await getPool().query(`
     CREATE TABLE IF NOT EXISTS mill_routes (
