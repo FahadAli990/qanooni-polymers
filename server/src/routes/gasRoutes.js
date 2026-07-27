@@ -9,6 +9,7 @@ import {
   deleteGasSupplierController,
   deleteUtilityBillController,
   getGasSupplierLedgerController,
+  listDueRemindersController,
   listGasSuppliersController,
   listUtilityBillsController,
   updateGasPaymentController,
@@ -23,6 +24,7 @@ const router = Router()
 router.use(requireAuth)
 router.use(enforceRolePermissions)
 
+router.get('/due-reminders', listDueRemindersController)
 router.get('/bills', listUtilityBillsController)
 router.post('/bills', createUtilityBillController)
 router.put('/bills/:id', updateUtilityBillController)

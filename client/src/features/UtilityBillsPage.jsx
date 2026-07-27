@@ -26,6 +26,7 @@ function emptySupplierForm() {
 function emptyPurchaseForm() {
   return {
     date: todayIso(),
+    dueDate: todayIso(),
     cylinderKg: '',
     cylindersCount: '1',
     pricePerKg: '',
@@ -36,9 +37,11 @@ function emptyPurchaseForm() {
 function emptyBillForm() {
   return {
     date: todayIso(),
+    dueDate: todayIso(),
     category: 'Electricity',
     title: '',
     amount: '',
+    payStatus: 'unpaid',
     note: '',
   }
 }
@@ -305,6 +308,7 @@ function UtilityBillsPage() {
     setEditingPurchaseId(row.id)
     setPurchaseForm({
       date: row.date,
+      dueDate: row.dueDate || row.date || todayIso(),
       cylinderKg: String(row.cylinderKg),
       cylindersCount: String(row.cylindersCount),
       pricePerKg: String(row.pricePerKg),
@@ -324,6 +328,10 @@ function UtilityBillsPage() {
     const pricePerKg = Number(purchaseForm.pricePerKg)
     if (!purchaseForm.date) {
       showToast('Date is required', 'error')
+      return
+    }
+    if (!purchaseForm.dueDate) {
+      showToast('Due date is required', 'error')
       return
     }
     if (!Number.isFinite(cylinderKg) || cylinderKg <= 0) {
@@ -346,6 +354,7 @@ function UtilityBillsPage() {
     try {
       const body = {
         date: purchaseForm.date,
+        dueDate: purchaseForm.dueDate,
         cylinderKg,
         cylindersCount,
         pricePerKg,
@@ -489,9 +498,11 @@ function UtilityBillsPage() {
     setEditingBillId(row.id)
     setBillForm({
       date: row.date,
+      dueDate: row.dueDate || row.date || todayIso(),
       category: row.category,
       title: row.title,
       amount: String(row.amount),
+      payStatus: row.payStatus === 'paid' ? 'paid' : 'unpaid',
       note: row.note || '',
     })
     setShowBillForm(true)
@@ -503,6 +514,10 @@ function UtilityBillsPage() {
     const amount = Number(billForm.amount)
     if (!billForm.date) {
       showToast('Date is required', 'error')
+      return
+    }
+    if (!billForm.dueDate) {
+      showToast('Due date is required', 'error')
       return
     }
     if (!billForm.category) {
@@ -525,9 +540,11 @@ function UtilityBillsPage() {
     try {
       const body = {
         date: billForm.date,
+        dueDate: billForm.dueDate,
         category: billForm.category,
         title,
         amount,
+        payStatus: billForm.payStatus,
         note: billForm.note.trim(),
       }
       if (editingBillId) {
@@ -841,6 +858,18 @@ function UtilityBillsPage() {
                         />
                       </div>
                       <div>
+                        <label htmlFor="gas-purchase-due">Due date</label>
+                        <input
+                          id="gas-purchase-due"
+                          type="date"
+                          value={purchaseForm.dueDate}
+                          onChange={(e) =>
+                            setPurchaseForm((p) => ({ ...p, dueDate: e.target.value }))
+                          }
+                          required
+                        />
+                      </div>
+                      <div>
                         <label htmlFor="gas-purchase-kg">Cylinder kg</label>
                         <input
                           id="gas-purchase-kg"
@@ -924,6 +953,7 @@ function UtilityBillsPage() {
                     <thead>
                       <tr>
                         <th>Date</th>
+                        <th>Due date</th>
                         <th>Kg</th>
                         <th>Cylinders</th>
                         <th>Price / kg</th>
@@ -936,7 +966,7 @@ function UtilityBillsPage() {
                     <tbody>
                       {purchases.length === 0 ? (
                         <tr>
-                          <td colSpan={8} className="stock-table__empty">
+                          <td colSpan={9} className="stock-table__empty">
                             No cylinder purchases yet.
                           </td>
                         </tr>
@@ -944,6 +974,7 @@ function UtilityBillsPage() {
                         purchases.map((row) => (
                           <tr key={row.id}>
                             <td>{formatDateDisplay(row.date)}</td>
+                            <td>{row.dueDate ? formatDateDisplay(row.dueDate) : '—'}</td>
                             <td>{formatNum(row.cylinderKg)}</td>
                             <td>{row.cylindersCount}</td>
                             <td>{formatMoney(row.pricePerKg)}</td>
@@ -1162,6 +1193,16 @@ function UtilityBillsPage() {
                   />
                 </div>
                 <div>
+                  <label htmlFor="ub-due">Due date</label>
+                  <input
+                    id="ub-due"
+                    type="date"
+                    value={billForm.dueDate}
+                    onChange={(e) => setBillForm((p) => ({ ...p, dueDate: e.target.value }))}
+                    required
+                  />
+                </div>
+                <div>
                   <label htmlFor="ub-category">Category</label>
                   <select
                     id="ub-category"
@@ -1200,6 +1241,17 @@ function UtilityBillsPage() {
                   />
                 </div>
                 <div>
+                  <label htmlFor="ub-status">Payment status</label>
+                  <select
+                    id="ub-status"
+                    value={billForm.payStatus}
+                    onChange={(e) => setBillForm((p) => ({ ...p, payStatus: e.target.value }))}
+                  >
+                    <option value="unpaid">Unpaid</option>
+                    <option value="paid">Paid</option>
+                  </select>
+                </div>
+                <div>
                   <label htmlFor="ub-note">Note (optional)</label>
                   <input
                     id="ub-note"
@@ -1228,9 +1280,11 @@ function UtilityBillsPage() {
               <thead>
                 <tr>
                   <th>Date</th>
+                  <th>Due date</th>
                   <th>Category</th>
                   <th>Title</th>
                   <th>Amount</th>
+                  <th>Status</th>
                   <th>Note</th>
                   <th aria-label="Actions" />
                 </tr>
@@ -1238,13 +1292,13 @@ function UtilityBillsPage() {
               <tbody>
                 {billsLoading ? (
                   <tr>
-                    <td colSpan={6} className="stock-table__empty">
+                    <td colSpan={8} className="stock-table__empty">
                       Loading…
                     </td>
                   </tr>
                 ) : bills.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="stock-table__empty">
+                    <td colSpan={8} className="stock-table__empty">
                       No utility bills for this day.
                     </td>
                   </tr>
@@ -1252,9 +1306,15 @@ function UtilityBillsPage() {
                   bills.map((row) => (
                     <tr key={row.id}>
                       <td>{formatDateDisplay(row.date)}</td>
+                      <td>{row.dueDate ? formatDateDisplay(row.dueDate) : '—'}</td>
                       <td>{row.category}</td>
                       <td>{row.title}</td>
                       <td>{formatMoney(row.amount)}</td>
+                      <td>
+                        <span className={`status-pill status-pill--${row.payStatus || 'unpaid'}`}>
+                          {payStatusLabel(row.payStatus)}
+                        </span>
+                      </td>
                       <td className="stock-table__wrap">{row.note || '—'}</td>
                       <td className="stock-table__actions">
                         {canEdit && (

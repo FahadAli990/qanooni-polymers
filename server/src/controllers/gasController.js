@@ -14,6 +14,7 @@ import {
   updateGasPurchase,
   updateGasSupplier,
   updateUtilityBill,
+  listDueReminders,
 } from '../services/gasService.js'
 import { ok } from '../utils/apiResponse.js'
 
@@ -132,6 +133,14 @@ export async function updateUtilityBillController(req, res, next) {
 export async function deleteUtilityBillController(req, res, next) {
   try {
     return ok(res, await removeUtilityBill(req.params.id, req.query))
+  } catch (err) {
+    return next(err)
+  }
+}
+
+export async function listDueRemindersController(req, res, next) {
+  try {
+    return ok(res, await listDueReminders(req.query))
   } catch (err) {
     return next(err)
   }

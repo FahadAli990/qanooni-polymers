@@ -729,6 +729,7 @@ export async function ensureSchema() {
       id INT UNSIGNED NOT NULL AUTO_INCREMENT,
       supplier_id INT UNSIGNED NOT NULL,
       purchase_date DATE NOT NULL,
+      due_date DATE NULL,
       cylinder_kg DECIMAL(10, 2) NOT NULL,
       cylinders_count INT UNSIGNED NOT NULL,
       price_per_kg DECIMAL(14, 2) NOT NULL,
@@ -738,11 +739,27 @@ export async function ensureSchema() {
       PRIMARY KEY (id),
       KEY idx_gas_purchases_supplier (supplier_id),
       KEY idx_gas_purchases_date (purchase_date),
+      KEY idx_gas_purchases_due (due_date),
       CONSTRAINT fk_gas_purchases_supplier
         FOREIGN KEY (supplier_id) REFERENCES gas_suppliers (id)
         ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `)
+
+  const [gasDueCols] = await getPool().query(
+    `SELECT COLUMN_NAME
+     FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'gas_purchases'
+       AND COLUMN_NAME = 'due_date'`,
+  )
+  if (!gasDueCols.length) {
+    await getPool().query(
+      `ALTER TABLE gas_purchases
+       ADD COLUMN due_date DATE NULL AFTER purchase_date,
+       ADD KEY idx_gas_purchases_due (due_date)`,
+    )
+  }
 
   // Migrate gas price_per_cylinder → price_per_kg
   const [pricePerCylCols] = await getPool().query(
@@ -787,16 +804,51 @@ export async function ensureSchema() {
     CREATE TABLE IF NOT EXISTS utility_bills (
       id INT UNSIGNED NOT NULL AUTO_INCREMENT,
       bill_date DATE NOT NULL,
+      due_date DATE NULL,
       category VARCHAR(80) NOT NULL,
       title VARCHAR(160) NOT NULL,
       amount DECIMAL(14, 2) NOT NULL,
+      pay_status ENUM('paid', 'unpaid') NOT NULL DEFAULT 'unpaid',
       note VARCHAR(255) NULL,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       PRIMARY KEY (id),
       KEY idx_utility_bills_date (bill_date),
-      KEY idx_utility_bills_category (category)
+      KEY idx_utility_bills_due (due_date),
+      KEY idx_utility_bills_category (category),
+      KEY idx_utility_bills_pay_status (pay_status)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `)
+
+  const utilityBillExtraCols = [
+    { name: 'due_date', ddl: 'DATE NULL AFTER bill_date' },
+    {
+      name: 'pay_status',
+      ddl: "ENUM('paid', 'unpaid') NOT NULL DEFAULT 'unpaid' AFTER amount",
+    },
+  ]
+  for (const col of utilityBillExtraCols) {
+    const [cols] = await getPool().query(
+      `SELECT COLUMN_NAME
+       FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE()
+         AND TABLE_NAME = 'utility_bills'
+         AND COLUMN_NAME = :name`,
+      { name: col.name },
+    )
+    if (!cols.length) {
+      await getPool().query(`ALTER TABLE utility_bills ADD COLUMN ${col.name} ${col.ddl}`)
+    }
+  }
+  const [utilityDueIdx] = await getPool().query(
+    `SELECT INDEX_NAME
+     FROM INFORMATION_SCHEMA.STATISTICS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'utility_bills'
+       AND INDEX_NAME = 'idx_utility_bills_due'`,
+  )
+  if (!utilityDueIdx.length) {
+    await getPool().query(`ALTER TABLE utility_bills ADD KEY idx_utility_bills_due (due_date)`)
+  }
 
   await getPool().query(`
     CREATE TABLE IF NOT EXISTS app_users (

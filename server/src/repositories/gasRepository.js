@@ -17,6 +17,11 @@ function mapPurchase(row) {
     date: row.purchase_date instanceof Date
       ? row.purchase_date.toISOString().slice(0, 10)
       : String(row.purchase_date).slice(0, 10),
+    dueDate: row.due_date
+      ? (row.due_date instanceof Date
+        ? row.due_date.toISOString().slice(0, 10)
+        : String(row.due_date).slice(0, 10))
+      : '',
     cylinderKg: Number(row.cylinder_kg),
     cylindersCount: Number(row.cylinders_count),
     pricePerKg: Number(row.price_per_kg),
@@ -45,9 +50,15 @@ function mapUtilityBill(row) {
     date: row.bill_date instanceof Date
       ? row.bill_date.toISOString().slice(0, 10)
       : String(row.bill_date).slice(0, 10),
+    dueDate: row.due_date
+      ? (row.due_date instanceof Date
+        ? row.due_date.toISOString().slice(0, 10)
+        : String(row.due_date).slice(0, 10))
+      : '',
     category: row.category,
     title: row.title,
     amount: Number(row.amount),
+    payStatus: row.pay_status === 'paid' ? 'paid' : 'unpaid',
     note: row.note || '',
     createdAt: row.created_at,
   }
@@ -107,7 +118,7 @@ export async function deleteGasSupplierById(id) {
 
 export async function findPurchasesByGasSupplierId(supplierId) {
   const [rows] = await getPool().query(
-    `SELECT id, supplier_id, purchase_date, cylinder_kg, cylinders_count,
+    `SELECT id, supplier_id, purchase_date, due_date, cylinder_kg, cylinders_count,
             price_per_kg, total_amount, note, created_at
      FROM gas_purchases
      WHERE supplier_id = :supplierId
@@ -128,7 +139,7 @@ export async function sumPurchasesByGasSupplierId(supplierId) {
 
 export async function findGasPurchaseById(id) {
   const [rows] = await getPool().query(
-    `SELECT id, supplier_id, purchase_date, cylinder_kg, cylinders_count,
+    `SELECT id, supplier_id, purchase_date, due_date, cylinder_kg, cylinders_count,
             price_per_kg, total_amount, note, created_at
      FROM gas_purchases WHERE id = :id LIMIT 1`,
     { id },
@@ -139,12 +150,15 @@ export async function findGasPurchaseById(id) {
 export async function insertGasPurchase(payload) {
   const [result] = await getPool().query(
     `INSERT INTO gas_purchases
-       (supplier_id, purchase_date, cylinder_kg, cylinders_count, price_per_kg, total_amount, note)
+       (supplier_id, purchase_date, due_date, cylinder_kg, cylinders_count,
+        price_per_kg, total_amount, note)
      VALUES
-       (:supplierId, :date, :cylinderKg, :cylindersCount, :pricePerKg, :totalAmount, :note)`,
+       (:supplierId, :date, :dueDate, :cylinderKg, :cylindersCount,
+        :pricePerKg, :totalAmount, :note)`,
     {
       supplierId: payload.supplierId,
       date: payload.date,
+      dueDate: payload.dueDate || null,
       cylinderKg: payload.cylinderKg,
       cylindersCount: payload.cylindersCount,
       pricePerKg: payload.pricePerKg,
@@ -159,6 +173,7 @@ export async function updateGasPurchaseById(id, payload) {
   const [result] = await getPool().query(
     `UPDATE gas_purchases
      SET purchase_date = :date,
+         due_date = :dueDate,
          cylinder_kg = :cylinderKg,
          cylinders_count = :cylindersCount,
          price_per_kg = :pricePerKg,
@@ -168,6 +183,7 @@ export async function updateGasPurchaseById(id, payload) {
     {
       id,
       date: payload.date,
+      dueDate: payload.dueDate || null,
       cylinderKg: payload.cylinderKg,
       cylindersCount: payload.cylindersCount,
       pricePerKg: payload.pricePerKg,
@@ -240,7 +256,7 @@ export async function deleteGasPaymentById(id) {
 
 export async function findUtilityBillsByDate(date) {
   const [rows] = await getPool().query(
-    `SELECT id, bill_date, category, title, amount, note, created_at
+    `SELECT id, bill_date, due_date, category, title, amount, pay_status, note, created_at
      FROM utility_bills
      WHERE bill_date = :date
      ORDER BY created_at ASC, id ASC`,
@@ -267,28 +283,61 @@ export async function sumAllUtilityBills() {
 
 export async function findUtilityBillById(id) {
   const [rows] = await getPool().query(
-    `SELECT id, bill_date, category, title, amount, note, created_at
+    `SELECT id, bill_date, due_date, category, title, amount, pay_status, note, created_at
      FROM utility_bills WHERE id = :id LIMIT 1`,
     { id },
   )
   return rows[0] ? mapUtilityBill(rows[0]) : null
 }
 
-export async function insertUtilityBill({ date, category, title, amount, note }) {
+export async function insertUtilityBill({ date, dueDate, category, title, amount, payStatus, note }) {
   const [result] = await getPool().query(
-    `INSERT INTO utility_bills (bill_date, category, title, amount, note)
-     VALUES (:date, :category, :title, :amount, :note)`,
-    { date, category, title, amount, note: note || null },
+    `INSERT INTO utility_bills
+       (bill_date, due_date, category, title, amount, pay_status, note)
+     VALUES
+       (:date, :dueDate, :category, :title, :amount, :payStatus, :note)`,
+    {
+      date,
+      dueDate: dueDate || null,
+      category,
+      title,
+      amount,
+      payStatus: payStatus === 'paid' ? 'paid' : 'unpaid',
+      note: note || null,
+    },
   )
   return findUtilityBillById(result.insertId)
 }
 
-export async function updateUtilityBillById(id, { date, category, title, amount, note }) {
+export async function updateUtilityBillById(id, {
+  date,
+  dueDate,
+  category,
+  title,
+  amount,
+  payStatus,
+  note,
+}) {
   const [result] = await getPool().query(
     `UPDATE utility_bills
-     SET bill_date = :date, category = :category, title = :title, amount = :amount, note = :note
+     SET bill_date = :date,
+         due_date = :dueDate,
+         category = :category,
+         title = :title,
+         amount = :amount,
+         pay_status = :payStatus,
+         note = :note
      WHERE id = :id`,
-    { id, date, category, title, amount, note: note || null },
+    {
+      id,
+      date,
+      dueDate: dueDate || null,
+      category,
+      title,
+      amount,
+      payStatus: payStatus === 'paid' ? 'paid' : 'unpaid',
+      note: note || null,
+    },
   )
   if (result.affectedRows === 0) return null
   return findUtilityBillById(id)
@@ -297,4 +346,33 @@ export async function updateUtilityBillById(id, { date, category, title, amount,
 export async function deleteUtilityBillById(id) {
   const [result] = await getPool().query(`DELETE FROM utility_bills WHERE id = :id`, { id })
   return result.affectedRows > 0
+}
+
+export async function findUnpaidUtilityBillsDueBy(reminderCutoff) {
+  const [rows] = await getPool().query(
+    `SELECT id, bill_date, due_date, category, title, amount, pay_status, note, created_at
+     FROM utility_bills
+     WHERE due_date IS NOT NULL
+       AND pay_status = 'unpaid'
+       AND due_date <= :reminderCutoff
+     ORDER BY due_date ASC, id ASC`,
+    { reminderCutoff },
+  )
+  return rows.map(mapUtilityBill)
+}
+
+export async function findAllGasPurchasesWithSupplier() {
+  const [rows] = await getPool().query(
+    `SELECT p.id, p.supplier_id, p.purchase_date, p.due_date, p.cylinder_kg, p.cylinders_count,
+            p.price_per_kg, p.total_amount, p.note, p.created_at,
+            s.name AS supplier_name
+     FROM gas_purchases p
+     INNER JOIN gas_suppliers s ON s.id = p.supplier_id
+     WHERE p.due_date IS NOT NULL
+     ORDER BY p.supplier_id ASC, p.purchase_date ASC, p.id ASC`,
+  )
+  return rows.map((row) => ({
+    ...mapPurchase(row),
+    supplierName: row.supplier_name || '',
+  }))
 }

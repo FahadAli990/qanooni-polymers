@@ -77,13 +77,16 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
   2. **Other utility bills** — electricity / water / internet / other (day list + totals)
 - Tables:
   - `gas_suppliers` (`name`, `contact` 11 digits, `note`)
-  - `gas_purchases` (`supplier_id`, `purchase_date`, `cylinder_kg`, `cylinders_count`, `price_per_kg`, `total_amount`, `note`)
+  - `gas_purchases` (`supplier_id`, `purchase_date`, `due_date`, `cylinder_kg`, `cylinders_count`, `price_per_kg`, `total_amount`, `note`)
   - `gas_payments` (`supplier_id`, `payment_date`, `amount`, `note`)
-  - `utility_bills` (`bill_date`, `category`, `title`, `amount`, `note`)
+  - `utility_bills` (`bill_date`, `due_date`, `category`, `title`, `amount`, `pay_status` paid|unpaid, `note`)
 - Gas ledger: purchases FIFO → Unpaid/Partial/Paid; summary purchased/paid/remaining/advance + total cylinders/kg
 - Purchase total = `cylinder_kg * cylinders_count * price_per_kg` (API body: `pricePerKg`)
+- Due date required on gas purchases + other utility bills; other bills have Paid/Unpaid status
+- Due reminders: unpaid (or partial gas) items with `due_date <= today + 2 days` → English in-app banner on login (`GET /api/utility/due-reminders`)
 - UI: gas suppliers list filters to selected row when `supplierId` set; row click selects; “Show all suppliers” clears; Edit also sets selection
 - APIs (`/api/utility`, auth required):
+  - `GET /api/utility/due-reminders`
   - `GET|POST /api/utility/suppliers`, `PUT|DELETE /api/utility/suppliers/:id`
   - `GET /api/utility/suppliers/:id/ledger`
   - `POST|PUT|DELETE .../purchases` and `.../payments`

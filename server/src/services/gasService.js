@@ -3,6 +3,7 @@ import {
   deleteGasPurchaseById,
   deleteGasSupplierById,
   deleteUtilityBillById,
+  findAllGasPurchasesWithSupplier,
   findAllGasSuppliers,
   findGasPaymentById,
   findGasPurchaseById,
@@ -10,6 +11,7 @@ import {
   findGasSupplierByName,
   findPaymentsByGasSupplierId,
   findPurchasesByGasSupplierId,
+  findUnpaidUtilityBillsDueBy,
   findUtilityBillById,
   findUtilityBillsByDate,
   insertGasPayment,
@@ -43,6 +45,26 @@ function notFound(message) {
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10)
+}
+
+function addDaysIso(isoDate, days) {
+  const d = new Date(`${isoDate}T00:00:00.000Z`)
+  d.setUTCDate(d.getUTCDate() + days)
+  return d.toISOString().slice(0, 10)
+}
+
+function formatMoneyEn(amount) {
+  return `Rs ${Number(amount || 0).toLocaleString('en-US', { maximumFractionDigits: 2 })}`
+}
+
+function formatDueDateEn(isoDate) {
+  const d = new Date(`${isoDate}T00:00:00.000Z`)
+  return d.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  })
 }
 
 function normalizeDate(dateInput) {
@@ -89,6 +111,7 @@ function normalizeSupplierInput(body = {}) {
 
 function normalizePurchaseInput(body = {}) {
   const date = String(body.date || '').trim()
+  const dueDate = String(body.dueDate ?? body.due_date || '').trim()
   const note = String(body.note || '').trim().slice(0, 255)
   const cylinderKg = Number(body.cylinderKg ?? body.cylinder_kg)
   const cylindersCount = Number(body.cylindersCount ?? body.cylinders_count)
@@ -96,6 +119,7 @@ function normalizePurchaseInput(body = {}) {
     body.pricePerKg ?? body.price_per_kg ?? body.pricePerCylinder ?? body.price_per_cylinder,
   )
   if (!DATE_RE.test(date)) throw badRequest('Date is required (YYYY-MM-DD)')
+  if (!DATE_RE.test(dueDate)) throw badRequest('Due date is required (YYYY-MM-DD)')
   if (!Number.isFinite(cylinderKg) || cylinderKg <= 0) {
     throw badRequest('Cylinder kg must be a positive number')
   }
@@ -109,6 +133,7 @@ function normalizePurchaseInput(body = {}) {
   const totalAmount = Number((totalKg * pricePerKg).toFixed(2))
   return {
     date,
+    dueDate,
     cylinderKg: Number(cylinderKg.toFixed(2)),
     cylindersCount,
     pricePerKg: Number(pricePerKg.toFixed(2)),
@@ -130,17 +155,29 @@ function normalizePaymentInput(body = {}) {
 
 function normalizeUtilityBillInput(body = {}) {
   const date = String(body.date || '').trim()
+  const dueDate = String(body.dueDate ?? body.due_date || '').trim()
   const category = String(body.category || '').trim().slice(0, 80)
   const title = String(body.title || '').trim().slice(0, 160)
   const note = String(body.note || '').trim().slice(0, 255)
   const amount = Number(body.amount)
+  const payStatusRaw = String(body.payStatus ?? body.pay_status || 'unpaid').trim().toLowerCase()
+  const payStatus = payStatusRaw === 'paid' ? 'paid' : 'unpaid'
   if (!DATE_RE.test(date)) throw badRequest('Date is required (YYYY-MM-DD)')
+  if (!DATE_RE.test(dueDate)) throw badRequest('Due date is required (YYYY-MM-DD)')
   if (!category) throw badRequest('Category is required')
   if (!title) throw badRequest('Title is required')
   if (!Number.isFinite(amount) || amount <= 0) {
     throw badRequest('Amount must be a positive number')
   }
-  return { date, category, title, amount: Number(amount.toFixed(2)), note }
+  return {
+    date,
+    dueDate,
+    category,
+    title,
+    amount: Number(amount.toFixed(2)),
+    payStatus,
+    note,
+  }
 }
 
 export async function listGasSuppliers() {
@@ -344,4 +381,78 @@ export async function removeUtilityBill(idInput, query = {}) {
   const date = normalizeDate(query.date || existing.date)
   const list = await listUtilityBills({ date })
   return { deleted: true, ...list }
+}
+
+export async function listDueReminders(query = {}) {
+  const today = normalizeDate(query.date || todayIso())
+  const reminderCutoff = addDaysIso(today, 2)
+  const reminders = []
+
+  const utilityBills = await findUnpaidUtilityBillsDueBy(reminderCutoff)
+  for (const bill of utilityBills) {
+    const overdue = bill.dueDate < today
+    const statusPhrase = overdue
+      ? 'is unpaid and overdue'
+      : 'is unpaid'
+    const duePhrase = overdue
+      ? `Due date was ${formatDueDateEn(bill.dueDate)}`
+      : `Due date is ${formatDueDateEn(bill.dueDate)}`
+    reminders.push({
+      id: `utility-bill-${bill.id}`,
+      kind: 'utility_bill',
+      refId: bill.id,
+      dueDate: bill.dueDate,
+      payStatus: 'unpaid',
+      amount: bill.amount,
+      overdue,
+      message:
+        `Payment reminder: Your ${bill.category} bill "${bill.title}" (${formatMoneyEn(bill.amount)}) ${statusPhrase}. ${duePhrase}. Please pay this bill to avoid late charges.`,
+    })
+  }
+
+  const purchases = await findAllGasPurchasesWithSupplier()
+  const bySupplier = new Map()
+  for (const row of purchases) {
+    if (!bySupplier.has(row.supplierId)) bySupplier.set(row.supplierId, [])
+    bySupplier.get(row.supplierId).push(row)
+  }
+
+  for (const [supplierId, supplierPurchases] of bySupplier.entries()) {
+    const totalPaid = await sumPaymentsByGasSupplierId(supplierId)
+    const withStatus = allocatePurchaseStatuses(supplierPurchases, totalPaid)
+    for (const purchase of withStatus) {
+      if (!purchase.dueDate || purchase.dueDate > reminderCutoff) continue
+      if (purchase.payStatus === 'paid') continue
+      const overdue = purchase.dueDate < today
+      const statusLabel = purchase.payStatus === 'partial' ? 'partially paid' : 'unpaid'
+      const statusPhrase = overdue
+        ? `is ${statusLabel} and overdue`
+        : `is ${statusLabel}`
+      const duePhrase = overdue
+        ? `Due date was ${formatDueDateEn(purchase.dueDate)}`
+        : `Due date is ${formatDueDateEn(purchase.dueDate)}`
+      const remainingNote = purchase.payStatus === 'partial'
+        ? ` Remaining balance: ${formatMoneyEn(purchase.dueAmount)}.`
+        : ''
+      reminders.push({
+        id: `gas-purchase-${purchase.id}`,
+        kind: 'gas_purchase',
+        refId: purchase.id,
+        supplierId,
+        dueDate: purchase.dueDate,
+        payStatus: purchase.payStatus,
+        amount: purchase.totalAmount,
+        overdue,
+        message:
+          `Payment reminder: Gas cylinder purchase from ${purchase.supplierName} (${formatMoneyEn(purchase.totalAmount)}) ${statusPhrase}. ${duePhrase}.${remainingNote} Please clear this payment.`,
+      })
+    }
+  }
+
+  reminders.sort((a, b) => {
+    if (a.dueDate !== b.dueDate) return a.dueDate < b.dueDate ? -1 : 1
+    return String(a.id).localeCompare(String(b.id))
+  })
+
+  return { today, reminderCutoff, count: reminders.length, reminders }
 }
