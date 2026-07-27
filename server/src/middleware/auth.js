@@ -43,14 +43,20 @@ export function enforceRolePermissions(req, res, next) {
     return next()
   }
 
+  const fullPath = `${req.baseUrl || ''}${req.path || ''}`
+
   if (method === 'POST') {
-    const fullPath = `${req.baseUrl || ''}${req.path || ''}`
     if (/\/(deliver|pending)$/.test(fullPath)) {
       return fail(res, 'Managers cannot change existing records', 403)
     }
     if (/\/managers(\/|$)/.test(fullPath)) {
       return fail(res, 'Only admin can manage managers', 403)
     }
+    return next()
+  }
+
+  // Managers may mark unpaid utility bills as paid (service blocks paid → unpaid).
+  if (method === 'PATCH' && /\/bills\/[^/]+\/status$/.test(fullPath)) {
     return next()
   }
 

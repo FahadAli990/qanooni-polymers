@@ -16,6 +16,7 @@ import {
   updateGasPurchaseController,
   updateGasSupplierController,
   updateUtilityBillController,
+  updateUtilityBillStatusController,
 } from '../controllers/gasController.js'
 import { requireAuth, enforceRolePermissions } from '../middleware/auth.js'
 
@@ -27,6 +28,7 @@ router.use(enforceRolePermissions)
 router.get('/due-reminders', listDueRemindersController)
 router.get('/bills', listUtilityBillsController)
 router.post('/bills', createUtilityBillController)
+router.patch('/bills/:id/status', updateUtilityBillStatusController)
 router.put('/bills/:id', updateUtilityBillController)
 router.delete('/bills/:id', deleteUtilityBillController)
 

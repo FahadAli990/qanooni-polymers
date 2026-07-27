@@ -49,7 +49,9 @@ function emptyBillForm() {
 function UtilityBillsPage() {
   const { confirm } = useConfirm()
   const { showToast } = useToast()
-  const { canEdit, canDelete } = usePermissions()
+  const { canEdit, canDelete, isAdmin } = usePermissions()
+  const [statusUpdatingId, setStatusUpdatingId] = useState(null)
+  const [dueUpdatingId, setDueUpdatingId] = useState(null)
 
   const [tab, setTab] = useState('gas')
 
@@ -567,6 +569,74 @@ function UtilityBillsPage() {
       showToast(getErrorMessage(err), 'error')
     } finally {
       setSavingBill(false)
+    }
+  }
+
+  async function handleBillStatusChange(row, nextStatus) {
+    if (row.payStatus === nextStatus) return
+    if (row.payStatus === 'paid' && nextStatus === 'unpaid' && !isAdmin) {
+      showToast('Only admin can mark a paid bill as unpaid', 'error')
+      return
+    }
+    if (!row.dueDate && nextStatus === 'paid') {
+      showToast('Set due date in the Due date column first, then mark as Paid', 'error')
+      return
+    }
+    setStatusUpdatingId(row.id)
+    try {
+      const { data } = await api.patch(`/utility/bills/${row.id}/status`, {
+        payStatus: nextStatus,
+        listDate: billDate,
+        dueDate: row.dueDate || undefined,
+      })
+      const payload = data.data || {}
+      setBills(payload.items || [])
+      setBillTotals(payload.totals || { dayTotal: 0, total: 0 })
+      showToast(nextStatus === 'paid' ? 'Bill marked as Paid' : 'Bill marked as Unpaid')
+    } catch (err) {
+      showToast(getErrorMessage(err), 'error')
+    } finally {
+      setStatusUpdatingId(null)
+    }
+  }
+
+  async function handleBillDueDateChange(row, nextDueDate) {
+    if (!nextDueDate) {
+      showToast('Due date is required', 'error')
+      return
+    }
+    if (row.dueDate === nextDueDate) return
+    setDueUpdatingId(row.id)
+    try {
+      if (canEdit) {
+        const { data } = await api.put(`/utility/bills/${row.id}`, {
+          date: row.date,
+          dueDate: nextDueDate,
+          category: row.category,
+          title: row.title,
+          amount: row.amount,
+          payStatus: row.payStatus === 'paid' ? 'paid' : 'unpaid',
+          note: row.note || '',
+        })
+        const payload = data.data || {}
+        setBills(payload.items || [])
+        setBillTotals(payload.totals || { dayTotal: 0, total: 0 })
+        if (payload.date) setBillDate(payload.date)
+      } else {
+        const { data } = await api.patch(`/utility/bills/${row.id}/status`, {
+          payStatus: row.payStatus === 'paid' ? 'paid' : 'unpaid',
+          dueDate: nextDueDate,
+          listDate: billDate,
+        })
+        const payload = data.data || {}
+        setBills(payload.items || [])
+        setBillTotals(payload.totals || { dayTotal: 0, total: 0 })
+      }
+      showToast('Due date updated')
+    } catch (err) {
+      showToast(getErrorMessage(err), 'error')
+    } finally {
+      setDueUpdatingId(null)
     }
   }
 
@@ -1306,14 +1376,39 @@ function UtilityBillsPage() {
                   bills.map((row) => (
                     <tr key={row.id}>
                       <td>{formatDateDisplay(row.date)}</td>
-                      <td>{row.dueDate ? formatDateDisplay(row.dueDate) : '—'}</td>
+                      <td>
+                        {canEdit || !row.dueDate ? (
+                          <input
+                            type="date"
+                            value={row.dueDate || ''}
+                            disabled={dueUpdatingId === row.id}
+                            onChange={(e) => handleBillDueDateChange(row, e.target.value)}
+                            aria-label={`Due date for ${row.title}`}
+                            style={{ minWidth: '9.5rem' }}
+                          />
+                        ) : (
+                          formatDateDisplay(row.dueDate)
+                        )}
+                      </td>
                       <td>{row.category}</td>
                       <td>{row.title}</td>
                       <td>{formatMoney(row.amount)}</td>
                       <td>
-                        <span className={`status-pill status-pill--${row.payStatus || 'unpaid'}`}>
-                          {payStatusLabel(row.payStatus)}
-                        </span>
+                        <select
+                          value={row.payStatus === 'paid' ? 'paid' : 'unpaid'}
+                          disabled={statusUpdatingId === row.id}
+                          onChange={(e) => handleBillStatusChange(row, e.target.value)}
+                          aria-label={`Payment status for ${row.title}`}
+                          className={`status-pill status-pill--${row.payStatus === 'paid' ? 'paid' : 'unpaid'}`}
+                          style={{
+                            minWidth: '6.5rem',
+                            fontWeight: 600,
+                            cursor: statusUpdatingId === row.id ? 'wait' : 'pointer',
+                          }}
+                        >
+                          <option value="unpaid">Unpaid</option>
+                          <option value="paid">Paid</option>
+                        </select>
                       </td>
                       <td className="stock-table__wrap">{row.note || '—'}</td>
                       <td className="stock-table__actions">

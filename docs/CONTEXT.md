@@ -83,10 +83,13 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
 - Gas ledger: purchases FIFO → Unpaid/Partial/Paid; summary purchased/paid/remaining/advance + total cylinders/kg
 - Purchase total = `cylinder_kg * cylinders_count * price_per_kg` (API body: `pricePerKg`)
 - Due date required on gas purchases + other utility bills; other bills have Paid/Unpaid status
+- Other utility bills table: Due date shown (admin can edit inline; missing due date editable by manager too); Status dropdown Unpaid/Paid
+- Manager may mark unpaid → paid; only admin may mark paid → unpaid (`PATCH /api/utility/bills/:id/status`)
 - Due reminders: unpaid (or partial gas) items with `due_date <= today + 2 days` → English in-app banner on login (`GET /api/utility/due-reminders`)
 - UI: gas suppliers list filters to selected row when `supplierId` set; row click selects; “Show all suppliers” clears; Edit also sets selection
 - APIs (`/api/utility`, auth required):
   - `GET /api/utility/due-reminders`
+  - `PATCH /api/utility/bills/:id/status` `{ payStatus, dueDate?, listDate? }`
   - `GET|POST /api/utility/suppliers`, `PUT|DELETE /api/utility/suppliers/:id`
   - `GET /api/utility/suppliers/:id/ledger`
   - `POST|PUT|DELETE .../purchases` and `.../payments`

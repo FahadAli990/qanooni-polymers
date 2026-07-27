@@ -371,6 +371,48 @@ export async function updateUtilityBill(idInput, body = {}) {
   return { bill, ...list }
 }
 
+export async function updateUtilityBillStatus(idInput, body = {}, user = {}) {
+  const id = Number(idInput)
+  if (!Number.isInteger(id) || id <= 0) throw badRequest('Invalid bill id')
+  const existing = await findUtilityBillById(id)
+  if (!existing) throw notFound('Utility bill not found')
+
+  const payStatusRaw = String(body.payStatus ?? body.pay_status ?? '').trim().toLowerCase()
+  if (payStatusRaw !== 'paid' && payStatusRaw !== 'unpaid') {
+    throw badRequest('Payment status must be paid or unpaid')
+  }
+
+  const role = user?.role === 'manager' ? 'manager' : 'admin'
+  if (payStatusRaw === 'unpaid' && existing.payStatus === 'paid' && role !== 'admin') {
+    const error = new Error('Only admin can mark a paid bill as unpaid')
+    error.status = 403
+    throw error
+  }
+
+  let dueDate = existing.dueDate || ''
+  const incomingDue = String(body.dueDate ?? body.due_date ?? '').trim()
+  if (DATE_RE.test(incomingDue)) {
+    dueDate = incomingDue
+  }
+  if (!DATE_RE.test(dueDate)) {
+    throw badRequest('Due date is required before marking payment status')
+  }
+
+  const bill = await updateUtilityBillById(id, {
+    date: existing.date,
+    dueDate,
+    category: existing.category,
+    title: existing.title,
+    amount: existing.amount,
+    payStatus: payStatusRaw,
+    note: existing.note,
+  })
+  if (!bill) throw notFound('Utility bill not found')
+  const listDate = normalizeDate(body.listDate ?? body.date ?? existing.date)
+  const list = await listUtilityBills({ date: listDate })
+  return { bill, ...list }
+}
+
 export async function removeUtilityBill(idInput, query = {}) {
   const id = Number(idInput)
   if (!Number.isInteger(id) || id <= 0) throw badRequest('Invalid bill id')
