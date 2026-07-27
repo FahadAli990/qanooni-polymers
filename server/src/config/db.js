@@ -103,10 +103,12 @@ export async function ensureSchema() {
       bags DECIMAL(12, 2) NOT NULL,
       kg DECIMAL(14, 2) NOT NULL,
       price_per_kg DECIMAL(14, 2) NOT NULL DEFAULT 0,
+      is_previous TINYINT(1) NOT NULL DEFAULT 0,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       PRIMARY KEY (id),
       KEY idx_raw_material_stocks_material (raw_material_id),
       KEY idx_raw_material_stocks_date (stock_date),
+      KEY idx_raw_material_stocks_previous (is_previous),
       CONSTRAINT fk_raw_material_stocks_material
         FOREIGN KEY (raw_material_id) REFERENCES raw_materials (id)
         ON DELETE CASCADE
@@ -491,6 +493,24 @@ export async function ensureSchema() {
        ADD CONSTRAINT fk_raw_material_stocks_supplier
          FOREIGN KEY (supplier_id) REFERENCES suppliers (id)
          ON DELETE SET NULL`,
+    )
+  }
+
+  const [stockPrevCols] = await getPool().query(
+    `SELECT COLUMN_NAME
+     FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'raw_material_stocks'
+       AND COLUMN_NAME = 'is_previous'`,
+  )
+  if (!stockPrevCols.length) {
+    await getPool().query(
+      `ALTER TABLE raw_material_stocks
+       ADD COLUMN is_previous TINYINT(1) NOT NULL DEFAULT 0 AFTER price_per_kg`,
+    )
+    await getPool().query(
+      `ALTER TABLE raw_material_stocks
+       ADD KEY idx_raw_material_stocks_previous (is_previous)`,
     )
   }
 

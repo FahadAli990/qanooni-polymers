@@ -199,19 +199,19 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
 
 ## Stock (per material)
 
-- Table: `raw_material_stocks` (`id`, `raw_material_id`, `stock_date`, `supplier`, `supplier_id`, `bags`, `kg`, `price_per_kg`, `created_at`)
+- Table: `raw_material_stocks` (`id`, `raw_material_id`, `stock_date`, `supplier`, `supplier_id`, `bags`, `kg`, `price_per_kg`, `is_previous`, `created_at`)
 - Standard: **1 bag = 40 kg** (`kg` auto-calculated server-side)
 - Bags must be whole numbers on stock entry (`1, 2, 3…`)
 - When rolls consume kg, available bags also drop (`usedKg / 40`)
 - Dates display as **DD-MM-YYYY**
-- Supplier must be selected from `suppliers` (`supplierId` required); name denormalized onto `supplier`
+- **Add Stock**: `supplierId` required + purchase price/kg; name denormalized onto `supplier`; counts on supplier ledger
+- **Add Previous Stock** (`previous: true` / `is_previous=1`): opening factory raw stock — no supplier, `price_per_kg=0`; does **not** create supplier due (old money → Suppliers → Add Previous Balance)
 - APIs (auth required):
   - `GET /api/raw-materials/:slug/stocks` → material + items + totals (available kg after rolls)
-  - `POST /api/raw-materials/:slug/stocks` `{ date, supplierId, bags, pricePerKg }`
-  - `PUT /api/raw-materials/:slug/stocks/:stockId` `{ date, supplierId, bags, pricePerKg }`
+  - `POST /api/raw-materials/:slug/stocks` `{ date, supplierId?, bags, pricePerKg?, previous? }`
+  - `PUT /api/raw-materials/:slug/stocks/:stockId` `{ date, supplierId?, bags, pricePerKg?, previous? }` (cannot flip previous ↔ purchase type)
   - `DELETE /api/raw-materials/:slug/stocks/:stockId`
-- UI: `/raw-material/:slug` — stock ledger with **Purchase Amount / kg** + **Total Paid** per supplier entry; Add Stock requires supplier dropdown + bags + purchase price/kg (total = kg × price)
-- Stock table column: `price_per_kg` on `raw_material_stocks`
+- UI: `/raw-material/:slug` — **Add Stock** + **Add Previous Stock**; ledger shows Previous vs supplier; price/total — for previous
 
 ## Roll / Chaat / Dewaar production
 

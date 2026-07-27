@@ -2,6 +2,7 @@ import { findRawMaterialBySlug } from '../repositories/rawMaterialRepository.js'
 import { findSupplierById } from '../repositories/supplierRepository.js'
 import {
   deleteStockById,
+  findStockById,
   findStocksByMaterialId,
   insertStock,
   sumStocksByMaterialId,
@@ -29,14 +30,37 @@ async function requireMaterial(slug) {
   return material
 }
 
-async function normalizeStockInput(body) {
+async function normalizeStockInput(body, { existing = null } = {}) {
   const date = String(body?.date || '').trim()
   const bagsRaw = body?.bags
   const priceRaw = body?.pricePerKg ?? body?.price_per_kg
   const supplierIdRaw = body?.supplierId ?? body?.supplier_id
+  const previousFlag = body?.previous ?? body?.isPrevious ?? body?.is_previous
+  const isPrevious = existing
+    ? Boolean(existing.isPrevious)
+    : Boolean(previousFlag)
 
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     throw badRequest('Date is required (YYYY-MM-DD)')
+  }
+
+  const bags = Number(bagsRaw)
+  if (!Number.isFinite(bags) || bags <= 0 || !Number.isInteger(bags)) {
+    throw badRequest('Quantity (bags) must be a whole number (1, 2, 3...)')
+  }
+
+  const kg = Number((bags * KG_PER_BAG).toFixed(2))
+
+  if (isPrevious) {
+    return {
+      date,
+      supplierId: null,
+      supplier: 'Previous stock',
+      bags,
+      kg,
+      pricePerKg: 0,
+      isPrevious: true,
+    }
   }
 
   const supplierId = Number(supplierIdRaw)
@@ -46,17 +70,11 @@ async function normalizeStockInput(body) {
   const supplierRow = await findSupplierById(supplierId)
   if (!supplierRow) throw badRequest('Selected supplier not found')
 
-  const bags = Number(bagsRaw)
-  if (!Number.isFinite(bags) || bags <= 0 || !Number.isInteger(bags)) {
-    throw badRequest('Quantity (bags) must be a whole number (1, 2, 3...)')
-  }
-
   const pricePerKg = Number(priceRaw)
   if (!Number.isFinite(pricePerKg) || pricePerKg <= 0) {
     throw badRequest('Purchase price per kg is required and must be greater than zero')
   }
 
-  const kg = Number((bags * KG_PER_BAG).toFixed(2))
   return {
     date,
     supplierId: supplierRow.id,
@@ -64,6 +82,7 @@ async function normalizeStockInput(body) {
     bags,
     kg,
     pricePerKg: Number(pricePerKg.toFixed(2)),
+    isPrevious: false,
   }
 }
 
@@ -119,7 +138,12 @@ export async function updateStockForMaterialSlug(slug, stockId, body) {
   const id = Number(stockId)
   if (!Number.isInteger(id) || id <= 0) throw badRequest('Invalid stock id')
 
-  const payload = await normalizeStockInput(body)
+  const existing = await findStockById(id)
+  if (!existing || existing.rawMaterialId !== material.id) {
+    throw notFound('Stock entry not found')
+  }
+
+  const payload = await normalizeStockInput(body, { existing })
   const updated = await updateStockById(id, material.id, payload)
   if (!updated) throw notFound('Stock entry not found')
 

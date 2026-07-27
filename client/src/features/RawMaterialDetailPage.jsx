@@ -21,6 +21,7 @@ function RawMaterialDetailPage() {
   const [saving, setSaving] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState(null)
+  const [isPreviousEntry, setIsPreviousEntry] = useState(false)
   const [material, setMaterial] = useState(null)
   const [items, setItems] = useState([])
   const [totals, setTotals] = useState({
@@ -47,10 +48,11 @@ function RawMaterialDetailPage() {
   }, [bags, totals.kgPerBag])
 
   const computedPurchaseTotal = useMemo(() => {
+    if (isPreviousEntry) return 0
     const price = Number(pricePerKg)
     if (!computedKg || !Number.isFinite(price) || price <= 0) return 0
     return Number((computedKg * price).toFixed(2))
-  }, [computedKg, pricePerKg])
+  }, [computedKg, pricePerKg, isPreviousEntry])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -108,6 +110,7 @@ function RawMaterialDetailPage() {
 
   function resetForm() {
     setEditingId(null)
+    setIsPreviousEntry(false)
     setDate(todayIso())
     setSupplierId('')
     setBags('')
@@ -119,13 +122,15 @@ function RawMaterialDetailPage() {
     resetForm()
   }
 
-  function openCreate() {
+  function openCreate(previous = false) {
     resetForm()
+    setIsPreviousEntry(Boolean(previous))
     setShowForm(true)
   }
 
   function openEdit(item) {
     setEditingId(item.id)
+    setIsPreviousEntry(Boolean(item.isPrevious))
     setDate(item.date)
     setSupplierId(item.supplierId != null ? String(item.supplierId) : '')
     setBags(String(Math.round(Number(item.bags))))
@@ -135,14 +140,16 @@ function RawMaterialDetailPage() {
 
   async function handleSubmit(e) {
     e.preventDefault()
-    if (!supplierId) {
+    if (!isPreviousEntry && !supplierId) {
       showToast('Select a supplier', 'error')
       return
     }
-    const price = Number(pricePerKg)
-    if (!Number.isFinite(price) || price <= 0) {
-      showToast('Purchase price per kg is required', 'error')
-      return
+    if (!isPreviousEntry) {
+      const price = Number(pricePerKg)
+      if (!Number.isFinite(price) || price <= 0) {
+        showToast('Purchase price per kg is required', 'error')
+        return
+      }
     }
     if (editingId && !canEdit) {
       showToast('Managers cannot edit records', 'error')
@@ -151,24 +158,31 @@ function RawMaterialDetailPage() {
 
     setSaving(true)
     try {
-      const body = {
-        date,
-        supplierId: Number(supplierId),
-        bags: Number(bags),
-        pricePerKg: price,
-      }
+      const body = isPreviousEntry
+        ? {
+            date,
+            bags: Number(bags),
+            previous: true,
+          }
+        : {
+            date,
+            supplierId: Number(supplierId),
+            bags: Number(bags),
+            pricePerKg: Number(pricePerKg),
+            previous: false,
+          }
       if (editingId) {
         const { data } = await api.put(`/raw-materials/${slug}/stocks/${editingId}`, body)
         const payload = data.data
         setItems((prev) => prev.map((row) => (row.id === editingId ? payload.item : row)))
         setTotals(payload.totals)
-        showToast('Stock updated')
+        showToast(isPreviousEntry ? 'Previous stock updated' : 'Stock updated')
       } else {
         const { data } = await api.post(`/raw-materials/${slug}/stocks`, body)
         const payload = data.data
         setItems((prev) => [...prev, payload.item])
         setTotals(payload.totals)
-        showToast('Stock added')
+        showToast(isPreviousEntry ? 'Previous stock added' : 'Stock added')
       }
       closeForm()
     } catch (err) {
@@ -181,7 +195,9 @@ function RawMaterialDetailPage() {
   async function handleDelete(item) {
     const ok = await confirm({
       title: 'Delete stock',
-      message: `Delete stock from ${item.supplier} (${formatNum(item.bags, 0)} bags)?`,
+      message: item.isPrevious
+        ? `Delete previous stock (${formatNum(item.bags, 0)} bags)?`
+        : `Delete stock from ${item.supplier} (${formatNum(item.bags, 0)} bags)?`,
     })
     if (!ok) return
     try {
@@ -222,14 +238,30 @@ function RawMaterialDetailPage() {
             <span className="material-card__swatch" style={{ backgroundColor: material.swatch }} />
             <h1>{material.name}</h1>
           </div>
+          <p className="help-muted" style={{ margin: '0.35rem 0 0' }}>
+            Add supplier purchase stock, or previous stock already in the factory (no supplier needed).
+          </p>
         </div>
-        <button
-          type="button"
-          className="btn-primary"
-          onClick={() => (showForm && !editingId ? closeForm() : openCreate())}
-        >
-          {showForm && !editingId ? 'Cancel' : 'Add Stock'}
-        </button>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() =>
+              showForm && !editingId && isPreviousEntry ? closeForm() : openCreate(true)
+            }
+          >
+            {showForm && !editingId && isPreviousEntry ? 'Cancel' : 'Add Previous Stock'}
+          </button>
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={() =>
+              showForm && !editingId && !isPreviousEntry ? closeForm() : openCreate(false)
+            }
+          >
+            {showForm && !editingId && !isPreviousEntry ? 'Cancel' : 'Add Stock'}
+          </button>
+        </div>
       </header>
 
       <section className="stock-totals card stock-totals--split">
@@ -258,6 +290,12 @@ function RawMaterialDetailPage() {
 
       {showForm && (
         <form className="card panel-form panel-form--stock" onSubmit={handleSubmit}>
+          {isPreviousEntry ? (
+            <p className="help-muted" style={{ marginTop: 0 }}>
+              Previous stock: raw material already in factory. No supplier or purchase price —
+              supplier old dues go under Suppliers → Add Previous Balance.
+            </p>
+          ) : null}
           <div className="form-grid">
             <div>
               <label htmlFor="stock-date">Date</label>
@@ -269,29 +307,31 @@ function RawMaterialDetailPage() {
                 required
               />
             </div>
-            <div>
-              <label htmlFor="stock-supplier">Supplier</label>
-              <select
-                id="stock-supplier"
-                value={supplierId}
-                onChange={(e) => setSupplierId(e.target.value)}
-                required
-                disabled={suppliersLoading}
-              >
-                <option value="">
-                  {suppliersLoading
-                    ? 'Loading suppliers…'
-                    : suppliers.length
-                      ? 'Select supplier'
-                      : 'No suppliers — add in Suppliers'}
-                </option>
-                {suppliers.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
+            {!isPreviousEntry && (
+              <div>
+                <label htmlFor="stock-supplier">Supplier</label>
+                <select
+                  id="stock-supplier"
+                  value={supplierId}
+                  onChange={(e) => setSupplierId(e.target.value)}
+                  required
+                  disabled={suppliersLoading}
+                >
+                  <option value="">
+                    {suppliersLoading
+                      ? 'Loading suppliers…'
+                      : suppliers.length
+                        ? 'Select supplier'
+                        : 'No suppliers — add in Suppliers'}
                   </option>
-                ))}
-              </select>
-            </div>
+                  {suppliers.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div>
               <label htmlFor="stock-bags">Quantity (Bags)</label>
               <input
@@ -314,32 +354,42 @@ function RawMaterialDetailPage() {
                 readOnly
               />
             </div>
-            <div>
-              <label htmlFor="stock-price">Purchase Amount / kg (Rs)</label>
-              <input
-                id="stock-price"
-                type="number"
-                min="1"
-                step="1"
-                value={pricePerKg}
-                onChange={(e) => setPricePerKg(e.target.value)}
-                placeholder="e.g. 180"
-                required
-              />
-            </div>
-            <div>
-              <label htmlFor="stock-total">Total amount (auto)</label>
-              <input
-                id="stock-total"
-                type="text"
-                value={computedPurchaseTotal ? formatMoney(computedPurchaseTotal) : '—'}
-                readOnly
-              />
-            </div>
+            {!isPreviousEntry && (
+              <>
+                <div>
+                  <label htmlFor="stock-price">Purchase Amount / kg (Rs)</label>
+                  <input
+                    id="stock-price"
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={pricePerKg}
+                    onChange={(e) => setPricePerKg(e.target.value)}
+                    placeholder="e.g. 180"
+                    required
+                  />
+                </div>
+                <div>
+                  <label htmlFor="stock-total">Total amount (auto)</label>
+                  <input
+                    id="stock-total"
+                    type="text"
+                    value={computedPurchaseTotal ? formatMoney(computedPurchaseTotal) : '—'}
+                    readOnly
+                  />
+                </div>
+              </>
+            )}
           </div>
           <div className="panel-form__actions">
             <button type="submit" className="btn-primary" disabled={saving}>
-              {saving ? 'Saving…' : editingId ? 'Update Stock' : 'Save Stock'}
+              {saving
+                ? 'Saving…'
+                : editingId
+                  ? 'Update'
+                  : isPreviousEntry
+                    ? 'Save Previous Stock'
+                    : 'Save Stock'}
             </button>
             {editingId && (
               <button type="button" className="btn-secondary" onClick={closeForm} disabled={saving}>
@@ -355,7 +405,7 @@ function RawMaterialDetailPage() {
           <thead>
             <tr>
               <th>Date</th>
-              <th>Supplier</th>
+              <th>Supplier / Type</th>
               <th>Bags</th>
               <th>KG</th>
               <th>Purchase Amount / kg</th>
@@ -367,18 +417,24 @@ function RawMaterialDetailPage() {
             {items.length === 0 ? (
               <tr>
                 <td colSpan={7} className="stock-table__empty">
-                  No stock yet. Click Add Stock to add the first entry.
+                  No stock yet. Click Add Stock or Add Previous Stock.
                 </td>
               </tr>
             ) : (
               items.map((item) => (
                 <tr key={item.id}>
                   <td>{formatDateDisplay(item.date)}</td>
-                  <td>{item.supplier}</td>
+                  <td>
+                    {item.isPrevious ? (
+                      <span className="status-pill status-pill--partial">Previous stock</span>
+                    ) : (
+                      item.supplier
+                    )}
+                  </td>
                   <td>{formatNum(item.bags, 0)}</td>
                   <td>{formatNum(item.kg)}</td>
-                  <td>{formatMoney(item.pricePerKg || 0)}</td>
-                  <td>{formatMoney(item.totalAmount || 0)}</td>
+                  <td>{item.isPrevious ? '—' : formatMoney(item.pricePerKg || 0)}</td>
+                  <td>{item.isPrevious ? '—' : formatMoney(item.totalAmount || 0)}</td>
                   <td className="stock-table__actions">
                     {canEdit && (
                       <button
