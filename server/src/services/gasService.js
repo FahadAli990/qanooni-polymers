@@ -111,7 +111,7 @@ function normalizeSupplierInput(body = {}) {
 
 function normalizePurchaseInput(body = {}) {
   const date = String(body.date || '').trim()
-  const dueDate = String(body.dueDate ?? body.due_date || '').trim()
+  const dueDate = String(body.dueDate ?? body.due_date ?? '').trim()
   const note = String(body.note || '').trim().slice(0, 255)
   const cylinderKg = Number(body.cylinderKg ?? body.cylinder_kg)
   const cylindersCount = Number(body.cylindersCount ?? body.cylinders_count)
@@ -155,12 +155,12 @@ function normalizePaymentInput(body = {}) {
 
 function normalizeUtilityBillInput(body = {}) {
   const date = String(body.date || '').trim()
-  const dueDate = String(body.dueDate ?? body.due_date || '').trim()
+  const dueDate = String(body.dueDate ?? body.due_date ?? '').trim()
   const category = String(body.category || '').trim().slice(0, 80)
   const title = String(body.title || '').trim().slice(0, 160)
   const note = String(body.note || '').trim().slice(0, 255)
   const amount = Number(body.amount)
-  const payStatusRaw = String(body.payStatus ?? body.pay_status || 'unpaid').trim().toLowerCase()
+  const payStatusRaw = String(body.payStatus ?? body.pay_status ?? 'unpaid').trim().toLowerCase()
   const payStatus = payStatusRaw === 'paid' ? 'paid' : 'unpaid'
   if (!DATE_RE.test(date)) throw badRequest('Date is required (YYYY-MM-DD)')
   if (!DATE_RE.test(dueDate)) throw badRequest('Due date is required (YYYY-MM-DD)')
