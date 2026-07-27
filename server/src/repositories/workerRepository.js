@@ -8,11 +8,13 @@ function mapWorker(row, { includeImages = true } = {}) {
     fixedSalary: Number(row.fixed_salary),
     address: row.address || '',
     note: row.note || '',
+    hasPhoto: Boolean(row.has_photo ?? row.photo),
     hasIdCardFront: Boolean(row.has_id_front ?? row.id_card_front),
     hasIdCardBack: Boolean(row.has_id_back ?? row.id_card_back),
     createdAt: row.created_at,
   }
   if (includeImages) {
+    base.photo = row.photo || ''
     base.idCardFront = row.id_card_front || ''
     base.idCardBack = row.id_card_back || ''
   }
@@ -53,6 +55,7 @@ export async function findAllWorkers() {
   const [rows] = await getPool().query(
     `SELECT
        id, name, contact, fixed_salary, address, note, created_at,
+       (photo IS NOT NULL AND CHAR_LENGTH(photo) > 0) AS has_photo,
        (id_card_front IS NOT NULL AND CHAR_LENGTH(id_card_front) > 0) AS has_id_front,
        (id_card_back IS NOT NULL AND CHAR_LENGTH(id_card_back) > 0) AS has_id_back
      FROM workers
@@ -63,7 +66,7 @@ export async function findAllWorkers() {
 
 export async function findWorkerById(id) {
   const [rows] = await getPool().query(
-    `SELECT id, name, contact, fixed_salary, address, id_card_front, id_card_back, note, created_at
+    `SELECT id, name, contact, fixed_salary, address, photo, id_card_front, id_card_back, note, created_at
      FROM workers WHERE id = :id LIMIT 1`,
     { id },
   )
@@ -72,7 +75,7 @@ export async function findWorkerById(id) {
 
 export async function findWorkerByName(name) {
   const [rows] = await getPool().query(
-    `SELECT id, name, contact, fixed_salary, address, id_card_front, id_card_back, note, created_at
+    `SELECT id, name, contact, fixed_salary, address, photo, id_card_front, id_card_back, note, created_at
      FROM workers WHERE name = :name LIMIT 1`,
     { name },
   )
@@ -84,20 +87,22 @@ export async function insertWorker({
   contact,
   fixedSalary,
   address,
+  photo,
   idCardFront,
   idCardBack,
   note,
 }) {
   const [result] = await getPool().query(
     `INSERT INTO workers
-       (name, contact, fixed_salary, address, id_card_front, id_card_back, note)
+       (name, contact, fixed_salary, address, photo, id_card_front, id_card_back, note)
      VALUES
-       (:name, :contact, :fixedSalary, :address, :idCardFront, :idCardBack, :note)`,
+       (:name, :contact, :fixedSalary, :address, :photo, :idCardFront, :idCardBack, :note)`,
     {
       name,
       contact,
       fixedSalary,
       address: address || null,
+      photo: photo || null,
       idCardFront: idCardFront || null,
       idCardBack: idCardBack || null,
       note: note || null,
@@ -111,6 +116,7 @@ export async function updateWorkerById(id, {
   contact,
   fixedSalary,
   address,
+  photo,
   idCardFront,
   idCardBack,
   note,
@@ -121,6 +127,7 @@ export async function updateWorkerById(id, {
          contact = :contact,
          fixed_salary = :fixedSalary,
          address = :address,
+         photo = :photo,
          id_card_front = :idCardFront,
          id_card_back = :idCardBack,
          note = :note
@@ -131,6 +138,7 @@ export async function updateWorkerById(id, {
       contact,
       fixedSalary,
       address: address || null,
+      photo: photo || null,
       idCardFront: idCardFront || null,
       idCardBack: idCardBack || null,
       note: note || null,
@@ -167,7 +175,7 @@ export async function findLeavesByWorkerAndMonth(workerId, monthStart, monthEnd)
      FROM worker_leaves
      WHERE worker_id = :workerId
        AND leave_date >= :monthStart
-       AND leave_date < :monthEnd
+       AND leave_date <= :monthEnd
      ORDER BY leave_date ASC, id ASC`,
     { workerId, monthStart, monthEnd },
   )
@@ -180,7 +188,7 @@ export async function sumLeaveDaysByWorkerAndMonth(workerId, monthStart, monthEn
      FROM worker_leaves
      WHERE worker_id = :workerId
        AND leave_date >= :monthStart
-       AND leave_date < :monthEnd`,
+       AND leave_date <= :monthEnd`,
     { workerId, monthStart, monthEnd },
   )
   return Number(Number(rows[0]?.total || 0).toFixed(2))
@@ -271,6 +279,9 @@ export async function updateSalaryPaymentById(id, { date, forMonthDate, amount, 
 }
 
 export async function deleteSalaryPaymentById(id) {
-  const [result] = await getPool().query(`DELETE FROM worker_salary_payments WHERE id = :id`, { id })
+  const [result] = await getPool().query(
+    `DELETE FROM worker_salary_payments WHERE id = :id`,
+    { id },
+  )
   return result.affectedRows > 0
 }

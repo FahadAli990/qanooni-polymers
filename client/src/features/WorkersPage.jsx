@@ -29,6 +29,7 @@ function emptyWorkerForm() {
     address: '',
     fixedSalary: '',
     note: '',
+    photo: '',
     idCardFront: '',
     idCardBack: '',
   }
@@ -194,6 +195,7 @@ function WorkersPage() {
         address: full.address || '',
         fixedSalary: full.fixedSalary != null ? String(full.fixedSalary) : '',
         note: full.note || '',
+        photo: full.photo || '',
         idCardFront: full.idCardFront || '',
         idCardBack: full.idCardBack || '',
       })
@@ -205,6 +207,7 @@ function WorkersPage() {
         address: row.address || '',
         fixedSalary: String(row.fixedSalary || ''),
         note: row.note || '',
+        photo: '',
         idCardFront: '',
         idCardBack: '',
       })
@@ -214,6 +217,16 @@ function WorkersPage() {
   function onContactChange(value) {
     const digits = String(value || '').replace(/\D/g, '').slice(0, 11)
     setWorkerForm((prev) => ({ ...prev, contact: digits }))
+  }
+
+  async function onWorkerPhotoChange(file) {
+    if (!file) return
+    try {
+      const dataUrl = await fileToCompressedDataUrl(file)
+      setWorkerForm((prev) => ({ ...prev, photo: dataUrl }))
+    } catch (err) {
+      showToast(err.message || 'Could not process image', 'error')
+    }
   }
 
   async function onIdCardChange(side, file) {
@@ -251,6 +264,10 @@ function WorkersPage() {
       showToast('Fixed salary must be a positive number', 'error')
       return
     }
+    if (!workerForm.photo) {
+      showToast('Worker photo is required', 'error')
+      return
+    }
     if (!workerForm.idCardFront) {
       showToast('ID card front image is required', 'error')
       return
@@ -271,6 +288,7 @@ function WorkersPage() {
         address,
         fixedSalary,
         note: workerForm.note.trim(),
+        photo: workerForm.photo,
         idCardFront: workerForm.idCardFront,
         idCardBack: workerForm.idCardBack,
       }
@@ -282,8 +300,10 @@ function WorkersPage() {
             row.id === editingWorkerId
               ? {
                   ...updated,
+                  photo: undefined,
                   idCardFront: undefined,
                   idCardBack: undefined,
+                  hasPhoto: Boolean(updated.photo),
                   hasIdCardFront: Boolean(updated.idCardFront),
                   hasIdCardBack: Boolean(updated.idCardBack),
                 }
@@ -302,8 +322,10 @@ function WorkersPage() {
           ...prev,
           {
             ...created,
+            photo: undefined,
             idCardFront: undefined,
             idCardBack: undefined,
+            hasPhoto: Boolean(created.photo),
             hasIdCardFront: Boolean(created.idCardFront),
             hasIdCardBack: Boolean(created.idCardBack),
           },
@@ -588,6 +610,34 @@ function WorkersPage() {
                 maxLength={255}
               />
             </div>
+            <div style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+            <div>
+              <label htmlFor="worker-photo">Worker photo</label>
+              <input
+                id="worker-photo"
+                type="file"
+                accept="image/*"
+                onChange={(e) => onWorkerPhotoChange(e.target.files?.[0])}
+              />
+              {workerForm.photo ? (
+                <img
+                  src={workerForm.photo}
+                  alt="Worker photo preview"
+                  style={{
+                    marginTop: '0.5rem',
+                    width: '100%',
+                    maxHeight: '160px',
+                    objectFit: 'cover',
+                    borderRadius: '8px',
+                    border: '1px solid #d1d5db',
+                  }}
+                />
+              ) : (
+                <p className="help-muted" style={{ marginTop: '0.35rem' }}>
+                  Worker photo required
+                </p>
+              )}
+            </div>
             <div>
               <label htmlFor="worker-id-front">ID card front</label>
               <input
@@ -641,6 +691,7 @@ function WorkersPage() {
                   Back photo required
                 </p>
               )}
+            </div>
             </div>
           </div>
           <div className="panel-form__actions">
@@ -707,7 +758,7 @@ function WorkersPage() {
               <th>Contact</th>
               <th>Address</th>
               <th>Fixed salary</th>
-              <th>ID card</th>
+              <th>Photos</th>
               <th>Note</th>
               <th aria-label="Actions" />
             </tr>
@@ -731,9 +782,13 @@ function WorkersPage() {
                   <td className="stock-table__wrap">{row.address || '—'}</td>
                   <td>{formatMoney(row.fixedSalary)}</td>
                   <td>
-                    {row.hasIdCardFront || row.hasIdCardBack
-                      ? `${row.hasIdCardFront ? 'Front' : ''}${row.hasIdCardFront && row.hasIdCardBack ? ' + ' : ''}${row.hasIdCardBack ? 'Back' : ''}`
-                      : '—'}
+                    {(() => {
+                      const parts = []
+                      if (row.hasPhoto) parts.push('Photo')
+                      if (row.hasIdCardFront) parts.push('Front')
+                      if (row.hasIdCardBack) parts.push('Back')
+                      return parts.length ? parts.join(' + ') : '—'
+                    })()}
                   </td>
                   <td className="stock-table__wrap">{row.note || '—'}</td>
                   <td
@@ -786,7 +841,26 @@ function WorkersPage() {
               <p className="help-muted">{worker.address || 'No address'}</p>
               {worker.note ? <p className="help-muted">{worker.note}</p> : null}
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
+              <div>
+                <span className="stock-totals__label">Worker photo</span>
+                {worker.photo ? (
+                  <img
+                    src={worker.photo}
+                    alt="Worker"
+                    style={{
+                      marginTop: '0.35rem',
+                      width: '100%',
+                      maxHeight: '140px',
+                      objectFit: 'cover',
+                      borderRadius: '8px',
+                      border: '1px solid #d1d5db',
+                    }}
+                  />
+                ) : (
+                  <p className="help-muted">Not attached</p>
+                )}
+              </div>
               <div>
                 <span className="stock-totals__label">ID front</span>
                 {worker.idCardFront ? (

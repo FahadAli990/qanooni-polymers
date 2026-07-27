@@ -646,6 +646,7 @@ export async function ensureSchema() {
       contact VARCHAR(20) NOT NULL,
       fixed_salary DECIMAL(14, 2) NOT NULL,
       address VARCHAR(255) NULL,
+      photo MEDIUMTEXT NULL,
       id_card_front MEDIUMTEXT NULL,
       id_card_back MEDIUMTEXT NULL,
       note VARCHAR(255) NULL,
@@ -658,7 +659,8 @@ export async function ensureSchema() {
 
   const workerExtraCols = [
     { name: 'address', ddl: 'VARCHAR(255) NULL AFTER fixed_salary' },
-    { name: 'id_card_front', ddl: 'MEDIUMTEXT NULL AFTER address' },
+    { name: 'photo', ddl: 'MEDIUMTEXT NULL AFTER address' },
+    { name: 'id_card_front', ddl: 'MEDIUMTEXT NULL AFTER photo' },
     { name: 'id_card_back', ddl: 'MEDIUMTEXT NULL AFTER id_card_front' },
   ]
   for (const col of workerExtraCols) {

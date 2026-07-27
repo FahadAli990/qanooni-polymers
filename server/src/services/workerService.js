@@ -70,27 +70,37 @@ function normalizeWorkerInput(body = {}, { existing = null } = {}) {
     throw badRequest('Fixed salary must be a positive number')
   }
 
+  const photoProvided = Object.prototype.hasOwnProperty.call(body, 'photo')
+    || Object.prototype.hasOwnProperty.call(body, 'workerPhoto')
+    || Object.prototype.hasOwnProperty.call(body, 'worker_photo')
   const frontProvided = Object.prototype.hasOwnProperty.call(body, 'idCardFront')
     || Object.prototype.hasOwnProperty.call(body, 'id_card_front')
   const backProvided = Object.prototype.hasOwnProperty.call(body, 'idCardBack')
     || Object.prototype.hasOwnProperty.call(body, 'id_card_back')
 
+  const photoRaw = body.photo ?? body.workerPhoto ?? body.worker_photo
   const frontRaw = body.idCardFront ?? body.id_card_front
   const backRaw = body.idCardBack ?? body.id_card_back
 
+  let photo
   let idCardFront
   let idCardBack
 
   if (existing) {
+    photo = photoProvided
+      ? normalizeImage(photoRaw, 'Worker photo', { required: true })
+      : (existing.photo || '')
     idCardFront = frontProvided
       ? normalizeImage(frontRaw, 'ID card front', { required: true })
       : (existing.idCardFront || '')
     idCardBack = backProvided
       ? normalizeImage(backRaw, 'ID card back', { required: true })
       : (existing.idCardBack || '')
+    if (!photo) throw badRequest('Worker photo is required')
     if (!idCardFront) throw badRequest('ID card front is required')
     if (!idCardBack) throw badRequest('ID card back is required')
   } else {
+    photo = normalizeImage(photoRaw, 'Worker photo', { required: true })
     idCardFront = normalizeImage(frontRaw, 'ID card front', { required: true })
     idCardBack = normalizeImage(backRaw, 'ID card back', { required: true })
   }
@@ -100,6 +110,7 @@ function normalizeWorkerInput(body = {}, { existing = null } = {}) {
     contact,
     address,
     fixedSalary: Number(fixedSalary.toFixed(2)),
+    photo,
     idCardFront,
     idCardBack,
     note,
@@ -242,6 +253,7 @@ export async function getWorkerLedger(workerIdInput, query = {}) {
       fixedSalary: worker.fixedSalary,
       address: worker.address,
       note: worker.note,
+      hasPhoto: Boolean(worker.photo),
       hasIdCardFront: Boolean(worker.idCardFront),
       hasIdCardBack: Boolean(worker.idCardBack),
       createdAt: worker.createdAt,
