@@ -134,13 +134,16 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
 
 ## Bills & Payments (customers)
 
-- Table: `customer_payments` (`id`, `route_customer_id`, `payment_date`, `amount`, `note`, `created_at`)
-- Bills = **delivered** `sales_orders` for that shop (`total_bill`); pending orders excluded
-- Balance: `totalBilled − totalPaid = remaining`
-- Bill pay status (display): Unpaid / Partial / Paid — payments allocate FIFO to oldest bills
-- UI: Route dropdown → Shop dropdown → shop details + summary + bills table + payments CRUD + **Print PDF**
+- Tables:
+  - `customer_payments` (`id`, `route_customer_id`, `payment_date`, `amount`, `note`, `created_at`)
+  - `customer_previous_bills` (`id`, `route_customer_id`, `bill_date`, `amount`, `note`, `created_at`) — opening / old dues before software
+- Bills = **previous bills** + **delivered** `sales_orders` for that shop (`total_bill`); pending orders excluded
+- Balance: `totalBilled − totalPaid = remaining` (previous bills included in Total Billed)
+- Bill pay status (display): Unpaid / Partial / Paid — payments allocate FIFO to oldest bills (previous first on same date)
+- UI: Route → Shop → **Add Previous Bill** (date/amount/note) + delivered order bills + payments CRUD + **Print PDF**
 - APIs (auth required):
   - `GET /api/bills/shop?routeSlug=&customerId=` → shop, summary, bills[], payments[]
+  - `POST|PUT|DELETE /api/bills/previous-bills` (and `/:id`) `{ routeSlug, customerId, date, amount, note? }`
   - `POST /api/bills/payments` `{ routeSlug, customerId, date, amount, note? }`
   - `PUT /api/bills/payments/:id`
   - `DELETE /api/bills/payments/:id?routeSlug=&customerId=`

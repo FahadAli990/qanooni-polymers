@@ -42,6 +42,13 @@ function BillsPaymentsPage() {
   const [paymentNote, setPaymentNote] = useState('')
   const [saving, setSaving] = useState(false)
 
+  const [showPreviousForm, setShowPreviousForm] = useState(false)
+  const [editingPreviousId, setEditingPreviousId] = useState(null)
+  const [previousDate, setPreviousDate] = useState(todayIso())
+  const [previousAmount, setPreviousAmount] = useState('')
+  const [previousNote, setPreviousNote] = useState('')
+  const [savingPrevious, setSavingPrevious] = useState(false)
+
   useEffect(() => {
     refreshRoutes()
   }, [refreshRoutes])
@@ -222,12 +229,99 @@ function BillsPaymentsPage() {
     }
   }
 
+  function resetPreviousForm() {
+    setEditingPreviousId(null)
+    setPreviousDate(todayIso())
+    setPreviousAmount('')
+    setPreviousNote('')
+  }
+
+  function closePreviousForm() {
+    setShowPreviousForm(false)
+    resetPreviousForm()
+  }
+
+  function openCreatePrevious() {
+    resetPreviousForm()
+    setShowPreviousForm(true)
+  }
+
+  function openEditPrevious(bill) {
+    setEditingPreviousId(bill.previousBillId || bill.refId)
+    setPreviousDate(bill.date)
+    setPreviousAmount(String(bill.amount))
+    setPreviousNote(bill.note || '')
+    setShowPreviousForm(true)
+  }
+
+  async function handlePreviousSubmit(e) {
+    e.preventDefault()
+    const amount = Number(previousAmount)
+    if (!previousDate) {
+      showToast('Date is required', 'error')
+      return
+    }
+    if (!Number.isFinite(amount) || amount <= 0) {
+      showToast('Amount must be a positive number', 'error')
+      return
+    }
+    if (editingPreviousId && !canEdit) {
+      showToast('Managers cannot edit records', 'error')
+      return
+    }
+    setSavingPrevious(true)
+    try {
+      const body = {
+        routeSlug,
+        customerId: Number(customerId),
+        date: previousDate,
+        amount,
+        note: previousNote.trim(),
+      }
+      if (editingPreviousId) {
+        const { data } = await api.put(`/bills/previous-bills/${editingPreviousId}`, body)
+        applyLedger(data.data || {})
+        showToast('Previous bill updated')
+      } else {
+        const { data } = await api.post('/bills/previous-bills', body)
+        applyLedger(data.data || {})
+        showToast('Previous bill added')
+      }
+      closePreviousForm()
+    } catch (err) {
+      showToast(getErrorMessage(err), 'error')
+    } finally {
+      setSavingPrevious(false)
+    }
+  }
+
+  async function handleDeletePrevious(bill) {
+    const id = bill.previousBillId || bill.refId
+    const ok = await confirm({
+      title: 'Delete previous bill',
+      message: `Delete previous bill of ${formatMoney(bill.amount)}?`,
+    })
+    if (!ok) return
+    try {
+      const { data } = await api.delete(`/bills/previous-bills/${id}`, {
+        params: { routeSlug, customerId },
+      })
+      applyLedger(data.data || {})
+      if (editingPreviousId === id) closePreviousForm()
+      showToast('Previous bill deleted')
+    } catch (err) {
+      showToast(getErrorMessage(err), 'error')
+    }
+  }
+
   return (
     <div className="page-shell page-shell--wide">
       <header className="page-toolbar">
         <div>
           <h1>Bills & Payments</h1>
-          <p>Select route and shop to view delivered bills, payments, and remaining balance.</p>
+          <p>
+            Select route and shop to view bills (including previous balance), payments, and remaining.
+          </p>
         </div>
       </header>
 
@@ -319,27 +413,100 @@ function BillsPaymentsPage() {
           <section className="bills-section">
             <div className="page-toolbar" style={{ marginBottom: '0.75rem' }}>
               <div>
-                <h2 style={{ margin: 0, fontSize: '1.15rem' }}>Bills (Delivered Orders)</h2>
+                <h2 style={{ margin: 0, fontSize: '1.15rem' }}>Bills</h2>
                 <p className="help-muted" style={{ margin: '0.25rem 0 0' }}>
-                  Oldest bills settle first when payments are recorded.
+                  Add previous balance for old dues. Delivered orders also appear here. Oldest settle first.
                 </p>
               </div>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() =>
+                  showPreviousForm && !editingPreviousId
+                    ? closePreviousForm()
+                    : openCreatePrevious()
+                }
+              >
+                {showPreviousForm && !editingPreviousId ? 'Cancel' : 'Add Previous Bill'}
+              </button>
             </div>
+
+            {showPreviousForm && (
+              <form className="card panel-form panel-form--stock" onSubmit={handlePreviousSubmit}>
+                <div className="form-grid form-grid--order">
+                  <div>
+                    <label htmlFor="previous-date">Date</label>
+                    <input
+                      id="previous-date"
+                      type="date"
+                      value={previousDate}
+                      onChange={(e) => setPreviousDate(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="previous-amount">Amount (Rs)</label>
+                    <input
+                      id="previous-amount"
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      value={previousAmount}
+                      onChange={(e) => setPreviousAmount(e.target.value)}
+                      placeholder="e.g. 25000"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="previous-note">Note (optional)</label>
+                    <input
+                      id="previous-note"
+                      type="text"
+                      value={previousNote}
+                      onChange={(e) => setPreviousNote(e.target.value)}
+                      placeholder="e.g. Opening balance / old dues"
+                      maxLength={255}
+                    />
+                  </div>
+                </div>
+                <div className="panel-form__actions">
+                  <button type="submit" className="btn-primary" disabled={savingPrevious}>
+                    {savingPrevious
+                      ? 'Saving…'
+                      : editingPreviousId
+                        ? 'Update Previous Bill'
+                        : 'Save Previous Bill'}
+                  </button>
+                  {editingPreviousId && (
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={closePreviousForm}
+                      disabled={savingPrevious}
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
+              </form>
+            )}
+
             <div className="stock-table-wrap card">
               <table className="stock-table">
                 <thead>
                   <tr>
                     <th>Date</th>
-                    <th>Ordered</th>
+                    <th>Detail</th>
                     <th>Bill</th>
                     <th>Status</th>
+                    <th aria-label="Actions" />
                   </tr>
                 </thead>
                 <tbody>
                   {bills.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="stock-table__empty">
-                        No delivered orders for this shop yet.
+                      <td colSpan={5} className="stock-table__empty">
+                        No bills yet. Add a previous bill or deliver an order.
                       </td>
                     </tr>
                   ) : (
@@ -362,6 +529,32 @@ function BillsPaymentsPage() {
                           <span className={`status-pill status-pill--${bill.payStatus || 'unpaid'}`}>
                             {payStatusLabel(bill.payStatus)}
                           </span>
+                        </td>
+                        <td className="stock-table__actions">
+                          {bill.source === 'previous' ? (
+                            <>
+                              {canEdit && (
+                                <button
+                                  type="button"
+                                  className="btn-secondary btn-compact"
+                                  onClick={() => openEditPrevious(bill)}
+                                >
+                                  Edit
+                                </button>
+                              )}
+                              {canDelete && (
+                                <button
+                                  type="button"
+                                  className="btn-danger btn-compact"
+                                  onClick={() => handleDeletePrevious(bill)}
+                                >
+                                  Delete
+                                </button>
+                              )}
+                            </>
+                          ) : (
+                            <span className="help-muted">Order</span>
+                          )}
                         </td>
                       </tr>
                     ))

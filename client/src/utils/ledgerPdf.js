@@ -42,10 +42,10 @@ export function downloadCustomerLedgerPdf({
 
   autoTable(doc, {
     startY: y + 2,
-    head: [['Date', 'Ordered', 'Bill', 'Status']],
+    head: [['Date', 'Detail', 'Bill', 'Status']],
     body: (bills || []).map((bill) => [
       formatDateDisplay(bill.date),
-      (bill.lines || []).join('; ') || '—',
+      (bill.lines || []).join('; ') || (bill.source === 'previous' ? 'Previous balance' : '—'),
       money(bill.amount),
       bill.payStatus === 'paid' ? 'Paid' : bill.payStatus === 'partial' ? 'Partial' : 'Unpaid',
     ]),

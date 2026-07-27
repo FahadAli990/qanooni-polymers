@@ -12,6 +12,13 @@ import {
   sumPaymentsByCustomerId,
   updatePaymentById,
 } from '../repositories/paymentRepository.js'
+import {
+  deletePreviousBillById,
+  findPreviousBillById,
+  findPreviousBillsByCustomerId,
+  insertPreviousBill,
+  updatePreviousBillById,
+} from '../repositories/previousBillRepository.js'
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 const KIND_LABEL = { roll: 'Roll', chaat: 'Chaat', dewaar: 'Dewaar' }
@@ -94,6 +101,29 @@ function normalizePaymentInput(body = {}) {
   }
 }
 
+function normalizePreviousBillInput(body = {}) {
+  const date = String(body.date || '').trim()
+  if (!DATE_RE.test(date)) throw badRequest('Date is required (YYYY-MM-DD)')
+
+  const amount = Number(body.amount)
+  if (!Number.isFinite(amount) || amount <= 0) {
+    throw badRequest('Amount must be a positive number')
+  }
+
+  const note = String(body.note || '').trim().slice(0, 255)
+  return {
+    date,
+    amount: Number(amount.toFixed(2)),
+    note: note || 'Previous balance',
+  }
+}
+
+function sortBillsByDate(a, b) {
+  if (a.date !== b.date) return a.date < b.date ? -1 : 1
+  if (a.source !== b.source) return a.source === 'previous' ? -1 : 1
+  return Number(a.refId || 0) - Number(b.refId || 0)
+}
+
 export async function getShopLedger({ routeSlug, customerId }) {
   const { route, customer } = await resolveShop(routeSlug, customerId)
 
@@ -106,17 +136,36 @@ export async function getShopLedger({ routeSlug, customerId }) {
     itemsByOrder.set(item.salesOrderId, list)
   }
 
-  const rawBills = orders.map((order) => {
+  const orderBills = orders.map((order) => {
     const orderItems = itemsByOrder.get(order.id) || []
     return {
-      id: order.id,
+      id: `order-${order.id}`,
+      source: 'order',
+      refId: order.id,
       orderId: order.id,
       date: order.date,
       amount: Number(order.totalBill) || 0,
+      note: '',
       lines: orderItems.map(formatOrderLine),
       items: orderItems,
     }
   })
+
+  const previousRows = await findPreviousBillsByCustomerId(customer.id)
+  const previousBills = previousRows.map((row) => ({
+    id: `previous-${row.id}`,
+    source: 'previous',
+    refId: row.id,
+    previousBillId: row.id,
+    orderId: null,
+    date: row.date,
+    amount: Number(row.amount) || 0,
+    note: row.note || 'Previous balance',
+    lines: [row.note || 'Previous balance'],
+    items: [],
+  }))
+
+  const rawBills = [...previousBills, ...orderBills].sort(sortBillsByDate)
 
   const totalPaid = await sumPaymentsByCustomerId(customer.id)
   const bills = allocateBillStatuses(rawBills, totalPaid)
@@ -197,6 +246,67 @@ export async function removeShopPayment(paymentIdInput, { routeSlug, customerId 
 
   const deleted = await deletePaymentById(id)
   if (!deleted) throw notFound('Payment not found')
+
+  const ledger = await getShopLedger({
+    routeSlug: route.slug,
+    customerId: customer.id,
+  })
+  return { deleted: true, ...ledger }
+}
+
+export async function createPreviousBill(body = {}) {
+  const { route, customer } = await resolveShop(body.routeSlug, body.customerId)
+  const payload = normalizePreviousBillInput(body)
+  const bill = await insertPreviousBill({
+    routeCustomerId: customer.id,
+    date: payload.date,
+    amount: payload.amount,
+    note: payload.note,
+  })
+  const ledger = await getShopLedger({
+    routeSlug: route.slug,
+    customerId: customer.id,
+  })
+  return { bill, ...ledger }
+}
+
+export async function updatePreviousBill(billIdInput, body = {}) {
+  const id = Number(billIdInput)
+  if (!Number.isInteger(id) || id <= 0) throw badRequest('Invalid previous bill id')
+
+  const existing = await findPreviousBillById(id)
+  if (!existing) throw notFound('Previous bill not found')
+
+  const { route, customer } = await resolveShop(body.routeSlug, body.customerId)
+  if (existing.routeCustomerId !== customer.id) {
+    throw badRequest('Previous bill does not belong to this shop')
+  }
+
+  const payload = normalizePreviousBillInput(body)
+  const bill = await updatePreviousBillById(id, payload)
+  if (!bill) throw notFound('Previous bill not found')
+
+  const ledger = await getShopLedger({
+    routeSlug: route.slug,
+    customerId: customer.id,
+  })
+  return { bill, ...ledger }
+}
+
+export async function removePreviousBill(billIdInput, { routeSlug, customerId } = {}) {
+  const id = Number(billIdInput)
+  if (!Number.isInteger(id) || id <= 0) throw badRequest('Invalid previous bill id')
+
+  const existing = await findPreviousBillById(id)
+  if (!existing) throw notFound('Previous bill not found')
+
+  const { route, customer } = await resolveShop(routeSlug, customerId)
+  if (existing.routeCustomerId !== customer.id) {
+    throw badRequest('Previous bill does not belong to this shop')
+  }
+
+  const deleted = await deletePreviousBillById(id)
+  if (!deleted) throw notFound('Previous bill not found')
 
   const ledger = await getShopLedger({
     routeSlug: route.slug,
