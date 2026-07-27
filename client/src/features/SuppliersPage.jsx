@@ -597,8 +597,8 @@ function SuppliersPage() {
                     <input
                       id="supplier-payment-amount"
                       type="number"
-                      min="0.01"
-                      step="0.01"
+                      min="1"
+                      step="1"
                       value={paymentAmount}
                       onChange={(e) => setPaymentAmount(e.target.value)}
                       placeholder="e.g. 5000"

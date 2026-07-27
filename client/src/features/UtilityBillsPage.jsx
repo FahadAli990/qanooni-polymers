@@ -973,8 +973,8 @@ function UtilityBillsPage() {
                         <input
                           id="gas-purchase-price"
                           type="number"
-                          min="0.01"
-                          step="0.01"
+                          min="1"
+                          step="1"
                           value={purchaseForm.pricePerKg}
                           onChange={(e) =>
                             setPurchaseForm((p) => ({ ...p, pricePerKg: e.target.value }))
@@ -1117,8 +1117,8 @@ function UtilityBillsPage() {
                         <input
                           id="gas-pay-amount"
                           type="number"
-                          min="0.01"
-                          step="0.01"
+                          min="1"
+                          step="1"
                           value={paymentAmount}
                           onChange={(e) => setPaymentAmount(e.target.value)}
                           required
@@ -1303,8 +1303,8 @@ function UtilityBillsPage() {
                   <input
                     id="ub-amount"
                     type="number"
-                    min="0.01"
-                    step="0.01"
+                    min="1"
+                    step="1"
                     value={billForm.amount}
                     onChange={(e) => setBillForm((p) => ({ ...p, amount: e.target.value }))}
                     required

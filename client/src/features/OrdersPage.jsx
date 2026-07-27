@@ -474,8 +474,8 @@ function OrdersPage() {
                     <label>Sell Rate / kg (Rs)</label>
                     <input
                       type="number"
-                      min="0.01"
-                      step="0.01"
+                      min="1"
+                      step="1"
                       value={line.ratePerKg}
                       onChange={(e) => updateLine(line.key, { ratePerKg: e.target.value })}
                       placeholder="e.g. 220"

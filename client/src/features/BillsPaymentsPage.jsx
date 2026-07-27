@@ -449,8 +449,8 @@ function BillsPaymentsPage() {
                     <input
                       id="previous-amount"
                       type="number"
-                      min="0.01"
-                      step="0.01"
+                      min="1"
+                      step="1"
                       value={previousAmount}
                       onChange={(e) => setPreviousAmount(e.target.value)}
                       placeholder="e.g. 25000"
@@ -596,8 +596,8 @@ function BillsPaymentsPage() {
                     <input
                       id="payment-amount"
                       type="number"
-                      min="0.01"
-                      step="0.01"
+                      min="1"
+                      step="1"
                       value={paymentAmount}
                       onChange={(e) => setPaymentAmount(e.target.value)}
                       placeholder="e.g. 5000"

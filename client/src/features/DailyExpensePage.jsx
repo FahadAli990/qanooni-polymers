@@ -218,8 +218,8 @@ function DailyExpensePage() {
               <input
                 id="expense-amount"
                 type="number"
-                min="0.01"
-                step="0.01"
+                min="1"
+                step="1"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="e.g. 500"

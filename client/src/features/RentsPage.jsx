@@ -614,8 +614,8 @@ function RentsPage() {
                     <input
                       id="rent-trip-fare"
                       type="number"
-                      min="0.01"
-                      step="0.01"
+                      min="1"
+                      step="1"
                       value={tripForm.fareAmount}
                       onChange={(e) => setTripForm((p) => ({ ...p, fareAmount: e.target.value }))}
                       placeholder="Is delivery ke paise"
@@ -739,8 +739,8 @@ function RentsPage() {
                     <input
                       id="rent-pay-amount"
                       type="number"
-                      min="0.01"
-                      step="0.01"
+                      min="1"
+                      step="1"
                       value={paymentAmount}
                       onChange={(e) => setPaymentAmount(e.target.value)}
                       required

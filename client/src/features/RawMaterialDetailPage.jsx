@@ -319,8 +319,8 @@ function RawMaterialDetailPage() {
               <input
                 id="stock-price"
                 type="number"
-                min="0.01"
-                step="0.01"
+                min="1"
+                step="1"
                 value={pricePerKg}
                 onChange={(e) => setPricePerKg(e.target.value)}
                 placeholder="e.g. 180"
