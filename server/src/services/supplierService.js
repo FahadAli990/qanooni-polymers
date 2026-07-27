@@ -16,6 +16,14 @@ import {
   sumPaymentsBySupplierId,
   updateSupplierPaymentById,
 } from '../repositories/supplierPaymentRepository.js'
+import {
+  deletePreviousBalanceById,
+  findPreviousBalanceById,
+  findPreviousBalancesBySupplierId,
+  insertPreviousBalance,
+  sumPreviousBalancesBySupplierId,
+  updatePreviousBalanceById,
+} from '../repositories/supplierPreviousBalanceRepository.js'
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 const CONTACT_RE = /^\d{11}$/
@@ -54,6 +62,21 @@ function normalizePaymentInput(body = {}) {
   return { date, amount: Number(amount.toFixed(2)), note }
 }
 
+function normalizePreviousBalanceInput(body = {}) {
+  const date = String(body.date || '').trim()
+  if (!DATE_RE.test(date)) throw badRequest('Date is required (YYYY-MM-DD)')
+  const amount = Number(body.amount)
+  if (!Number.isFinite(amount) || amount <= 0) {
+    throw badRequest('Amount must be a positive number')
+  }
+  const note = String(body.note || '').trim().slice(0, 255)
+  return {
+    date,
+    amount: Number(amount.toFixed(2)),
+    note: note || 'Previous balance',
+  }
+}
+
 function allocatePurchaseStatuses(purchases, totalPaid) {
   let remainingPaid = Number(totalPaid) || 0
   return purchases.map((row) => {
@@ -78,6 +101,12 @@ function allocatePurchaseStatuses(purchases, totalPaid) {
       dueAmount: Number((amount - paidAmount).toFixed(2)),
     }
   })
+}
+
+function sortPurchasesByDate(a, b) {
+  if (a.date !== b.date) return a.date < b.date ? -1 : 1
+  if (a.source !== b.source) return a.source === 'previous' ? -1 : 1
+  return Number(a.refId || 0) - Number(b.refId || 0)
 }
 
 export async function listSuppliers() {
@@ -120,10 +149,11 @@ export async function removeSupplier(idInput) {
   if (!existing) throw notFound('Supplier not found')
 
   const purchases = await sumPurchasesBySupplierId(id)
+  const previous = await sumPreviousBalancesBySupplierId(id)
   const payments = await sumPaymentsBySupplierId(id)
-  if (purchases > 0 || payments > 0) {
+  if (purchases > 0 || previous > 0 || payments > 0) {
     const error = new Error(
-      'Cannot delete supplier with purchase or payment history. Clear linked stock/payments first.',
+      'Cannot delete supplier with purchase, previous balance, or payment history. Clear linked stock/payments first.',
     )
     error.status = 409
     throw error
@@ -141,7 +171,35 @@ export async function getSupplierLedger(supplierIdInput) {
   const supplier = await findSupplierById(id)
   if (!supplier) throw notFound('Supplier not found')
 
-  const purchasesRaw = await findPurchasesBySupplierId(id)
+  const stockPurchases = (await findPurchasesBySupplierId(id)).map((row) => ({
+    ...row,
+    id: `stock-${row.id}`,
+    source: 'stock',
+    refId: row.id,
+    stockId: row.id,
+    note: '',
+  }))
+
+  const previousRows = await findPreviousBalancesBySupplierId(id)
+  const previousPurchases = previousRows.map((row) => ({
+    id: `previous-${row.id}`,
+    source: 'previous',
+    refId: row.id,
+    previousBalanceId: row.id,
+    stockId: null,
+    date: row.date,
+    bags: 0,
+    kg: 0,
+    pricePerKg: 0,
+    totalAmount: Number(row.amount) || 0,
+    materialName: row.note || 'Previous balance',
+    materialSlug: '',
+    materialSwatch: '',
+    supplierName: supplier.name,
+    note: row.note || 'Previous balance',
+  }))
+
+  const purchasesRaw = [...previousPurchases, ...stockPurchases].sort(sortPurchasesByDate)
   const totalPaid = await sumPaymentsBySupplierId(id)
   const purchases = allocatePurchaseStatuses(purchasesRaw, totalPaid)
   const payments = await findPaymentsBySupplierId(id)
@@ -208,6 +266,54 @@ export async function removeSupplierPayment(supplierIdInput, paymentIdInput) {
 
   const deleted = await deleteSupplierPaymentById(paymentId)
   if (!deleted) throw notFound('Payment not found')
+  const ledger = await getSupplierLedger(supplierId)
+  return { deleted: true, ...ledger }
+}
+
+export async function createSupplierPreviousBalance(supplierIdInput, body = {}) {
+  const id = Number(supplierIdInput)
+  if (!Number.isInteger(id) || id <= 0) throw badRequest('Invalid supplier id')
+  const supplier = await findSupplierById(id)
+  if (!supplier) throw notFound('Supplier not found')
+
+  const payload = normalizePreviousBalanceInput(body)
+  const balance = await insertPreviousBalance({
+    supplierId: id,
+    date: payload.date,
+    amount: payload.amount,
+    note: payload.note,
+  })
+  const ledger = await getSupplierLedger(id)
+  return { balance, ...ledger }
+}
+
+export async function updateSupplierPreviousBalance(supplierIdInput, balanceIdInput, body = {}) {
+  const supplierId = Number(supplierIdInput)
+  const balanceId = Number(balanceIdInput)
+  if (!Number.isInteger(supplierId) || supplierId <= 0) throw badRequest('Invalid supplier id')
+  if (!Number.isInteger(balanceId) || balanceId <= 0) throw badRequest('Invalid previous balance id')
+
+  const existing = await findPreviousBalanceById(balanceId)
+  if (!existing || existing.supplierId !== supplierId) throw notFound('Previous balance not found')
+
+  const payload = normalizePreviousBalanceInput(body)
+  const balance = await updatePreviousBalanceById(balanceId, payload)
+  if (!balance) throw notFound('Previous balance not found')
+  const ledger = await getSupplierLedger(supplierId)
+  return { balance, ...ledger }
+}
+
+export async function removeSupplierPreviousBalance(supplierIdInput, balanceIdInput) {
+  const supplierId = Number(supplierIdInput)
+  const balanceId = Number(balanceIdInput)
+  if (!Number.isInteger(supplierId) || supplierId <= 0) throw badRequest('Invalid supplier id')
+  if (!Number.isInteger(balanceId) || balanceId <= 0) throw badRequest('Invalid previous balance id')
+
+  const existing = await findPreviousBalanceById(balanceId)
+  if (!existing || existing.supplierId !== supplierId) throw notFound('Previous balance not found')
+
+  const deleted = await deletePreviousBalanceById(balanceId)
+  if (!deleted) throw notFound('Previous balance not found')
   const ledger = await getSupplierLedger(supplierId)
   return { deleted: true, ...ledger }
 }

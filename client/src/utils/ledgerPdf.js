@@ -100,13 +100,13 @@ export function downloadSupplierLedgerPdf({
 
   autoTable(doc, {
     startY: y + 2,
-    head: [['Date', 'Material', 'Bags', 'KG', 'Rate/kg', 'Total', 'Status']],
+    head: [['Date', 'Detail', 'Bags', 'KG', 'Rate/kg', 'Total', 'Status']],
     body: (purchases || []).map((row) => [
       formatDateDisplay(row.date),
-      row.materialName || '—',
-      formatNum(row.bags, 0),
-      formatNum(row.kg),
-      money(row.pricePerKg),
+      row.materialName || (row.source === 'previous' ? 'Previous balance' : '—'),
+      row.source === 'previous' ? '—' : formatNum(row.bags, 0),
+      row.source === 'previous' ? '—' : formatNum(row.kg),
+      row.source === 'previous' ? '—' : money(row.pricePerKg),
       money(row.totalAmount),
       row.payStatus === 'paid' ? 'Paid' : row.payStatus === 'partial' ? 'Partial' : 'Unpaid',
     ]),

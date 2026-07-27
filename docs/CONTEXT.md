@@ -123,14 +123,16 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
 - Tables:
   - `suppliers` (`id`, `name`, `contact` 11 digits, `created_at`) — unique name
   - `supplier_payments` (`id`, `supplier_id`, `payment_date`, `amount`, `note`, `created_at`)
+  - `supplier_previous_balances` (`id`, `supplier_id`, `balance_date`, `amount`, `note`, `created_at`) — opening / old dues before software
 - Stock links via `raw_material_stocks.supplier_id` (+ denormalized `supplier` name)
-- Hisab: purchases = stock totals for supplier; payments allocate FIFO → Unpaid / Partial / Paid
+- Hisab: purchases = **previous balances** + stock totals for supplier; payments allocate FIFO → Unpaid / Partial / Paid
 - Summary: `totalPurchased`, `totalPaid`, `remaining` (due), `advance` (if overpaid)
-- UI: Name + Contact CRUD → select supplier (dropdown or row click) → purchases table + payments CRUD + **Print PDF**; list filters to selected supplier; “Show all suppliers” clears
+- UI: Name + Contact CRUD → select supplier → **Add Previous Balance** + purchases table + payments CRUD + **Print PDF**; list filters to selected; “Show all suppliers” clears
 - APIs (auth required):
   - `GET|POST /api/suppliers`
-  - `PUT|DELETE /api/suppliers/:id` (delete blocked if purchase/payment history)
+  - `PUT|DELETE /api/suppliers/:id` (delete blocked if purchase/previous/payment history)
   - `GET /api/suppliers/:id/ledger`
+  - `POST|PUT|DELETE /api/suppliers/:id/previous-balances` (and `/:balanceId`)
   - `POST /api/suppliers/:id/payments`
   - `PUT|DELETE /api/suppliers/:id/payments/:paymentId`
 - PDF: simple jsPDF download of supplier ledger (purchases + payments + due/advance)

@@ -1,12 +1,15 @@
 import {
   createSupplier,
   createSupplierPayment,
+  createSupplierPreviousBalance,
   getSupplierLedger,
   listSuppliers,
   removeSupplier,
   removeSupplierPayment,
+  removeSupplierPreviousBalance,
   updateSupplier,
   updateSupplierPayment,
+  updateSupplierPreviousBalance,
 } from '../services/supplierService.js'
 import { ok } from '../utils/apiResponse.js'
 
@@ -69,6 +72,33 @@ export async function updateSupplierPaymentController(req, res, next) {
 export async function deleteSupplierPaymentController(req, res, next) {
   try {
     return ok(res, await removeSupplierPayment(req.params.id, req.params.paymentId))
+  } catch (err) {
+    return next(err)
+  }
+}
+
+export async function createSupplierPreviousBalanceController(req, res, next) {
+  try {
+    return ok(res, await createSupplierPreviousBalance(req.params.id, req.body), 201)
+  } catch (err) {
+    return next(err)
+  }
+}
+
+export async function updateSupplierPreviousBalanceController(req, res, next) {
+  try {
+    return ok(
+      res,
+      await updateSupplierPreviousBalance(req.params.id, req.params.balanceId, req.body),
+    )
+  } catch (err) {
+    return next(err)
+  }
+}
+
+export async function deleteSupplierPreviousBalanceController(req, res, next) {
+  try {
+    return ok(res, await removeSupplierPreviousBalance(req.params.id, req.params.balanceId))
   } catch (err) {
     return next(err)
   }

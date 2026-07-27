@@ -54,6 +54,13 @@ function SuppliersPage() {
   const [paymentNote, setPaymentNote] = useState('')
   const [savingPayment, setSavingPayment] = useState(false)
 
+  const [showPreviousForm, setShowPreviousForm] = useState(false)
+  const [editingPreviousId, setEditingPreviousId] = useState(null)
+  const [previousDate, setPreviousDate] = useState(todayIso())
+  const [previousAmount, setPreviousAmount] = useState('')
+  const [previousNote, setPreviousNote] = useState('')
+  const [savingPrevious, setSavingPrevious] = useState(false)
+
   const visibleSuppliers = useMemo(
     () =>
       supplierId ? suppliers.filter((s) => String(s.id) === String(supplierId)) : suppliers,
@@ -290,6 +297,94 @@ function SuppliersPage() {
     }
   }
 
+  function resetPreviousForm() {
+    setEditingPreviousId(null)
+    setPreviousDate(todayIso())
+    setPreviousAmount('')
+    setPreviousNote('')
+  }
+
+  function closePreviousForm() {
+    setShowPreviousForm(false)
+    resetPreviousForm()
+  }
+
+  function openCreatePrevious() {
+    resetPreviousForm()
+    setShowPreviousForm(true)
+  }
+
+  function openEditPrevious(row) {
+    setEditingPreviousId(row.previousBalanceId || row.refId)
+    setPreviousDate(row.date)
+    setPreviousAmount(String(row.totalAmount))
+    setPreviousNote(row.note || '')
+    setShowPreviousForm(true)
+  }
+
+  async function handlePreviousSubmit(e) {
+    e.preventDefault()
+    if (!supplierId) {
+      showToast('Select a supplier first', 'error')
+      return
+    }
+    const amount = Number(previousAmount)
+    if (!previousDate) {
+      showToast('Date is required', 'error')
+      return
+    }
+    if (!Number.isFinite(amount) || amount <= 0) {
+      showToast('Amount must be a positive number', 'error')
+      return
+    }
+    if (editingPreviousId && !canEdit) {
+      showToast('Managers cannot edit records', 'error')
+      return
+    }
+    setSavingPrevious(true)
+    try {
+      const body = {
+        date: previousDate,
+        amount,
+        note: previousNote.trim(),
+      }
+      if (editingPreviousId) {
+        const { data } = await api.put(
+          `/suppliers/${supplierId}/previous-balances/${editingPreviousId}`,
+          body,
+        )
+        applyLedger(data.data || {})
+        showToast('Previous balance updated')
+      } else {
+        const { data } = await api.post(`/suppliers/${supplierId}/previous-balances`, body)
+        applyLedger(data.data || {})
+        showToast('Previous balance added')
+      }
+      closePreviousForm()
+    } catch (err) {
+      showToast(getErrorMessage(err), 'error')
+    } finally {
+      setSavingPrevious(false)
+    }
+  }
+
+  async function handleDeletePrevious(row) {
+    const id = row.previousBalanceId || row.refId
+    const ok = await confirm({
+      title: 'Delete previous balance',
+      message: `Delete previous balance of ${formatMoney(row.totalAmount)}?`,
+    })
+    if (!ok) return
+    try {
+      const { data } = await api.delete(`/suppliers/${supplierId}/previous-balances/${id}`)
+      applyLedger(data.data || {})
+      if (editingPreviousId === id) closePreviousForm()
+      showToast('Previous balance deleted')
+    } catch (err) {
+      showToast(getErrorMessage(err), 'error')
+    }
+  }
+
   function handlePrintPdf() {
     if (!supplier) {
       showToast('Select a supplier first', 'error')
@@ -313,7 +408,7 @@ function SuppliersPage() {
       <header className="page-toolbar">
         <div>
           <h1>Suppliers</h1>
-          <p>Add suppliers, record purchases via stock, and manage payments / advances.</p>
+          <p>Add suppliers, previous balances, stock purchases, and payments / advances.</p>
         </div>
         <button
           type="button"
@@ -515,45 +610,144 @@ function SuppliersPage() {
           <section className="bills-section">
             <div className="page-toolbar" style={{ marginBottom: '0.75rem' }}>
               <div>
-                <h2 style={{ margin: 0, fontSize: '1.15rem' }}>Purchases (Raw Material Stock)</h2>
+                <h2 style={{ margin: 0, fontSize: '1.15rem' }}>Purchases</h2>
                 <p className="help-muted" style={{ margin: '0.25rem 0 0' }}>
-                  From Add Stock entries linked to this supplier. Oldest purchases settle first.
+                  Add previous balance for old dues. Stock purchases also appear here. Oldest settle first.
                 </p>
               </div>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() =>
+                  showPreviousForm && !editingPreviousId
+                    ? closePreviousForm()
+                    : openCreatePrevious()
+                }
+              >
+                {showPreviousForm && !editingPreviousId ? 'Cancel' : 'Add Previous Balance'}
+              </button>
             </div>
+
+            {showPreviousForm && (
+              <form className="card panel-form panel-form--stock" onSubmit={handlePreviousSubmit}>
+                <div className="form-grid form-grid--order">
+                  <div>
+                    <label htmlFor="supplier-previous-date">Date</label>
+                    <input
+                      id="supplier-previous-date"
+                      type="date"
+                      value={previousDate}
+                      onChange={(e) => setPreviousDate(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="supplier-previous-amount">Amount (Rs)</label>
+                    <input
+                      id="supplier-previous-amount"
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={previousAmount}
+                      onChange={(e) => setPreviousAmount(e.target.value)}
+                      placeholder="e.g. 50000"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="supplier-previous-note">Note (optional)</label>
+                    <input
+                      id="supplier-previous-note"
+                      type="text"
+                      value={previousNote}
+                      onChange={(e) => setPreviousNote(e.target.value)}
+                      placeholder="e.g. Opening balance / old hisab"
+                      maxLength={255}
+                    />
+                  </div>
+                </div>
+                <div className="panel-form__actions">
+                  <button type="submit" className="btn-primary" disabled={savingPrevious}>
+                    {savingPrevious
+                      ? 'Saving…'
+                      : editingPreviousId
+                        ? 'Update Previous Balance'
+                        : 'Save Previous Balance'}
+                  </button>
+                  {editingPreviousId && (
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={closePreviousForm}
+                      disabled={savingPrevious}
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
+              </form>
+            )}
+
             <div className="stock-table-wrap card">
               <table className="stock-table">
                 <thead>
                   <tr>
                     <th>Date</th>
-                    <th>Material</th>
+                    <th>Detail</th>
                     <th>Bags</th>
                     <th>KG</th>
                     <th>Rate / kg</th>
                     <th>Total</th>
                     <th>Status</th>
+                    <th aria-label="Actions" />
                   </tr>
                 </thead>
                 <tbody>
                   {purchases.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="stock-table__empty">
-                        No purchases yet. Add stock under Raw Material and pick this supplier.
+                      <td colSpan={8} className="stock-table__empty">
+                        No purchases yet. Add previous balance or stock under Raw Material.
                       </td>
                     </tr>
                   ) : (
                     purchases.map((row) => (
                       <tr key={row.id}>
                         <td>{formatDateDisplay(row.date)}</td>
-                        <td>{row.materialName}</td>
-                        <td>{formatNum(row.bags, 0)}</td>
-                        <td>{formatNum(row.kg)}</td>
-                        <td>{formatMoney(row.pricePerKg)}</td>
+                        <td className="stock-table__wrap">{row.materialName || '—'}</td>
+                        <td>{row.source === 'previous' ? '—' : formatNum(row.bags, 0)}</td>
+                        <td>{row.source === 'previous' ? '—' : formatNum(row.kg)}</td>
+                        <td>{row.source === 'previous' ? '—' : formatMoney(row.pricePerKg)}</td>
                         <td>{formatMoney(row.totalAmount)}</td>
                         <td>
                           <span className={`status-pill status-pill--${row.payStatus || 'unpaid'}`}>
                             {payStatusLabel(row.payStatus)}
                           </span>
+                        </td>
+                        <td className="stock-table__actions">
+                          {row.source === 'previous' ? (
+                            <>
+                              {canEdit && (
+                                <button
+                                  type="button"
+                                  className="btn-secondary btn-compact"
+                                  onClick={() => openEditPrevious(row)}
+                                >
+                                  Edit
+                                </button>
+                              )}
+                              {canDelete && (
+                                <button
+                                  type="button"
+                                  className="btn-danger btn-compact"
+                                  onClick={() => handleDeletePrevious(row)}
+                                >
+                                  Delete
+                                </button>
+                              )}
+                            </>
+                          ) : (
+                            <span className="help-muted">Stock</span>
+                          )}
                         </td>
                       </tr>
                     ))

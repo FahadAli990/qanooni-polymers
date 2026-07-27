@@ -433,6 +433,23 @@ export async function ensureSchema() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `)
 
+  await getPool().query(`
+    CREATE TABLE IF NOT EXISTS supplier_previous_balances (
+      id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+      supplier_id INT UNSIGNED NOT NULL,
+      balance_date DATE NOT NULL,
+      amount DECIMAL(14, 2) NOT NULL,
+      note VARCHAR(255) NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      KEY idx_supplier_previous_balances_supplier (supplier_id),
+      KEY idx_supplier_previous_balances_date (balance_date),
+      CONSTRAINT fk_supplier_previous_balances_supplier
+        FOREIGN KEY (supplier_id) REFERENCES suppliers (id)
+        ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `)
+
   const [stockSupplierIdCols] = await getPool().query(
     `SELECT COLUMN_NAME
      FROM INFORMATION_SCHEMA.COLUMNS
