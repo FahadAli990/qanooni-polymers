@@ -76,7 +76,7 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
   1. **Gas cylinders** — gas suppliers + daily cylinder purchases + partial payments
   2. **Other utility bills** — electricity / water / internet / other (day list + totals)
 - Tables:
-  - `gas_suppliers` (`name`, `contact` 11 digits, `note`)
+  - `gas_suppliers` (`name`, `contact` one+ 11-digit phones comma-separated, `note`)
   - `gas_purchases` (`supplier_id`, `purchase_date`, `due_date`, `cylinder_kg`, `cylinders_count`, `price_per_kg`, `total_amount`, `note`)
   - `gas_payments` (`supplier_id`, `payment_date`, `amount`, `note`)
   - `utility_bills` (`bill_date`, `due_date`, `category`, `title`, `amount`, `pay_status` paid|unpaid, `note`)
@@ -97,7 +97,7 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
 
 ## Workers & Salary
 
-- Tables: `workers` (`name`, `contact` 11 digits, `fixed_salary`, `address`, `photo`, `id_card_front`, `id_card_back`, `note`), `worker_leaves` (`leave_date`, `days`), `worker_salary_payments` (`for_month`, `amount`)
+- Tables: `workers` (`name`, `contact` multi 11-digit phones, `fixed_salary`, `address`, `photo`, `id_card_front`, `id_card_back`, `note`), `worker_leaves` (`leave_date`, `days`), `worker_salary_payments` (`for_month`, `amount`)
 - Worker photo + ID card front/back stored as compressed JPEG data-URLs (`MEDIUMTEXT`); list API omits blobs (`hasPhoto`, `hasIdCardFront`, `hasIdCardBack` flags only)
 - Month ledger: `leaveCut = fixedSalary/30 * leaveDays`; `payable = max(fixed - cut, 0)`; payments → Unpaid/Partial/Paid + advance
 - UI: workers CRUD (name, contact, address, salary, worker photo, ID front/back) → select worker + month → leaves + salary payments; list filters to selected worker; row click selects; “Show all workers” clears
@@ -121,7 +121,7 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
 ## Suppliers
 
 - Tables:
-  - `suppliers` (`id`, `name`, `contact` 11 digits, `created_at`) — unique name
+  - `suppliers` (`id`, `name`, `contact` multi 11-digit phones, `created_at`) — unique name
   - `supplier_payments` (`id`, `supplier_id`, `payment_date`, `amount`, `note`, `created_at`)
   - `supplier_previous_balances` (`id`, `supplier_id`, `balance_date`, `amount`, `note`, `created_at`) — opening / old dues before software
 - Stock links via `raw_material_stocks.supplier_id` (+ denormalized `supplier` name)
@@ -190,11 +190,12 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
   - `DELETE /api/routes/:slug`
 - UI: `/routes` — box/card grid (Add New / Edit / Delete); click box → `/routes/:slug`
 - Each route box gets a **stable unique icon + accent** from slug (`routeVisual.js`)
-- Route detail (`/routes/:slug`): **Add Customer** (multiple) — Shop Name, Address, Owner Name, Contact Number
+- Route detail (`/routes/:slug`): **Add Customer** (multiple) — Shop Name, Address, Owner Name, Contact Number(s)
   - All fields required
-  - Contact: digits only, **exactly 11** (`/^\d{11}$/`)
+  - Contact: one or more phones; each exactly 11 digits; UI `PhoneNumbersField` — Enter adds next number, empty Enter focuses next field; stored comma-separated in `VARCHAR(255)`
   - APIs: `GET|POST /api/routes/:slug/customers`, `PUT|DELETE /api/routes/:slug/customers/:customerId`
   - Table: `route_customers` (FK → `mill_routes`, cascade delete)
+- Same multi-phone contact pattern on **Suppliers**, **Workers**, **Gas suppliers** (`normalizeContactNumbers`)
 - Swatch matches color name (`blue` → blue, `red` → red, also `#hex` / “dark blue”)
 
 ## Stock (per material)

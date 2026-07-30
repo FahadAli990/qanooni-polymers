@@ -20,10 +20,10 @@ import {
   updateSalaryPaymentById,
   updateWorkerById,
 } from '../repositories/workerRepository.js'
+import { normalizeContactNumbers } from '../utils/contactNumbers.js'
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 const MONTH_RE = /^\d{4}-\d{2}$/
-const CONTACT_RE = /^\d{11}$/
 const IMAGE_DATA_URL_RE = /^data:image\/(jpeg|jpg|png|webp);base64,[A-Za-z0-9+/=\s]+$/i
 const MAX_IMAGE_CHARS = 1_800_000
 
@@ -56,14 +56,15 @@ function normalizeImage(value, fieldLabel, { required = false } = {}) {
 
 function normalizeWorkerInput(body = {}, { existing = null } = {}) {
   const name = String(body.name || '').trim()
-  const contact = String(body.contact || '').trim()
   const address = String(body.address || '').trim()
   const note = String(body.note || '').trim().slice(0, 255)
   const fixedSalary = Number(body.fixedSalary ?? body.fixed_salary)
 
   if (!name) throw badRequest('Worker name is required')
   if (name.length > 160) throw badRequest('Worker name must be 160 characters or less')
-  if (!CONTACT_RE.test(contact)) throw badRequest('Contact must be exactly 11 digits')
+  const contactNorm = normalizeContactNumbers(body.contact, { fieldLabel: 'Contact' })
+  if (!contactNorm.ok) throw badRequest(contactNorm.error)
+  const contact = contactNorm.value
   if (!address) throw badRequest('Address is required')
   if (address.length > 255) throw badRequest('Address must be 255 characters or less')
   if (!Number.isFinite(fixedSalary) || fixedSalary <= 0) {

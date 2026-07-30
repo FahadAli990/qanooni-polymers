@@ -1,5 +1,6 @@
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { formatContactDisplay } from './contactNumbers'
 import { formatDateDisplay, formatNum } from './format'
 
 function money(value) {
@@ -29,7 +30,7 @@ export function downloadCustomerLedgerPdf({
   y += 6
   doc.text(`Shop: ${shop?.shopName || '—'}`, 14, y)
   y += 6
-  doc.text(`Owner: ${shop?.ownerName || '—'}  |  Contact: ${shop?.contactNumber || '—'}`, 14, y)
+  doc.text(`Owner: ${shop?.ownerName || '—'}  |  Contact: ${formatContactDisplay(shop?.contactNumber)}`, 14, y)
   y += 6
   doc.text(`Address: ${shop?.address || '—'}`, 14, y)
   y += 8
@@ -89,7 +90,7 @@ export function downloadSupplierLedgerPdf({
   doc.setFontSize(11)
   doc.text(`Supplier: ${supplier?.name || '—'}`, 14, y)
   y += 6
-  doc.text(`Contact: ${supplier?.contact || '—'}`, 14, y)
+  doc.text(`Contact: ${formatContactDisplay(supplier?.contact)}`, 14, y)
   y += 8
   doc.text(
     `Purchased: ${money(summary?.totalPurchased)}   |   Paid: ${money(summary?.totalPaid)}   |   Due: ${money(summary?.remaining)}   |   Advance: ${money(summary?.advance)}`,

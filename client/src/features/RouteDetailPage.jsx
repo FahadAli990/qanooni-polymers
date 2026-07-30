@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import api, { getErrorMessage } from '../api/client'
+import PhoneNumbersField from '../components/PhoneNumbersField'
 import { useConfirm } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { usePermissions } from '../hooks/usePermissions'
-
-const CONTACT_RE = /^\d{11}$/
+import { formatContactDisplay, validateContactNumbers } from '../utils/contactNumbers'
 
 function emptyForm() {
   return {
@@ -79,11 +79,6 @@ function RouteDetailPage() {
     setForm((prev) => ({ ...prev, [key]: value }))
   }
 
-  function onContactChange(value) {
-    const digits = String(value || '').replace(/\D/g, '').slice(0, 11)
-    setField('contactNumber', digits)
-  }
-
   function validateClient() {
     const shopName = form.shopName.trim()
     const address = form.address.trim()
@@ -93,10 +88,7 @@ function RouteDetailPage() {
     if (!shopName || !address || !ownerName || !contactNumber) {
       return 'All fields are required'
     }
-    if (!CONTACT_RE.test(contactNumber)) {
-      return 'Contact number must be exactly 11 digits'
-    }
-    return null
+    return validateContactNumbers(contactNumber, { fieldLabel: 'Contact number' })
   }
 
   async function handleSubmit(e) {
@@ -226,18 +218,11 @@ function RouteDetailPage() {
               />
             </div>
             <div>
-              <label htmlFor="customer-contact">Contact Number</label>
-              <input
+              <PhoneNumbersField
                 id="customer-contact"
-                type="tel"
-                inputMode="numeric"
-                pattern="\d{11}"
+                label="Contact Number"
                 value={form.contactNumber}
-                onChange={(e) => onContactChange(e.target.value)}
-                placeholder="03XXXXXXXXX"
-                required
-                maxLength={11}
-                title="Exactly 11 digits"
+                onChange={(next) => setField('contactNumber', next)}
               />
             </div>
           </div>
@@ -278,7 +263,7 @@ function RouteDetailPage() {
                   <td>{item.shopName}</td>
                   <td>{item.address}</td>
                   <td>{item.ownerName}</td>
-                  <td>{item.contactNumber}</td>
+                  <td>{formatContactDisplay(item.contactNumber)}</td>
                   <td className="stock-table__actions">
                     {canEdit && (
                       <button

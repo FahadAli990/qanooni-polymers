@@ -5,8 +5,7 @@ import {
   insertCustomer,
   updateCustomerById,
 } from '../repositories/routeCustomerRepository.js'
-
-const CONTACT_RE = /^\d{11}$/
+import { normalizeContactNumbers } from '../utils/contactNumbers.js'
 
 function badRequest(message) {
   const error = new Error(message)
@@ -31,7 +30,6 @@ function normalizeCustomerInput(body = {}) {
   const address = String(body.address ?? '').trim()
   const ownerName = String(body.ownerName ?? body.owner_name ?? '').trim()
   const contactRaw = String(body.contactNumber ?? body.contact_number ?? '').trim()
-  const contactNumber = contactRaw.replace(/\D/g, '')
 
   if (!shopName) throw badRequest('Shop name is required')
   if (shopName.length > 160) throw badRequest('Shop name must be 160 characters or less')
@@ -42,11 +40,10 @@ function normalizeCustomerInput(body = {}) {
   if (!ownerName) throw badRequest('Owner name is required')
   if (ownerName.length > 120) throw badRequest('Owner name must be 120 characters or less')
 
-  if (!CONTACT_RE.test(contactNumber)) {
-    throw badRequest('Contact number must be exactly 11 digits')
-  }
+  const contact = normalizeContactNumbers(contactRaw, { fieldLabel: 'Contact number' })
+  if (!contact.ok) throw badRequest(contact.error)
 
-  return { shopName, address, ownerName, contactNumber }
+  return { shopName, address, ownerName, contactNumber: contact.value }
 }
 
 export async function listRouteCustomers(slug) {

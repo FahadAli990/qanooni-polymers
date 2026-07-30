@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import api, { getErrorMessage } from '../api/client'
+import PhoneNumbersField from '../components/PhoneNumbersField'
 import { useConfirm } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { usePermissions } from '../hooks/usePermissions'
+import { formatContactDisplay, validateContactNumbers } from '../utils/contactNumbers'
 import { formatDateDisplay, formatNum, todayIso } from '../utils/format'
 import { fileToCompressedDataUrl } from '../utils/imageUpload'
-
-const CONTACT_RE = /^\d{11}$/
 
 function formatMoney(value) {
   return `Rs ${formatNum(value)}`
@@ -215,8 +215,7 @@ function WorkersPage() {
   }
 
   function onContactChange(value) {
-    const digits = String(value || '').replace(/\D/g, '').slice(0, 11)
-    setWorkerForm((prev) => ({ ...prev, contact: digits }))
+    setWorkerForm((prev) => ({ ...prev, contact: value }))
   }
 
   async function onWorkerPhotoChange(file) {
@@ -252,8 +251,9 @@ function WorkersPage() {
       showToast('Worker name is required', 'error')
       return
     }
-    if (!CONTACT_RE.test(contact)) {
-      showToast('Contact must be exactly 11 digits', 'error')
+    const contactError = validateContactNumbers(contact, { fieldLabel: 'Contact' })
+    if (contactError) {
+      showToast(contactError, 'error')
       return
     }
     if (!address) {
@@ -562,16 +562,11 @@ function WorkersPage() {
               />
             </div>
             <div>
-              <label htmlFor="worker-contact">Contact</label>
-              <input
+              <PhoneNumbersField
                 id="worker-contact"
-                type="text"
-                inputMode="numeric"
+                label="Contact"
                 value={workerForm.contact}
-                onChange={(e) => onContactChange(e.target.value)}
-                placeholder="11-digit number"
-                required
-                maxLength={11}
+                onChange={onContactChange}
               />
             </div>
             <div>
@@ -778,7 +773,7 @@ function WorkersPage() {
                   style={{ cursor: 'pointer' }}
                 >
                   <td>{row.name}</td>
-                  <td>{row.contact}</td>
+                  <td>{formatContactDisplay(row.contact)}</td>
                   <td className="stock-table__wrap">{row.address || '—'}</td>
                   <td>{formatMoney(row.fixedSalary)}</td>
                   <td>
@@ -836,7 +831,7 @@ function WorkersPage() {
               <span className="stock-totals__label">Worker</span>
               <strong className="stock-totals__value">{worker.name}</strong>
               <p className="help-muted" style={{ marginTop: '0.35rem' }}>
-                {worker.contact} · Month {month}
+                {formatContactDisplay(worker.contact)} · Month {month}
               </p>
               <p className="help-muted">{worker.address || 'No address'}</p>
               {worker.note ? <p className="help-muted">{worker.note}</p> : null}

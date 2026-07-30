@@ -261,7 +261,7 @@ export async function ensureSchema() {
       shop_name VARCHAR(160) NOT NULL,
       address VARCHAR(255) NOT NULL,
       owner_name VARCHAR(120) NOT NULL,
-      contact_number CHAR(11) NOT NULL,
+      contact_number VARCHAR(255) NOT NULL,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       PRIMARY KEY (id),
       KEY idx_route_customers_route (mill_route_id),
@@ -430,7 +430,7 @@ export async function ensureSchema() {
     CREATE TABLE IF NOT EXISTS suppliers (
       id INT UNSIGNED NOT NULL AUTO_INCREMENT,
       name VARCHAR(160) NOT NULL,
-      contact VARCHAR(20) NOT NULL,
+      contact VARCHAR(255) NOT NULL,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       PRIMARY KEY (id),
       UNIQUE KEY uq_suppliers_name (name),
@@ -717,7 +717,7 @@ export async function ensureSchema() {
     CREATE TABLE IF NOT EXISTS workers (
       id INT UNSIGNED NOT NULL AUTO_INCREMENT,
       name VARCHAR(160) NOT NULL,
-      contact VARCHAR(20) NOT NULL,
+      contact VARCHAR(255) NOT NULL,
       fixed_salary DECIMAL(14, 2) NOT NULL,
       address VARCHAR(255) NULL,
       photo MEDIUMTEXT NULL,
@@ -790,7 +790,7 @@ export async function ensureSchema() {
     CREATE TABLE IF NOT EXISTS gas_suppliers (
       id INT UNSIGNED NOT NULL AUTO_INCREMENT,
       name VARCHAR(160) NOT NULL,
-      contact VARCHAR(20) NOT NULL,
+      contact VARCHAR(255) NOT NULL,
       note VARCHAR(255) NULL,
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
       PRIMARY KEY (id),
@@ -922,6 +922,34 @@ export async function ensureSchema() {
   )
   if (!utilityDueIdx.length) {
     await getPool().query(`ALTER TABLE utility_bills ADD KEY idx_utility_bills_due (due_date)`)
+  }
+
+  // Multi phone support: widen contact columns (comma-separated 11-digit numbers)
+  const contactWiden = [
+    { table: 'route_customers', column: 'contact_number', ddl: 'VARCHAR(255) NOT NULL' },
+    { table: 'suppliers', column: 'contact', ddl: 'VARCHAR(255) NOT NULL' },
+    { table: 'workers', column: 'contact', ddl: 'VARCHAR(255) NOT NULL' },
+    { table: 'gas_suppliers', column: 'contact', ddl: 'VARCHAR(255) NOT NULL' },
+  ]
+  for (const col of contactWiden) {
+    const [meta] = await getPool().query(
+      `SELECT DATA_TYPE, CHARACTER_MAXIMUM_LENGTH
+       FROM INFORMATION_SCHEMA.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE()
+         AND TABLE_NAME = :table
+         AND COLUMN_NAME = :column`,
+      { table: col.table, column: col.column },
+    )
+    const row = meta[0]
+    const needsWiden =
+      row &&
+      (String(row.DATA_TYPE).toLowerCase() === 'char' ||
+        Number(row.CHARACTER_MAXIMUM_LENGTH) < 255)
+    if (needsWiden) {
+      await getPool().query(
+        `ALTER TABLE ${col.table} MODIFY COLUMN ${col.column} ${col.ddl}`,
+      )
+    }
   }
 
   await getPool().query(`

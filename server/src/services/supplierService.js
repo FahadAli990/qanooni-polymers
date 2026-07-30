@@ -24,9 +24,9 @@ import {
   sumPreviousBalancesBySupplierId,
   updatePreviousBalanceById,
 } from '../repositories/supplierPreviousBalanceRepository.js'
+import { normalizeContactNumbers } from '../utils/contactNumbers.js'
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
-const CONTACT_RE = /^\d{11}$/
 
 function badRequest(message) {
   const error = new Error(message)
@@ -42,13 +42,11 @@ function notFound(message) {
 
 function normalizeSupplierInput(body = {}) {
   const name = String(body.name || '').trim()
-  const contact = String(body.contact || '').trim()
   if (!name) throw badRequest('Supplier name is required')
   if (name.length > 160) throw badRequest('Supplier name must be 160 characters or less')
-  if (!CONTACT_RE.test(contact)) {
-    throw badRequest('Contact must be exactly 11 digits')
-  }
-  return { name, contact }
+  const contact = normalizeContactNumbers(body.contact, { fieldLabel: 'Contact' })
+  if (!contact.ok) throw badRequest(contact.error)
+  return { name, contact: contact.value }
 }
 
 function normalizePaymentInput(body = {}) {

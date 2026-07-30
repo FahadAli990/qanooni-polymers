@@ -5,6 +5,7 @@ import { useRawMaterials } from '../context/RawMaterialContext'
 import { useRoutes } from '../context/RouteContext'
 import { useToast } from '../context/ToastContext'
 import { usePermissions } from '../hooks/usePermissions'
+import { formatContactDisplay } from '../utils/contactNumbers'
 import { formatDateDisplay, formatNum, todayIso } from '../utils/format'
 
 const DEFAULT_SIZES = ['1/2"', '3/4"', '1"']
@@ -549,7 +550,7 @@ function OrdersPage() {
                     <td>{order.routeName}</td>
                     <td>{order.shopName}</td>
                     <td className="stock-table__wrap">{order.address}</td>
-                    <td>{order.contactNumber}</td>
+                    <td>{formatContactDisplay(order.contactNumber)}</td>
                     <td className="stock-table__wrap">
                       {(order.items || []).length === 0 ? (
                         '—'

@@ -4,6 +4,7 @@ import { useConfirm } from '../context/ConfirmContext'
 import { useRoutes } from '../context/RouteContext'
 import { useToast } from '../context/ToastContext'
 import { usePermissions } from '../hooks/usePermissions'
+import { formatContactDisplay } from '../utils/contactNumbers'
 import { formatDateDisplay, formatNum, todayIso } from '../utils/format'
 import { downloadCustomerLedgerPdf } from '../utils/ledgerPdf'
 
@@ -384,7 +385,7 @@ function BillsPaymentsPage() {
               <strong className="stock-totals__value">{shop.shopName}</strong>
               <p className="help-muted" style={{ marginTop: '0.35rem' }}>
                 {routeInfo?.name ? `${routeInfo.name} · ` : ''}
-                {shop.ownerName} · {shop.contactNumber}
+                {shop.ownerName} · {formatContactDisplay(shop.contactNumber)}
               </p>
               <p className="help-muted">{shop.address}</p>
             </div>

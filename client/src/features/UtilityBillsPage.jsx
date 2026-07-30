@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import api, { getErrorMessage } from '../api/client'
+import PhoneNumbersField from '../components/PhoneNumbersField'
 import { useConfirm } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { usePermissions } from '../hooks/usePermissions'
+import { formatContactDisplay, validateContactNumbers } from '../utils/contactNumbers'
 import { formatDateDisplay, formatNum, todayIso } from '../utils/format'
-
-const CONTACT_RE = /^\d{11}$/
 
 const OTHER_CATEGORIES = ['Electricity', 'Water', 'Internet', 'Other']
 
@@ -242,8 +242,9 @@ function UtilityBillsPage() {
       showToast('Gas supplier name is required', 'error')
       return
     }
-    if (!CONTACT_RE.test(contact)) {
-      showToast('Contact must be exactly 11 digits', 'error')
+    const contactError = validateContactNumbers(contact, { fieldLabel: 'Contact' })
+    if (contactError) {
+      showToast(contactError, 'error')
       return
     }
     if (editingSupplierId && !canEdit) {
@@ -720,21 +721,11 @@ function UtilityBillsPage() {
                   />
                 </div>
                 <div>
-                  <label htmlFor="gas-supplier-contact">Contact (11 digits)</label>
-                  <input
+                  <PhoneNumbersField
                     id="gas-supplier-contact"
-                    type="text"
-                    inputMode="numeric"
+                    label="Contact"
                     value={supplierForm.contact}
-                    onChange={(e) =>
-                      setSupplierForm((p) => ({
-                        ...p,
-                        contact: e.target.value.replace(/\D/g, '').slice(0, 11),
-                      }))
-                    }
-                    placeholder="03xxxxxxxxx"
-                    required
-                    maxLength={11}
+                    onChange={(next) => setSupplierForm((p) => ({ ...p, contact: next }))}
                   />
                 </div>
                 <div>
@@ -820,7 +811,7 @@ function UtilityBillsPage() {
                       style={{ cursor: 'pointer' }}
                     >
                       <td>{row.name}</td>
-                      <td>{row.contact}</td>
+                      <td>{formatContactDisplay(row.contact)}</td>
                       <td className="stock-table__wrap">{row.note || '—'}</td>
                       <td
                         className="stock-table__actions"
@@ -868,7 +859,7 @@ function UtilityBillsPage() {
                   <span className="stock-totals__label">Supplier</span>
                   <strong className="stock-totals__value">{supplier.name}</strong>
                   <p className="help-muted" style={{ marginTop: '0.35rem' }}>
-                    {supplier.contact}
+                    {formatContactDisplay(supplier.contact)}
                     {supplier.note ? ` · ${supplier.note}` : ''}
                   </p>
                 </div>

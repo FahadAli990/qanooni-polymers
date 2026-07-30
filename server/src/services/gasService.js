@@ -27,9 +27,9 @@ import {
   updateGasSupplierById,
   updateUtilityBillById,
 } from '../repositories/gasRepository.js'
+import { normalizeContactNumbers } from '../utils/contactNumbers.js'
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
-const CONTACT_RE = /^\d{11}$/
 
 function badRequest(message) {
   const error = new Error(message)
@@ -101,12 +101,12 @@ function allocatePurchaseStatuses(purchases, totalPaid) {
 
 function normalizeSupplierInput(body = {}) {
   const name = String(body.name || '').trim()
-  const contact = String(body.contact || '').trim()
   const note = String(body.note || '').trim().slice(0, 255)
   if (!name) throw badRequest('Gas supplier name is required')
   if (name.length > 160) throw badRequest('Name must be 160 characters or less')
-  if (!CONTACT_RE.test(contact)) throw badRequest('Contact must be exactly 11 digits')
-  return { name, contact, note }
+  const contact = normalizeContactNumbers(body.contact, { fieldLabel: 'Contact' })
+  if (!contact.ok) throw badRequest(contact.error)
+  return { name, contact: contact.value, note }
 }
 
 function normalizePurchaseInput(body = {}) {

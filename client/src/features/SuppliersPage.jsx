@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import api, { getErrorMessage } from '../api/client'
+import PhoneNumbersField from '../components/PhoneNumbersField'
 import { useConfirm } from '../context/ConfirmContext'
 import { useToast } from '../context/ToastContext'
 import { usePermissions } from '../hooks/usePermissions'
+import { formatContactDisplay, validateContactNumbers } from '../utils/contactNumbers'
 import { formatDateDisplay, formatNum, todayIso } from '../utils/format'
 import { downloadSupplierLedgerPdf } from '../utils/ledgerPdf'
-
-const CONTACT_RE = /^\d{11}$/
 
 function formatMoney(value) {
   return `Rs ${formatNum(value)}`
@@ -147,11 +147,6 @@ function SuppliersPage() {
     setShowSupplierForm(true)
   }
 
-  function onContactChange(value) {
-    const digits = String(value || '').replace(/\D/g, '').slice(0, 11)
-    setSupplierForm((prev) => ({ ...prev, contact: digits }))
-  }
-
   async function handleSupplierSubmit(e) {
     e.preventDefault()
     const name = supplierForm.name.trim()
@@ -160,8 +155,9 @@ function SuppliersPage() {
       showToast('Supplier name is required', 'error')
       return
     }
-    if (!CONTACT_RE.test(contact)) {
-      showToast('Contact must be exactly 11 digits', 'error')
+    const contactError = validateContactNumbers(contact, { fieldLabel: 'Contact' })
+    if (contactError) {
+      showToast(contactError, 'error')
       return
     }
     if (editingSupplierId && !canEdit) {
@@ -438,16 +434,11 @@ function SuppliersPage() {
               />
             </div>
             <div>
-              <label htmlFor="supplier-contact">Contact</label>
-              <input
+              <PhoneNumbersField
                 id="supplier-contact"
-                type="text"
-                inputMode="numeric"
+                label="Contact"
                 value={supplierForm.contact}
-                onChange={(e) => onContactChange(e.target.value)}
-                placeholder="11-digit number"
-                required
-                maxLength={11}
+                onChange={(next) => setSupplierForm((prev) => ({ ...prev, contact: next }))}
               />
             </div>
           </div>
@@ -531,7 +522,7 @@ function SuppliersPage() {
                   style={{ cursor: 'pointer' }}
                 >
                   <td>{row.name}</td>
-                  <td>{row.contact}</td>
+                  <td>{formatContactDisplay(row.contact)}</td>
                   <td
                     className="stock-table__actions"
                     onClick={(e) => e.stopPropagation()}
@@ -578,7 +569,7 @@ function SuppliersPage() {
               <span className="stock-totals__label">Supplier</span>
               <strong className="stock-totals__value">{supplier.name}</strong>
               <p className="help-muted" style={{ marginTop: '0.35rem' }}>
-                Contact: {supplier.contact}
+                Contact: {formatContactDisplay(supplier.contact)}
               </p>
             </div>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-end' }}>
