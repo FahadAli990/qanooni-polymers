@@ -68,11 +68,6 @@
   font: inherit;
 }
 
-.phone-numbers-field__hint {
-  margin: 0;
-  font-size: 0.8rem;
-}
-
 .phone-numbers-field__required-mirror {
   position: absolute;
   width: 1px;

@@ -182,9 +182,6 @@ function PhoneNumbersField({
           title="Type 11 digits, then Enter to add another. Empty Enter goes to next field."
         />
       </div>
-      <p className="phone-numbers-field__hint help-muted">
-        11 digits + Enter = add another number · empty Enter = next field
-      </p>
       {required && (
         <input
           type="text"
