@@ -85,7 +85,7 @@ Qanooni Polymers full-stack app: login + dashboard shell + raw materials + stock
 - Due date required on gas purchases + other utility bills; other bills have Paid/Unpaid status
 - Other utility bills table: Due date shown (admin can edit inline; missing due date editable by manager too); Status dropdown Unpaid/Paid
 - Manager may mark unpaid → paid; only admin may mark paid → unpaid (`PATCH /api/utility/bills/:id/status`)
-- Due reminders: unpaid (or partial gas) items with `due_date <= today + 2 days` → English in-app banner on login (`GET /api/utility/due-reminders`)
+- Due reminders: unpaid (or partial gas) items with `due_date <= today + 2 days` → English in-app banner **only on Dashboard** (`/`) via `GET /api/utility/due-reminders`
 - UI: gas suppliers list filters to selected row when `supplierId` set; row click selects; “Show all suppliers” clears; Edit also sets selection
 - APIs (`/api/utility`, auth required):
   - `GET /api/utility/due-reminders`
